@@ -38,6 +38,12 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || isTeacher();
     }
 
+    // المواد الدراسية: القراءة للأدمن والمدرسين، والكتابة للأدمن بس
+    match /subjects/{subjectId} {
+      allow read: if isAdmin() || isTeacher();
+      allow write: if isAdmin();
+    }
+
     // الطلاب: ممنوع أي قراءة عامة
     match /students/{studentId} {
       // مستند واحد: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه بإيميله

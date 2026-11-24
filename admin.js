@@ -2,15 +2,19 @@
    يضيف مدرسين (بإنشاء حسابهم في Firebase Auth) ويقدر يعطّلهم أو يشطبهم.
    تقرير الطلاب بعدد طلاب كل مدرس ومستوى كل طالب في كل مادة. */
 
-let adminCache = { teachers: null, students: null };
+let adminCache = { teachers: null, students: null, subjects: null };
 
 async function adminLoad() {
-  const [t, s] = await Promise.all([
+  const [t, s, sub] = await Promise.all([
     fbDb.collection("teachers").orderBy("createdAt", "desc").get(),
     fbDb.collection("students").orderBy("createdAt", "desc").get(),
+    fbDb.collection("subjects").get(),
   ]);
   adminCache.teachers = t.docs.map((d) => ({ id: d.id, ...d.data() }));
   adminCache.students = s.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const stageOrder = { "ابتدائي": 0, "إعدادي": 1, "ثانوي": 2 };
+  adminCache.subjects = sub.docs.map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9));
 }
 
 function adminLayout(content, tab) {
@@ -23,6 +27,7 @@ function adminLayout(content, tab) {
       <button type="button" class="tab ${tab === "stats" ? "active" : ""}" data-g="#/admin">نظرة عامة</button>
       <button type="button" class="tab ${tab === "teachers" ? "active" : ""}" data-g="#/admin/teachers">المدرسين</button>
       <button type="button" class="tab ${tab === "students" ? "active" : ""}" data-g="#/admin/students">الطلاب</button>
+      <button type="button" class="tab ${tab === "subjects" ? "active" : ""}" data-g="#/admin/subjects">المواد الدراسية</button>
     </div>
     ${content}
     ${closing()}`;
@@ -34,9 +39,10 @@ async function renderAdmin(h) {
   app.innerHTML = `<div class="spin">بنحمل بيانات المنصة...</div>`;
   try { await adminLoad(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
-  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : "stats";
+  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : "stats";
   if (tab === "teachers") return adminTeachers();
   if (tab === "students") return adminStudents();
+  if (tab === "subjects") return adminSubjects();
   return adminStats();
 }
 
@@ -59,7 +65,7 @@ function adminStats() {
         <tbody>
           ${teachers.length ? teachers.map((t) => {
             const mine = students.filter((s) => (s.teacherIds || []).includes(t.id));
-            return `<tr>
+            return `<tr data-rv-t="${t.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
               <td>${esc(t.name)}${t.active === false ? ' <span class="chip red">معطّل</span>' : ""}</td>
               <td>${esc(t.subject || "—")}</td>
               <td>${mine.length}</td>
@@ -73,20 +79,125 @@ function adminStats() {
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">مستوى الطلاب في المواد</h2>
       <table class="ttable">
-        <thead><tr><th>الطالب</th><th>المدرس</th><th>السنة</th><th>الحالة</th><th>البرمجة والذكاء الاصطناعي</th></tr></thead>
+        <thead><tr><th>الطالب</th><th>الإيميل</th><th>المدرس</th><th>السنة</th><th>الحالة</th><th>البرمجة والذكاء الاصطناعي</th></tr></thead>
         <tbody>
           ${students.length ? students.map((s) => {
             const tnames = (s.teacherIds || []).map((id) => (adminCache.teachers.find((t) => t.id === id) || {}).name || "—").join("، ");
             const prog = (s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0;
-            return `<tr>
-              <td>${esc(s.name)}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td>
+            return `<tr data-rv-s="${s.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
+              <td>${esc(s.name)}</td><td class="ltr">${esc(s.email || "—")}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td>
               <td>${statusChip(s.status)}</td><td>${prog}%</td>
             </tr>`;
-          }).join("") : `<tr><td colspan="5" class="center muted">لسه مفيش طلاب</td></tr>`}
+          }).join("") : `<tr><td colspan="6" class="center muted">لسه مفيش طلاب</td></tr>`}
         </tbody>
       </table>
     </div>`;
   adminLayout(content, "stats");
+  document.querySelectorAll("[data-rv-t]").forEach((tr) => tr.onclick = () => adminShowTeacher(tr.dataset.rvT));
+  document.querySelectorAll("[data-rv-s]").forEach((tr) => tr.onclick = () => adminShowStudent(tr.dataset.rvS));
+}
+
+/* ---------- المواد الدراسية ---------- */
+const CORE_SUBJECTS = {
+  "ابتدائي": ["اللغة العربية", "اللغة الإنجليزية", "الرياضيات", "العلوم", "الدراسات الاجتماعية", "التربية الدينية", "تكنولوجيا المعلومات"],
+  "إعدادي": ["اللغة العربية", "اللغة الإنجليزية", "الرياضيات", "العلوم", "الدراسات الاجتماعية", "التربية الدينية", "تكنولوجيا المعلومات"],
+  "ثانوي": ["اللغة العربية", "اللغة الإنجليزية", "اللغة الفرنسية", "الرياضيات", "الفيزياء", "الكيمياء", "الأحياء", "الجيولوجيا", "التاريخ", "الجغرافيا", "الفلسفة والمنطق", "البرمجة والذكاء الاصطناعي"],
+};
+const STAGES = ["ابتدائي", "إعدادي", "ثانوي"];
+
+function adminSubjects() {
+  const subjects = adminCache.subjects || [];
+  const content = `
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">إضافة مادة</h2>
+      <div class="filterrow">
+        <input id="sj-name" type="text" class="inp" placeholder="اسم المادة، مثال: اللغة الألمانية">
+        <select id="sj-stage" class="inp">
+          ${STAGES.map((s) => `<option>${s}</option>`).join("")}
+        </select>
+        <button type="button" class="btn" id="sj-add">إضافة</button>
+      </div>
+      <p class="msg" id="sj-msg"></p>
+    </div>
+    ${subjects.length === 0 ? `
+    <div class="card center">
+      <p class="muted">لسه مفيش مواد متسجلة. تقدر تضيف المواد الأساسية لكل المراحل بضغطة واحدة:</p>
+      <button type="button" class="btn" id="sj-seed">إضافة المواد الأساسية لكل المراحل</button>
+    </div>` : ""}
+    ${STAGES.map((stage) => {
+      const list = subjects.filter((s) => s.stage === stage);
+      return `
+      <div class="card">
+        <h2 style="font-size:18px; margin-top:0;">المرحلة ال${stage}ة (${list.length})</h2>
+        <table class="ttable">
+          <thead><tr><th>المادة</th><th>النوع</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            ${list.length ? list.map((s) => `<tr>
+              <td>${esc(s.name)}</td>
+              <td>${s.core ? '<span class="chip green">أساسية</span>' : '<span class="chip amber">إضافية</span>'}</td>
+              <td><button type="button" class="btn sm red" data-sd-sub="${s.id}">حذف</button></td>
+            </tr>`).join("") : `<tr><td colspan="3" class="center muted">مفيش مواد في المرحلة دي لسه</td></tr>`}
+          </tbody>
+        </table>
+      </div>`;
+    }).join("")}`;
+  adminLayout(content, "subjects");
+  document.getElementById("sj-add").onclick = adminAddSubject;
+  const seedBtn = document.getElementById("sj-seed");
+  if (seedBtn) seedBtn.onclick = adminSeedSubjects;
+  document.querySelectorAll("[data-sd-sub]").forEach((b) => b.onclick = () => adminDeleteSubject(b.dataset.sdSub));
+}
+
+function sjMsg(t, good) {
+  const m = document.getElementById("sj-msg");
+  if (m) { m.textContent = t || ""; m.className = "msg " + (good ? "good" : "bad"); }
+}
+
+async function adminAddSubject() {
+  const name = document.getElementById("sj-name").value.trim();
+  const stage = document.getElementById("sj-stage").value;
+  if (!name) return sjMsg("اكتب اسم المادة.");
+  const dup = (adminCache.subjects || []).find((s) => s.name === name && s.stage === stage);
+  if (dup) return sjMsg("المادة دي موجودة في المرحلة دي قبل كده.");
+  try {
+    await fbDb.collection("subjects").add({
+      name, stage, core: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    sjMsg("اتضافت المادة ✅", true);
+    await adminLoad();
+    adminSubjects();
+  } catch (e) { sjMsg("مشكلة: " + (e.message || e)); }
+}
+
+async function adminSeedSubjects() {
+  try {
+    const batch = fbDb.batch();
+    Object.keys(CORE_SUBJECTS).forEach((stage) => {
+      CORE_SUBJECTS[stage].forEach((name) => {
+        const exists = (adminCache.subjects || []).find((s) => s.name === name && s.stage === stage);
+        if (!exists) {
+          batch.set(fbDb.collection("subjects").doc(), {
+            name, stage, core: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    });
+    await batch.commit();
+    await adminLoad();
+    adminSubjects();
+  } catch (e) { alert("مشكلة: " + (e.message || e)); }
+}
+
+async function adminDeleteSubject(id) {
+  const s = (adminCache.subjects || []).find((x) => x.id === id);
+  if (!confirm(`متأكد إنك عايز تحذف مادة "${s ? s.name : ""}"؟`)) return;
+  try {
+    await fbDb.collection("subjects").doc(id).delete();
+    await adminLoad();
+    adminSubjects();
+  } catch (e) { alert("مشكلة: " + (e.message || e)); }
 }
 
 function fmtTs(ts) {
