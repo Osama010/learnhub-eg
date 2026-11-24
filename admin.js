@@ -63,18 +63,19 @@ function adminStats() {
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">طلاب كل مدرس</h2>
       <table class="ttable">
-        <thead><tr><th>المدرس</th><th>المادة</th><th>عدد طلابه</th><th>مقبول</th><th>طلبات جديدة</th></tr></thead>
+        <thead><tr><th>المدرس</th><th>المادة</th><th>المراحل (طلاب كل مرحلة)</th><th>عدد طلابه</th><th>مقبول</th><th>طلبات جديدة</th></tr></thead>
         <tbody>
           ${teachers.length ? teachers.map((t) => {
             const mine = students.filter((s) => (s.teacherIds || []).includes(t.id));
             return `<tr data-rv-t="${t.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
               <td>${esc(t.name)}${t.active === false ? ' <span class="chip red">معطّل</span>' : ""}</td>
               <td>${esc(t.subject || "—")}</td>
+              <td>${esc(teacherStagesText(t))}</td>
               <td>${mine.length}</td>
               <td>${mine.filter((s) => s.status === "approved").length}</td>
               <td>${mine.filter((s) => s.status === "pending").length}</td>
             </tr>`;
-          }).join("") : `<tr><td colspan="5" class="center muted">لسه مفيش مدرسين</td></tr>`}
+          }).join("") : `<tr><td colspan="6" class="center muted">لسه مفيش مدرسين</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -106,6 +107,33 @@ const CORE_SUBJECTS = {
   "ثانوي": ["اللغة العربية", "اللغة الإنجليزية", "اللغة الفرنسية", "الرياضيات", "الفيزياء", "الكيمياء", "الأحياء", "الجيولوجيا", "التاريخ", "الجغرافيا", "الفلسفة والمنطق", "البرمجة والذكاء الاصطناعي"],
 };
 const STAGES = ["ابتدائي", "إعدادي", "ثانوي"];
+
+// مرحلة الطالب من سنة دراسته
+function stageOfGrade(g) {
+  if (!g) return "";
+  if (g.includes("ابتدائي")) return "ابتدائي";
+  if (g.includes("إعدادي")) return "إعدادي";
+  return "ثانوي";
+}
+
+// عدد طلاب المدرس في كل مرحلة
+function stageCountsFor(tid) {
+  const counts = {};
+  (adminCache.students || []).forEach((s) => {
+    if (!(s.teacherIds || []).includes(tid)) return;
+    const st = stageOfGrade(s.grade);
+    if (st) counts[st] = (counts[st] || 0) + 1;
+  });
+  return counts;
+}
+
+// نص: كل مرحلة بيدرّسها المدرس وقد إيه طالب فيها
+function teacherStagesText(t) {
+  const counts = stageCountsFor(t.id);
+  const stages = (t.stages && t.stages.length) ? t.stages : Object.keys(counts);
+  if (!stages.length) return "—";
+  return stages.map((st) => `${st}: ${counts[st] || 0}`).join(" · ");
+}
 
 function adminSubjects() {
   const subjects = adminCache.subjects || [];
@@ -312,6 +340,7 @@ function adminShowTeacher(id) {
     ["الحالة", t.active === false ? "معطّل" : "نشط"],
     ["تاريخ الإضافة", fmtTs(t.createdAt)],
     ["عدد الطلاب", String(mine.length)],
+    ["طلاب كل مرحلة", esc(teacherStagesText(t))],
     ["أسماء الطلاب", mine.length ? mine.map((s) => esc(s.name)).join("، ") : "—"],
   ]);
 }
@@ -378,12 +407,12 @@ function adminTeachers() {
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">المدرسين (${teachers.length})</h2>
       <table class="ttable">
-        <thead><tr><th>الاسم</th><th>المادة</th><th>الإيميل</th><th>طلابه</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <thead><tr><th>الاسم</th><th>المادة</th><th>المراحل (طلاب كل مرحلة)</th><th>الإيميل</th><th>طلابه</th><th>الحالة</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${teachers.length ? teachers.map((t) => {
             const mine = students.filter((s) => (s.teacherIds || []).includes(t.id)).length;
             return `<tr data-rv-t="${t.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
-              <td>${t.photoData ? `<img src="${t.photoData}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-left:8px;">` : ""}${esc(t.name)}</td><td>${esc(t.subject || "—")}</td><td class="ltr">${esc(t.email)}</td><td>${mine}</td>
+              <td>${t.photoData ? `<img src="${t.photoData}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-left:8px;">` : ""}${esc(t.name)}</td><td>${esc(t.subject || "—")}</td><td>${esc(teacherStagesText(t))}</td><td class="ltr">${esc(t.email)}</td><td>${mine}</td>
               <td>${t.active === false ? '<span class="chip red">معطّل</span>' : '<span class="chip green">نشط</span>'}</td>
               <td>
                 <div class="btnrow">
@@ -395,7 +424,7 @@ function adminTeachers() {
                 </div>
               </td>
             </tr>`;
-          }).join("") : `<tr><td colspan="6" class="center muted">لسه مفيش مدرسين</td></tr>`}
+          }).join("") : `<tr><td colspan="7" class="center muted">لسه مفيش مدرسين</td></tr>`}
         </tbody>
       </table>
     </div>`;
@@ -752,9 +781,9 @@ function buildReport() {
     if (reportState.q) { list = list.filter((t) => (t.name || "").includes(reportState.q) || (t.email || "").includes(reportState.q)); desc.push("بحث: " + reportState.q); }
     const rows = list.map((t) => {
       const mine = students.filter((s) => (s.teacherIds || []).includes(t.id)).length;
-      return [t.name || "", t.subject || "—", t.email || "", t.phone || "", String(mine), t.active === false ? "معطّل" : "نشط", fmtTs(t.createdAt)];
+      return [t.name || "", t.subject || "—", (t.stages || []).join("، ") || "—", teacherStagesText(t), t.email || "", t.phone || "", String(mine), t.active === false ? "معطّل" : "نشط", fmtTs(t.createdAt)];
     });
-    return { title: "تقرير المدرسين", columns: ["الاسم", "المادة", "الإيميل", "الواتساب", "عدد الطلاب", "الحالة", "تاريخ الإضافة"], rows, filtersDesc: desc };
+    return { title: "تقرير المدرسين", columns: ["الاسم", "المادة", "المراحل", "طلاب كل مرحلة", "الإيميل", "الواتساب", "عدد الطلاب", "الحالة", "تاريخ الإضافة"], rows, filtersDesc: desc };
   }
 
   if (reportState.type === "subjects") {
