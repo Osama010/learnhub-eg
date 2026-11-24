@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == "osamaasas0@gmail.com";
+    }
+    function isTeacher() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/teachers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.active == true;
+    }
+
+    // ملفات المدرسين الكاملة (فيها إيميل وتليفون): الأدمن أو المدرس نفسه بس
+    match /teachers/{teacherId} {
+      allow get: if isAdmin() || request.auth.uid == teacherId;
+      allow list: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isTeacher() && request.auth.uid == teacherId
+            && request.resource.data.active == resource.data.active);
+    }
+
+    // أسماء ومواد المدرسين للعرض العام في صفحة التسجيل — من غير إيميلات ولا تليفونات
+    match /teachersPublic/{teacherId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // فهرس تسجيل عام آمن: مفتاحه الإيميل، وفيه هاش الرقم السري + الحالة + رقم ملف الطالب
+    // القراءة بمستند واحد بإيميل معروف فقط، وممنوع سرد الفهرس كله
+    match /registrationLookup/{lookupId} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.resource.data.status == "pending"
+        && request.resource.data.teacherIds is list;
+      allow update, delete: if isAdmin() || isTeacher();
+    }
+
+    // الطلاب: ممنوع أي قراءة عامة
+    match /students/{studentId} {
+      // مستند واحد: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه بإيميله
+      allow get: if isAdmin()
+        || (isTeacher() && request.auth.uid in resource.data.teacherIds)
+        || (request.auth != null && request.auth.token.email == resource.data.email);
+      // السرد: الأدمن يشوف الكل، والمدرس (استعلاماته في الكود مقيدة بطلابه بس)
+      allow list: if isAdmin() || isTeacher();
+      // إنشاء: تسجيل جديد بحالة pending، أو الطالب بينقل بياناته لحسابه عند أول دخول.
+      // في النقل: لازم الفهرس العام يكون حالته approved (مدرس أو أدمن بس اللي يعمل كده)
+      // وبيانات المستند الجديد تطابق اللي في الفهرس، فمحدش يقدر يوافق على نفسه
+      // أو يضيف مدرسين من عنده.
+      allow create: if isAdmin() || isTeacher()
+        || request.resource.data.status == "pending"
+        || (request.auth != null && request.auth.uid == studentId
+            && request.resource.data.email == request.auth.token.email
+            && get(/databases/$(database)/documents/registrationLookup/$(request.auth.token.email)).data.status == "approved"
+            && request.resource.data.status == "approved"
+            && request.resource.data.teacherIds == get(/databases/$(database)/documents/registrationLookup/$(request.auth.token.email)).data.teacherIds);
+      // تعديل: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه من غير ما يغير حالته أو إيميله أو مدرسينه
+      allow update: if isAdmin()
+        || (isTeacher() && request.auth.uid in resource.data.teacherIds)
+        || (request.auth != null && request.auth.uid == studentId
+            && request.resource.data.status == resource.data.status
+            && request.resource.data.email == resource.data.email
+            && request.resource.data.teacherIds == resource.data.teacherIds);
+      // حذف: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه (بشيل ملفه القديم عند أول دخول)
+      allow delete: if isAdmin()
+        || (isTeacher() && request.auth.uid in resource.data.teacherIds)
+        || (request.auth != null && request.auth.token.email == resource.data.email);
+    }
+  }
+}
