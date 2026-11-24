@@ -28,6 +28,7 @@ function adminLayout(content, tab) {
       <button type="button" class="tab ${tab === "teachers" ? "active" : ""}" data-g="#/admin/teachers">المدرسين</button>
       <button type="button" class="tab ${tab === "students" ? "active" : ""}" data-g="#/admin/students">الطلاب</button>
       <button type="button" class="tab ${tab === "subjects" ? "active" : ""}" data-g="#/admin/subjects">المواد الدراسية</button>
+      <button type="button" class="tab ${tab === "reports" ? "active" : ""}" data-g="#/admin/reports">التقارير</button>
     </div>
     ${content}
     ${closing()}`;
@@ -39,10 +40,11 @@ async function renderAdmin(h) {
   app.innerHTML = `<div class="spin">بنحمل بيانات المنصة...</div>`;
   try { await adminLoad(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
-  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : "stats";
+  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : h === "#/admin/reports" ? "reports" : "stats";
   if (tab === "teachers") return adminTeachers();
   if (tab === "students") return adminStudents();
   if (tab === "subjects") return adminSubjects();
+  if (tab === "reports") return adminReports();
   return adminStats();
 }
 
@@ -119,6 +121,23 @@ function adminSubjects() {
       </div>
       <p class="msg" id="sj-msg"></p>
     </div>
+    ${subjects.length ? `
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">تقرير المواد</h2>
+      <table class="ttable">
+        <thead><tr><th>المادة</th><th>المرحلة</th><th>عدد المدرسين</th><th>عدد الطلاب</th><th>متوسط تقدم الطلاب</th></tr></thead>
+        <tbody>
+          ${subjectReportRows().map((r) => `<tr>
+            <td>${esc(r.s.name)}</td>
+            <td>ال${esc(r.s.stage)}ة</td>
+            <td>${r.teachers}</td>
+            <td>${r.students}</td>
+            <td>${r.avg}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:12.5px;">المدرس بيتربط بالمادة من خانة "المادة" في بياناته، فلازم اسم المادة عنده يكون نفس الاسم هنا بالظبط.</p>
+    </div>` : ""}
     ${subjects.length === 0 ? `
     <div class="card center">
       <p class="muted">لسه مفيش مواد متسجلة. تقدر تضيف المواد الأساسية لكل المراحل بضغطة واحدة:</p>
@@ -135,7 +154,12 @@ function adminSubjects() {
             ${list.length ? list.map((s) => `<tr>
               <td>${esc(s.name)}</td>
               <td>${s.core ? '<span class="chip green">أساسية</span>' : '<span class="chip amber">إضافية</span>'}</td>
-              <td><button type="button" class="btn sm red" data-sd-sub="${s.id}">حذف</button></td>
+              <td>
+                <div class="btnrow">
+                  <button type="button" class="btn sm ghost" data-se-sub="${s.id}">تعديل</button>
+                  <button type="button" class="btn sm red" data-sd-sub="${s.id}">حذف</button>
+                </div>
+              </td>
             </tr>`).join("") : `<tr><td colspan="3" class="center muted">مفيش مواد في المرحلة دي لسه</td></tr>`}
           </tbody>
         </table>
@@ -145,7 +169,64 @@ function adminSubjects() {
   document.getElementById("sj-add").onclick = adminAddSubject;
   const seedBtn = document.getElementById("sj-seed");
   if (seedBtn) seedBtn.onclick = adminSeedSubjects;
+  document.querySelectorAll("[data-se-sub]").forEach((b) => b.onclick = () => adminEditSubject(b.dataset.seSub));
   document.querySelectorAll("[data-sd-sub]").forEach((b) => b.onclick = () => adminDeleteSubject(b.dataset.sdSub));
+}
+
+function subjectReportRows() {
+  const teachers = adminCache.teachers || [];
+  const students = adminCache.students || [];
+  return (adminCache.subjects || []).map((s) => {
+    const ts = teachers.filter((t) => (t.subject || "").trim() === s.name.trim());
+    const tids = ts.map((t) => t.id);
+    const ss = students.filter((st) => (st.teacherIds || []).some((id) => tids.includes(id)));
+    let progSum = 0, progN = 0;
+    ss.forEach((st) => {
+      const p = st.progress || {};
+      const vals = Object.keys(p).map((k) => p[k] && p[k].percent).filter((v) => typeof v === "number");
+      if (vals.length) { progSum += vals.reduce((a, b) => a + b, 0) / vals.length; progN++; }
+    });
+    return { s, teachers: ts.length, students: ss.length, avg: progN ? Math.round(progSum / progN) + "%" : "—" };
+  });
+}
+
+function adminEditSubject(id) {
+  const s = (adminCache.subjects || []).find((x) => x.id === id);
+  if (!s) return;
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `<div class="detailcard">
+    <h3>تعديل المادة</h3>
+    <label class="flabel">اسم المادة</label>
+    <input id="ej-name" type="text" class="inp" value="${esc(s.name)}">
+    <label class="flabel">المرحلة</label>
+    <select id="ej-stage" class="inp">
+      ${STAGES.map((st) => `<option ${s.stage === st ? "selected" : ""}>${st}</option>`).join("")}
+    </select>
+    <div class="btnrow" style="justify-content:center; margin-top:14px;">
+      <button type="button" class="btn" id="ej-save">حفظ</button>
+      <button type="button" class="btn ghost" id="ej-cancel">إلغاء</button>
+    </div>
+    <p class="msg" id="ej-msg"></p>
+  </div>`;
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  ov.querySelector("#ej-cancel").onclick = () => ov.remove();
+  ov.querySelector("#ej-save").onclick = async () => {
+    const name = ov.querySelector("#ej-name").value.trim();
+    const stage = ov.querySelector("#ej-stage").value;
+    const m = ov.querySelector("#ej-msg");
+    if (!name) { m.textContent = "اكتب اسم المادة."; m.className = "msg bad"; return; }
+    try {
+      await fbDb.collection("subjects").doc(id).update({ name, stage });
+      ov.remove();
+      await adminLoad();
+      adminSubjects();
+    } catch (e) {
+      m.textContent = "مشكلة: " + (e.message || e);
+      m.className = "msg bad";
+    }
+  };
 }
 
 function sjMsg(t, good) {
@@ -256,12 +337,18 @@ function adminTeachers() {
   const teachers = adminCache.teachers || [];
   const students = adminCache.students || [];
   const editing = editingTeacherId ? (adminCache.teachers || []).find((t) => t.id === editingTeacherId) : null;
+  const subjects = adminCache.subjects || [];
+  const subjectOptions = subjects.map((s) => `<option value="${esc(s.name)}" ${editing && (editing.subject || "") === s.name ? "selected" : ""}>${esc(s.name)} — ال${esc(s.stage)}ة</option>`).join("");
   const content = `
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">${editing ? "تعديل بيانات: " + esc(editing.name) : "إضافة مدرس جديد"}</h2>
       <div class="grid2">
         <div><label class="flabel">اسم المدرس</label><input id="ta-name" type="text" class="inp" placeholder="اسم المدرس" value="${editing ? esc(editing.name) : ""}"></div>
-        <div><label class="flabel">المادة</label><input id="ta-subject" type="text" class="inp" placeholder="مثال: البرمجة والذكاء الاصطناعي" value="${editing ? esc(editing.subject || "") : ""}"></div>
+        <div><label class="flabel">المادة</label><select id="ta-subject" class="inp">
+          <option value="">اختار المادة</option>
+          ${subjectOptions}
+        </select>
+        ${subjects.length === 0 ? `<p class="muted" style="font-size:12.5px;">ضيف المواد الأول من تاب "المواد الدراسية" وبعدين ارجع هنا.</p>` : ""}</div>
         <div><label class="flabel">الإيميل</label><input id="ta-email" type="email" class="inp ltr" placeholder="teacher@example.com" value="${editing ? esc(editing.email || "") : ""}"></div>
         <div><label class="flabel">رقم الواتساب</label><input id="ta-phone" type="tel" class="inp ltr" placeholder="201xxxxxxxxx" value="${editing ? esc(editing.phone || "") : ""}"></div>
         ${editing ? "" : `<div><label class="flabel">باسورد مؤقت</label><input id="ta-pass" type="text" class="inp ltr" placeholder="6 أحرف على الأقل"></div>`}
@@ -337,6 +424,7 @@ async function adminSaveTeacher() {
   const email = document.getElementById("ta-email").value.trim().toLowerCase();
   const phone = document.getElementById("ta-phone").value.trim();
   if (!name) return taMsg("اكتب اسم المدرس.");
+  if (!subject) return taMsg("اختار المادة من القايمة.");
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return taMsg("اكتب إيميل صح.");
   if (editingTeacherId) {
     // تعديل بيانات مدرس موجود (السجل + النسخة العامة)
@@ -576,4 +664,202 @@ async function adminDeleteStudent(id) {
     await adminLoad();
     adminStudents();
   } catch (e) { alert("مشكلة: " + (e.message || e)); }
+}
+
+/* ---------- التقارير ---------- */
+let reportState = { type: "students", teacher: "", status: "", grade: "", stage: "", kind: "", q: "", from: "", to: "" };
+
+function statusText(st) {
+  return st === "approved" ? "مقبول" : st === "rejected" ? "مرفوض" : "تحت المراجعة";
+}
+
+function studentProgressAvg(st) {
+  const p = st.progress || {};
+  const vals = Object.keys(p).map((k) => p[k] && p[k].percent).filter((v) => typeof v === "number");
+  return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+}
+
+function tsToDate(ts) {
+  try { return ts && ts.toDate ? ts.toDate() : null; } catch (e) { return null; }
+}
+
+// بترجع { title, columns, rows, filtersDesc }
+function buildReport() {
+  const teachers = adminCache.teachers || [];
+  const students = adminCache.students || [];
+  const subjects = adminCache.subjects || [];
+  const tName = (id) => (teachers.find((t) => t.id === id) || {}).name || "—";
+  const desc = [];
+
+  if (reportState.type === "teachers") {
+    let list = teachers.slice();
+    if (reportState.subject) { list = list.filter((t) => (t.subject || "").trim() === reportState.subject); desc.push("المادة: " + reportState.subject); }
+    if (reportState.status) { list = list.filter((t) => reportState.status === "active" ? t.active !== false : t.active === false); desc.push("الحالة: " + (reportState.status === "active" ? "نشط" : "معطّل")); }
+    if (reportState.q) { list = list.filter((t) => (t.name || "").includes(reportState.q) || (t.email || "").includes(reportState.q)); desc.push("بحث: " + reportState.q); }
+    const rows = list.map((t) => {
+      const mine = students.filter((s) => (s.teacherIds || []).includes(t.id)).length;
+      return [t.name || "", t.subject || "—", t.email || "", t.phone || "", String(mine), t.active === false ? "معطّل" : "نشط", fmtTs(t.createdAt)];
+    });
+    return { title: "تقرير المدرسين", columns: ["الاسم", "المادة", "الإيميل", "الواتساب", "عدد الطلاب", "الحالة", "تاريخ الإضافة"], rows, filtersDesc: desc };
+  }
+
+  if (reportState.type === "subjects") {
+    let list = subjects.slice();
+    if (reportState.stage) { list = list.filter((s) => s.stage === reportState.stage); desc.push("المرحلة: " + reportState.stage); }
+    if (reportState.kind) { list = list.filter((s) => reportState.kind === "core" ? s.core : !s.core); desc.push("النوع: " + (reportState.kind === "core" ? "أساسية" : "إضافية")); }
+    if (reportState.q) { list = list.filter((s) => (s.name || "").includes(reportState.q)); desc.push("بحث: " + reportState.q); }
+    const rows = list.map((s) => {
+      const ts = teachers.filter((t) => (t.subject || "").trim() === s.name.trim());
+      const tids = ts.map((t) => t.id);
+      const ss = students.filter((st) => (st.teacherIds || []).some((id) => tids.includes(id)));
+      let sum = 0, n = 0;
+      ss.forEach((st) => { const a = studentProgressAvg(st); if (a !== null) { sum += a; n++; } });
+      return [s.name || "", "ال" + (s.stage || "") + "ة", s.core ? "أساسية" : "إضافية", String(ts.length), String(ss.length), n ? Math.round(sum / n) + "%" : "—"];
+    });
+    return { title: "تقرير المواد", columns: ["المادة", "المرحلة", "النوع", "عدد المدرسين", "عدد الطلاب", "متوسط التقدم"], rows, filtersDesc: desc };
+  }
+
+  // الطلاب (الافتراضي)
+  let list = students.slice();
+  if (reportState.teacher) { list = list.filter((s) => (s.teacherIds || []).includes(reportState.teacher)); desc.push("المدرس: " + tName(reportState.teacher)); }
+  if (reportState.status) { list = list.filter((s) => s.status === reportState.status); desc.push("الحالة: " + statusText(reportState.status)); }
+  if (reportState.grade) { list = list.filter((s) => s.grade === reportState.grade); desc.push("السنة: " + reportState.grade); }
+  if (reportState.q) { list = list.filter((s) => (s.name || "").includes(reportState.q) || (s.email || "").includes(reportState.q)); desc.push("بحث: " + reportState.q); }
+  if (reportState.from) { const d = new Date(reportState.from + "T00:00:00"); list = list.filter((s) => { const c = tsToDate(s.createdAt); return c && c >= d; }); desc.push("من: " + reportState.from); }
+  if (reportState.to) { const d = new Date(reportState.to + "T23:59:59"); list = list.filter((s) => { const c = tsToDate(s.createdAt); return c && c <= d; }); desc.push("إلى: " + reportState.to); }
+  const rows = list.map((s) => {
+    const tnames = (s.teacherIds || []).map(tName).join("، ");
+    const avg = studentProgressAvg(s);
+    return [s.name || "", s.email || "", s.phone || "", s.grade || "—", tnames || "—", statusText(s.status), avg !== null ? avg + "%" : "—", fmtTs(s.createdAt)];
+  });
+  return { title: "تقرير الطلاب", columns: ["الاسم", "الإيميل", "الموبايل", "السنة الدراسية", "المدرسين", "الحالة", "التقدم", "تاريخ التسجيل"], rows, filtersDesc: desc };
+}
+
+function adminReports() {
+  const rep = buildReport();
+  const teachers = adminCache.teachers || [];
+  const subjects = adminCache.subjects || [];
+  const subjectNames = Array.from(new Set(subjects.map((s) => s.name)));
+  const typeBtn = (id, label) => `<button type="button" class="tab ${reportState.type === id ? "active" : ""}" data-rt="${id}">${label}</button>`;
+  let filtersHtml = `<input id="rf-q" type="text" class="inp" placeholder="بحث بالاسم أو الإيميل..." value="${esc(reportState.q)}">`;
+  if (reportState.type === "students") {
+    filtersHtml = `
+      <select id="rf-teacher" class="inp"><option value="">كل المدرسين</option>
+        ${teachers.map((t) => `<option value="${t.id}" ${reportState.teacher === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
+      <select id="rf-status" class="inp"><option value="">كل الحالات</option>
+        <option value="pending" ${reportState.status === "pending" ? "selected" : ""}>تحت المراجعة</option>
+        <option value="approved" ${reportState.status === "approved" ? "selected" : ""}>مقبول</option>
+        <option value="rejected" ${reportState.status === "rejected" ? "selected" : ""}>مرفوض</option></select>
+      <select id="rf-grade" class="inp"><option value="">كل السنوات</option>
+        ${GRADES.map((g) => `<option ${reportState.grade === g ? "selected" : ""}>${g}</option>`).join("")}</select>
+      <input id="rf-from" type="date" class="inp" value="${esc(reportState.from)}" title="من تاريخ">
+      <input id="rf-to" type="date" class="inp" value="${esc(reportState.to)}" title="إلى تاريخ">
+      ` + filtersHtml;
+  } else if (reportState.type === "teachers") {
+    filtersHtml = `
+      <select id="rf-subject" class="inp"><option value="">كل المواد</option>
+        ${subjectNames.map((n) => `<option ${reportState.subject === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
+      <select id="rf-status" class="inp"><option value="">كل الحالات</option>
+        <option value="active" ${reportState.status === "active" ? "selected" : ""}>نشط</option>
+        <option value="inactive" ${reportState.status === "inactive" ? "selected" : ""}>معطّل</option></select>
+      ` + filtersHtml;
+  } else {
+    filtersHtml = `
+      <select id="rf-stage" class="inp"><option value="">كل المراحل</option>
+        ${STAGES.map((s) => `<option ${reportState.stage === s ? "selected" : ""}>${s}</option>`).join("")}</select>
+      <select id="rf-kind" class="inp"><option value="">أساسية + إضافية</option>
+        <option value="core" ${reportState.kind === "core" ? "selected" : ""}>أساسية بس</option>
+        <option value="extra" ${reportState.kind === "extra" ? "selected" : ""}>إضافية بس</option></select>
+      ` + filtersHtml;
+  }
+  const content = `
+    <div class="tabs">${typeBtn("students", "تقرير الطلاب")}${typeBtn("teachers", "تقرير المدرسين")}${typeBtn("subjects", "تقرير المواد")}</div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">${rep.title} (${rep.rows.length})</h2>
+      <div class="filterrow">${filtersHtml}</div>
+      <div class="btnrow" style="margin-bottom:12px;">
+        <button type="button" class="btn" id="rp-print">🖨️ طباعة / PDF</button>
+        <button type="button" class="btn ghost" id="rp-csv">تصدير CSV</button>
+        <button type="button" class="btn ghost" id="rp-xls">تصدير Excel</button>
+        <button type="button" class="btn ghost" id="rp-clear">مسح الفلاتر</button>
+      </div>
+      <div style="overflow-x:auto;">
+      <table class="ttable">
+        <thead><tr>${rep.columns.map((c) => `<th>${c}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${rep.rows.length ? rep.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${rep.columns.length}" class="center muted">مفيش بيانات بالفلاتر دي</td></tr>`}
+        </tbody>
+      </table>
+      </div>
+      <p class="muted" style="font-size:12.5px;">الطباعة والتصدير بيطلعوا اللي قدامك بالفلاتر الحالية. امسح الفلاتر لو عايز التقرير الكامل.</p>
+    </div>`;
+  adminLayout(content, "reports");
+  document.querySelectorAll("[data-rt]").forEach((b) => b.onclick = () => { reportState = { type: b.dataset.rt, teacher: "", status: "", grade: "", stage: "", kind: "", q: "", from: "", to: "" }; adminReports(); });
+  const bind = (id, key, ev) => { const el = document.getElementById(id); if (el) el[ev] = (e) => { reportState[key] = e.target.value.trim ? e.target.value.trim() : e.target.value; adminReports(); }; };
+  bind("rf-teacher", "teacher", "onchange");
+  bind("rf-status", "status", "onchange");
+  bind("rf-grade", "grade", "onchange");
+  bind("rf-stage", "stage", "onchange");
+  bind("rf-kind", "kind", "onchange");
+  bind("rf-subject", "subject", "onchange");
+  bind("rf-from", "from", "onchange");
+  bind("rf-to", "to", "onchange");
+  const q = document.getElementById("rf-q");
+  if (q) q.onchange = (e) => { reportState.q = e.target.value.trim(); adminReports(); };
+  document.getElementById("rp-clear").onclick = () => { const t = reportState.type; reportState = { type: t, teacher: "", status: "", grade: "", stage: "", kind: "", q: "", from: "", to: "" }; adminReports(); };
+  document.getElementById("rp-print").onclick = printReport;
+  document.getElementById("rp-csv").onclick = () => exportReport("csv");
+  document.getElementById("rp-xls").onclick = () => exportReport("xls");
+}
+
+function printReport() {
+  const rep = buildReport();
+  const w = window.open("", "_blank");
+  if (!w) { alert("المتصفح مانع النافذة المنبثقة. اسمح بيها وجرّب تاني."); return; }
+  const escP = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${escP(rep.title)}</title>
+  <style>
+    body { font-family: "Cairo", "Segoe UI", Tahoma, sans-serif; direction: rtl; padding: 24px; color: #1e293b; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .meta { color: #64748b; font-size: 12.5px; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #cbd5e1; padding: 7px 10px; text-align: right; }
+    th { background: #f1f5f9; }
+    .foot { margin-top: 18px; color: #64748b; font-size: 12px; text-align: center; }
+    @media print { body { padding: 0; } }
+  </style></head><body>
+  <h1>${escP(rep.title)} — منصة learnhub-eg</h1>
+  <div class="meta">تاريخ التقرير: ${escP(new Date().toLocaleString("ar-EG"))} · عدد السجلات: ${rep.rows.length}${rep.filtersDesc.length ? " · الفلاتر: " + escP(rep.filtersDesc.join(" | ")) : " · كل البيانات بدون فلاتر"}</div>
+  <table><thead><tr>${rep.columns.map((c) => `<th>${escP(c)}</th>`).join("")}</tr></thead>
+  <tbody>${rep.rows.map((r) => `<tr>${r.map((c) => `<td>${escP(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+  <div class="foot">فكرة وإعداد: مهندس اسامه حسن عسس</div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+function exportReport(kind) {
+  const rep = buildReport();
+  const stamp = new Date().toISOString().slice(0, 10);
+  if (kind === "csv") {
+    const lines = [rep.columns].concat(rep.rows).map((r) => r.map((c) => `"${String(c == null ? "" : c).replace(/"/g, '""')}"`).join(","));
+    const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    downloadBlob(blob, `${rep.title}-${stamp}.csv`);
+  } else {
+    const escP = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>
+      <table border="1"><thead><tr>${rep.columns.map((c) => `<th>${escP(c)}</th>`).join("")}</tr></thead>
+      <tbody>${rep.rows.map((r) => `<tr>${r.map((c) => `<td>${escP(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+    const blob = new Blob(["\ufeff" + html], { type: "application/vnd.ms-excel" });
+    downloadBlob(blob, `${rep.title}-${stamp}.xls`);
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
