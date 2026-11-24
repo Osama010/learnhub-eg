@@ -35,6 +35,11 @@ function initFirebase() {
 async function resolveRole(u) {
   try {
     if (u.email === ADMIN_EMAIL) { fbRole = "admin"; return; }
+    // مشرف إضافي: إيميله مسجل في مجموعة admins
+    try {
+      const a = await fbDb.collection("admins").doc((u.email || "").toLowerCase()).get();
+      if (a.exists) { fbRole = "admin"; fbProfile = { id: u.uid, ...a.data() }; return; }
+    } catch (_) {}
     const t = await fbDb.collection("teachers").doc(u.uid).get();
     if (t.exists && t.data().active !== false) {
       fbRole = "teacher";
@@ -179,9 +184,15 @@ async function doGoogleLogin() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
     const cred = await fbAuth.signInWithPopup(provider);
-    if (cred.user.email !== ADMIN_EMAIL) {
+    let isAdm = cred.user.email === ADMIN_EMAIL;
+    if (!isAdm) {
+      try {
+        isAdm = (await fbDb.collection("admins").doc((cred.user.email || "").toLowerCase()).get()).exists;
+      } catch (_) {}
+    }
+    if (!isAdm) {
       await fbAuth.signOut();
-      return loginMsg("الحساب ده مش حساب الأدمن.");
+      return loginMsg("الحساب ده مش مسجل كمشرف. اطلب من الأدمن الأساسي يضيف إيميلك من تاب المشرفين.");
     }
     fbRole = "admin";
     route();

@@ -2,26 +2,34 @@
    يضيف مدرسين (بإنشاء حسابهم في Firebase Auth) ويقدر يعطّلهم أو يشطبهم.
    تقرير الطلاب بعدد طلاب كل مدرس ومستوى كل طالب في كل مادة. */
 
-let adminCache = { teachers: null, students: null, subjects: null };
+let adminCache = { teachers: null, students: null, subjects: null, admins: null };
 
 async function adminLoad() {
-  const [t, s, sub] = await Promise.all([
+  const [t, s, sub, adm] = await Promise.all([
     fbDb.collection("teachers").orderBy("createdAt", "desc").get(),
     fbDb.collection("students").orderBy("createdAt", "desc").get(),
     fbDb.collection("subjects").get(),
+    fbDb.collection("admins").get(),
   ]);
   adminCache.teachers = t.docs.map((d) => ({ id: d.id, ...d.data() }));
   adminCache.students = s.docs.map((d) => ({ id: d.id, ...d.data() }));
   const stageOrder = { "ابتدائي": 0, "إعدادي": 1, "ثانوي": 2 };
   adminCache.subjects = sub.docs.map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9));
+  adminCache.admins = adm.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // أول تشغيل: سجّل الأدمن الأساسي في المجموعة لو مش موجود
+  if (fbUser && fbUser.email === ADMIN_EMAIL && !adminCache.admins.some((a) => a.id === ADMIN_EMAIL)) {
+    const doc = { email: ADMIN_EMAIL, name: "الأدمن الأساسي", addedAt: firebase.firestore.FieldValue.serverTimestamp(), addedBy: "النظام" };
+    await fbDb.collection("admins").doc(ADMIN_EMAIL).set(doc);
+    adminCache.admins.unshift({ id: ADMIN_EMAIL, ...doc, addedAt: null });
+  }
 }
 
 function adminLayout(content, tab) {
   app.innerHTML = `
     <div class="hdr">
       <h1>لوحة تحكم الأدمن</h1>
-      <div class="fact">${esc(ADMIN_EMAIL)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
+      <div class="fact">${esc(fbUser && fbUser.email || ADMIN_EMAIL)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
     </div>
     <div class="tabs">
       <button type="button" class="tab ${tab === "stats" ? "active" : ""}" data-g="#/admin">نظرة عامة</button>
@@ -29,6 +37,7 @@ function adminLayout(content, tab) {
       <button type="button" class="tab ${tab === "students" ? "active" : ""}" data-g="#/admin/students">الطلاب</button>
       <button type="button" class="tab ${tab === "subjects" ? "active" : ""}" data-g="#/admin/subjects">المواد الدراسية</button>
       <button type="button" class="tab ${tab === "reports" ? "active" : ""}" data-g="#/admin/reports">التقارير</button>
+      <button type="button" class="tab ${tab === "admins" ? "active" : ""}" data-g="#/admin/admins">المشرفين</button>
     </div>
     ${content}
     ${closing()}`;
@@ -40,11 +49,12 @@ async function renderAdmin(h) {
   app.innerHTML = `<div class="spin">بنحمل بيانات المنصة...</div>`;
   try { await adminLoad(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
-  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : h === "#/admin/reports" ? "reports" : "stats";
+  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : h === "#/admin/reports" ? "reports" : h === "#/admin/admins" ? "admins" : "stats";
   if (tab === "teachers") return adminTeachers();
   if (tab === "students") return adminStudents();
   if (tab === "subjects") return adminSubjects();
   if (tab === "reports") return adminReports();
+  if (tab === "admins") return adminAdmins();
   return adminStats();
 }
 
@@ -945,4 +955,83 @@ function downloadBlob(blob, filename) {
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* ---------- المشرفين (أكتر من أدمن) ---------- */
+function admMsg(t, good) {
+  const m = document.getElementById("adm-msg");
+  if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
+}
+
+function adminAdmins() {
+  const admins = adminCache.admins || [];
+  const myEmail = (fbUser && fbUser.email) || "";
+  const content = `
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">إضافة مشرف جديد</h2>
+      <div class="fgrid">
+        <div><label class="flabel">اسم المشرف</label><input id="an-name" type="text" class="inp" placeholder="اسم المشرف"></div>
+        <div><label class="flabel">الإيميل (جيميل)</label><input id="an-email" type="email" class="inp" dir="ltr" placeholder="admin@gmail.com"></div>
+      </div>
+      <button type="button" class="btn" id="an-add">إضافة المشرف</button>
+      <p id="adm-msg" class="msg"></p>
+      <p class="muted" style="font-size:12.5px;">المشرف الجديد بيدخل من زر "دخول الأدمن" بحساب جوجل بتاع الإيميل ده، وبيقدر يعمل كل حاجة في اللوحة زي الأدمن الأساسي. الإيميل بيتحفظ صغير (lowercase) عشان المطابقة تظبط.</p>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">المشرفين (${admins.length})</h2>
+      <table class="ttable">
+        <thead><tr><th>الاسم</th><th>الإيميل</th><th>أضافه</th><th>تاريخ الإضافة</th><th>إجراءات</th></tr></thead>
+        <tbody>
+          ${admins.length ? admins.map((a) => {
+            const isSuper = a.id === ADMIN_EMAIL;
+            const isMe = a.id === myEmail;
+            return `<tr>
+              <td>${esc(a.name || "—")}${isSuper ? ' <span class="chip green">أساسي</span>' : ""}${isMe && !isSuper ? ' <span class="chip">أنت</span>' : ""}</td>
+              <td class="ltr">${esc(a.id)}</td>
+              <td>${esc(a.addedBy || "—")}</td>
+              <td>${a.addedAt ? fmtTs(a.addedAt) : "—"}</td>
+              <td>${isSuper ? '<span class="muted" style="font-size:12.5px;">ميتحذفش</span>'
+                : isMe ? '<span class="muted" style="font-size:12.5px;">متحذفش نفسك</span>'
+                : `<button type="button" class="btn sm red" data-admdel="${esc(a.id)}">حذف</button>`}</td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="5" class="center muted">مفيش مشرفين مسجلين</td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+  adminLayout(content, "admins");
+  document.getElementById("an-add").onclick = adminAddAdmin;
+  document.querySelectorAll("[data-admdel]").forEach((b) => b.onclick = () => adminDeleteAdmin(b.dataset.admdel));
+}
+
+async function adminAddAdmin() {
+  const name = document.getElementById("an-name").value.trim();
+  const email = document.getElementById("an-email").value.trim().toLowerCase();
+  if (!name || !email || !email.includes("@")) return admMsg("اكتب اسم المشرف وإيميله صح.");
+  const btn = document.getElementById("an-add");
+  btn.disabled = true;
+  try {
+    if ((adminCache.admins || []).some((a) => a.id === email)) {
+      btn.disabled = false;
+      return admMsg("الإيميل ده مسجل مشرف أصلاً.");
+    }
+    const doc = { email, name, addedAt: firebase.firestore.FieldValue.serverTimestamp(), addedBy: (fbUser && fbUser.email) || "" };
+    await fbDb.collection("admins").doc(email).set(doc);
+    adminCache.admins.push({ id: email, ...doc, addedAt: null });
+    adminAdmins();
+  } catch (e) {
+    btn.disabled = false;
+    admMsg("حصلت مشكلة: " + (e.message || e));
+  }
+}
+
+async function adminDeleteAdmin(email) {
+  if (email === ADMIN_EMAIL) return;
+  if (!confirm(`متأكد إنك عايز تحذف المشرف ${email}؟ مش هيقدر يدخل اللوحة تاني.`)) return;
+  try {
+    await fbDb.collection("admins").doc(email).delete();
+    adminCache.admins = (adminCache.admins || []).filter((a) => a.id !== email);
+    adminAdmins();
+  } catch (e) {
+    alert("حصلت مشكلة: " + (e.message || e));
+  }
 }

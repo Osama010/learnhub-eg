@@ -2,13 +2,27 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // الأدمن: الإيميل الأساسي، أو إيميل مسجل في مجموعة admins (يضيفهم الأدمن من اللوحة)
+    // لازم الإيميل يكون متحقق منه (جوجل بيحقق تلقائياً)، عشان محدش يعمل حساب
+    // بإيميل وباسورد بإيميل أدمن من غير تحقق وياخد صلاحياته
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == "osamaasas0@gmail.com";
+      return request.auth != null && request.auth.token.email_verified == true
+        && (request.auth.token.email == "osamaasas0@gmail.com"
+            || exists(/databases/$(database)/documents/admins/$(request.auth.token.email)));
     }
     function isTeacher() {
       return request.auth != null
         && exists(/databases/$(database)/documents/teachers/$(request.auth.uid))
         && get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.active == true;
+    }
+
+    // المشرفين: مفتاح المستند هو الإيميل. القراءة والإضافة والحذف للأدمن بس،
+    // ومستند الأدمن الأساسي ميتحذفش أبداً، والتعديل مقفول (حذف + إضافة من جديد بدله)
+    match /admins/{email} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin() && email != "osamaasas0@gmail.com";
     }
 
     // ملفات المدرسين الكاملة (فيها إيميل وتليفون): الأدمن أو المدرس نفسه بس
@@ -46,10 +60,15 @@ service cloud.firestore {
 
     // الطلاب: ممنوع أي قراءة عامة
     match /students/{studentId} {
-      // مستند واحد: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه بإيميله
+      // مستند واحد: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه.
+      // المطابقة بالإيميل شغالة بس قبل ما الطالب يربط ملفه بحسابه (authLinked):
+      // كده حساب بإيميل وباسورد غير متحقق بنفس إيميل طالب ميقدرش يقرا ملفه
+      // بعد الربط، والربط نفسه محمي بالرقم السري في registrationLookup
       allow get: if isAdmin()
         || (isTeacher() && request.auth.uid in resource.data.teacherIds)
-        || (request.auth != null && request.auth.token.email == resource.data.email);
+        || (request.auth != null && request.auth.uid == studentId)
+        || (request.auth != null && request.auth.token.email == resource.data.email
+            && resource.data.authLinked != true);
       // السرد: الأدمن يشوف الكل، والمدرس (استعلاماته في الكود مقيدة بطلابه بس)
       allow list: if isAdmin() || isTeacher();
       // إنشاء: تسجيل جديد بحالة pending، أو الطالب بينقل بياناته لحسابه عند أول دخول.
@@ -70,10 +89,12 @@ service cloud.firestore {
             && request.resource.data.status == resource.data.status
             && request.resource.data.email == resource.data.email
             && request.resource.data.teacherIds == resource.data.teacherIds);
-      // حذف: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه (بشيل ملفه القديم عند أول دخول)
+      // حذف: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه (بشيل ملفه القديم عند أول دخول).
+      // المطابقة بالإيميل برضه قبل الربط بس
       allow delete: if isAdmin()
         || (isTeacher() && request.auth.uid in resource.data.teacherIds)
-        || (request.auth != null && request.auth.token.email == resource.data.email);
+        || (request.auth != null && request.auth.token.email == resource.data.email
+            && resource.data.authLinked != true);
     }
   }
 }
