@@ -171,7 +171,7 @@ function adminTeachers() {
         <tbody>
           ${teachers.length ? teachers.map((t) => {
             const mine = students.filter((s) => (s.teacherIds || []).includes(t.id)).length;
-            return `<tr>
+            return `<tr data-rv-t="${t.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
               <td>${esc(t.name)}</td><td>${esc(t.subject || "—")}</td><td class="ltr">${esc(t.email)}</td><td>${mine}</td>
               <td>${t.active === false ? '<span class="chip red">معطّل</span>' : '<span class="chip green">نشط</span>'}</td>
               <td>
@@ -193,6 +193,10 @@ function adminTeachers() {
   const cancelBtn = document.getElementById("ta-cancel");
   if (cancelBtn) cancelBtn.onclick = () => { editingTeacherId = null; adminTeachers(); };
   document.querySelectorAll("[data-tv]").forEach((b) => b.onclick = () => adminShowTeacher(b.dataset.tv));
+  document.querySelectorAll("[data-rv-t]").forEach((tr) => tr.onclick = (e) => {
+    if (e.target.closest("button") || e.target.closest("a")) return;
+    adminShowTeacher(tr.dataset.rvT);
+  });
   document.querySelectorAll("[data-te]").forEach((b) => b.onclick = () => { editingTeacherId = b.dataset.te; adminTeachers(); });
   document.querySelectorAll("[data-tr]").forEach((b) => b.onclick = () => adminResetTeacher(b.dataset.tr));
   document.querySelectorAll("[data-tg]").forEach((b) => b.onclick = () => adminToggleTeacher(b.dataset.tg));
@@ -330,24 +334,25 @@ function adminStudents() {
         <input id="af-q" type="text" class="inp" placeholder="بحث بالاسم..." value="${esc(adminFilter.q)}">
       </div>
       <table class="ttable">
-        <thead><tr><th>الطالب</th><th>المدرس</th><th>السنة</th><th>الحالة</th><th>البرمجة</th><th>إجراءات</th></tr></thead>
+        <thead><tr><th>الطالب</th><th>الإيميل</th><th>المدرس</th><th>السنة</th><th>الحالة</th><th>البرمجة</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${students.length ? students.map((s) => {
             const tnames = (s.teacherIds || []).map((id) => (teachers.find((t) => t.id === id) || {}).name || "—").join("، ");
             const prog = (s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0;
-            return `<tr>
-              <td>${esc(s.name)}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td>
+            return `<tr data-rv-s="${s.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
+              <td>${esc(s.name)}</td><td class="ltr">${esc(s.email || "—")}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td>
               <td>${statusChip(s.status)}</td><td>${prog}%</td>
               <td>
                 <div class="btnrow">
                   <button type="button" class="btn sm ghost" data-sv="${s.id}">عرض</button>
+                  <button type="button" class="btn sm ghost" data-se="${s.id}">تعديل</button>
                   ${s.phone ? `<a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك الأدمن من منصة الدروس.")}">واتساب</a>` : ""}
                   ${s.status !== "approved" ? `<button type="button" class="btn sm ghost" data-ap="${s.id}">قبول</button>` : ""}
                   <button type="button" class="btn sm red" data-sd="${s.id}">حذف</button>
                 </div>
               </td>
             </tr>`;
-          }).join("") : `<tr><td colspan="6" class="center muted">مفيش نتايج</td></tr>`}
+          }).join("") : `<tr><td colspan="7" class="center muted">مفيش نتايج</td></tr>`}
         </tbody>
       </table>
     </div>`;
@@ -356,8 +361,81 @@ function adminStudents() {
   document.getElementById("af-s").onchange = (e) => { adminFilter.status = e.target.value; adminStudents(); };
   document.getElementById("af-q").oninput = (e) => { adminFilter.q = e.target.value.trim(); adminStudents(); };
   document.querySelectorAll("[data-sv]").forEach((b) => b.onclick = () => adminShowStudent(b.dataset.sv));
+  document.querySelectorAll("[data-se]").forEach((b) => b.onclick = () => adminEditStudent(b.dataset.se));
+  document.querySelectorAll("[data-rv-s]").forEach((tr) => tr.onclick = (e) => {
+    if (e.target.closest("button") || e.target.closest("a")) return;
+    adminShowStudent(tr.dataset.rvS);
+  });
   document.querySelectorAll("[data-ap]").forEach((b) => b.onclick = () => adminApprove(b.dataset.ap));
   document.querySelectorAll("[data-sd]").forEach((b) => b.onclick = () => adminDeleteStudent(b.dataset.sd));
+}
+
+function adminEditStudent(id) {
+  const s = (adminCache.students || []).find((x) => x.id === id);
+  if (!s) return;
+  const linked = !!s.authLinked;
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `<div class="detailcard">
+    <h3>تعديل بيانات: ${esc(s.name)}</h3>
+    <label class="flabel">الاسم</label>
+    <input id="es-name" type="text" class="inp" value="${esc(s.name)}">
+    <label class="flabel">الإيميل</label>
+    <input id="es-email" type="email" class="inp ltr" value="${esc(s.email || "")}" ${linked ? "disabled" : ""}>
+    <p class="muted" style="font-size:12.5px;">${linked
+      ? "الإيميل مش بيتغير بعد ما الطالب عمل حساب دخول."
+      : "تغيير الإيميل بينقل تسجيله للإيميل الجديد، وهيدخل بيه برقمه السري عادي."}</p>
+    <label class="flabel">السنة الدراسية</label>
+    <select id="es-grade" class="inp">
+      ${GRADES.map((g) => `<option ${s.grade === g ? "selected" : ""}>${g}</option>`).join("")}
+    </select>
+    <label class="flabel">الموبايل (واتساب)</label>
+    <input id="es-phone" type="tel" class="inp ltr" value="${esc(s.phone || "")}">
+    <div class="btnrow" style="justify-content:center; margin-top:14px;">
+      <button type="button" class="btn" id="es-save">حفظ</button>
+      <button type="button" class="btn ghost" id="es-cancel">إلغاء</button>
+    </div>
+    <p class="msg" id="es-msg"></p>
+  </div>`;
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  ov.querySelector("#es-cancel").onclick = () => ov.remove();
+  ov.querySelector("#es-save").onclick = async () => {
+    const name = ov.querySelector("#es-name").value.trim();
+    const email = ov.querySelector("#es-email").value.trim().toLowerCase();
+    const grade = ov.querySelector("#es-grade").value;
+    const phone = ov.querySelector("#es-phone").value.trim();
+    const m = ov.querySelector("#es-msg");
+    m.textContent = "";
+    if (!name) return m.textContent = "اكتب اسم الطالب.", m.className = "msg bad";
+    if (!linked && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return m.textContent = "اكتب إيميل صح.", m.className = "msg bad";
+    if (!/^01[0-9]{9}$/.test(phone)) return m.textContent = "اكتب رقم موبايل مصري صح (11 رقم يبدأ بـ 01).", m.className = "msg bad";
+    try {
+      const oldEmail = String(s.email || "").toLowerCase();
+      const newData = { name, grade, phone };
+      if (!linked) newData.email = email;
+      await fbDb.collection("students").doc(id).update(newData);
+      if (!linked && email !== oldEmail) {
+        // نقل فهرس التسجيل للإيميل الجديد مع الحفاظ على الرقم السري
+        const oldLk = await fbDb.collection("registrationLookup").doc(oldEmail).get();
+        const data = oldLk.exists ? oldLk.data() : { status: s.status || "pending", teacherIds: s.teacherIds || [] };
+        const batch = fbDb.batch();
+        batch.set(fbDb.collection("registrationLookup").doc(email), {
+          ...data,
+          studentId: id,
+          saltEmail: data.saltEmail || oldEmail,
+        });
+        batch.delete(fbDb.collection("registrationLookup").doc(oldEmail));
+        await batch.commit();
+      }
+      ov.remove();
+      await adminLoad();
+      adminStudents();
+    } catch (e) {
+      m.textContent = "مشكلة: " + (e.message || e);
+      m.className = "msg bad";
+    }
+  };
 }
 
 async function adminApprove(id) {

@@ -54,7 +54,7 @@ async function studentFirstLogin(email, pin, newPass) {
   if (!lk.exists) throw new Error("الإيميل ده مش مسجل. سجّل حسابك الأول.");
   const l = lk.data();
   if (l.status !== "approved") throw new Error(l.status === "rejected" ? "طلبك اترفض، كلّم مدرسك." : "المدرس لسه ما وافق على طلبك.");
-  const hash = await sha256Hex(em + ":" + pin);
+  const hash = await sha256Hex((l.saltEmail || em) + ":" + pin);
   if (hash !== l.pinHash) throw new Error("الرقم السري غلط.");
   // إنشاء حساب Auth بالباسورد اللي اختاره (بيدخل تلقائي بعد الإنشاء)
   const cred = await fbAuth.createUserWithEmailAndPassword(em, newPass);

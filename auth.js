@@ -3,6 +3,13 @@
    الطالب: يسجل بياناته من غير باسورد → المدرس يوافق → أول دخول بإيميله + رقمه السري
    ويختار باسورده بنفسه → بعدها دخول عادي إيميل + باسورد. */
 
+const GRADES = [
+  "الصف الأول الابتدائي", "الصف الثاني الابتدائي", "الصف الثالث الابتدائي",
+  "الصف الرابع الابتدائي", "الصف الخامس الابتدائي", "الصف السادس الابتدائي",
+  "الصف الأول الإعدادي", "الصف الثاني الإعدادي", "الصف الثالث الإعدادي",
+  "الصف الأول الثانوي", "الصف الثاني الثانوي", "الصف الثالث الثانوي",
+];
+
 let fbApp = null;
 let fbAuth = null;
 let fbDb = null;
@@ -208,9 +215,7 @@ async function renderRegister() {
       <label class="flabel">السنة الدراسية</label>
       <select id="rg-grade" class="inp">
         <option value="">اختار السنة الدراسية</option>
-        <option>الصف الأول الثانوي</option>
-        <option>الصف الثاني الثانوي</option>
-        <option>الصف الثالث الثانوي</option>
+        ${GRADES.map((g) => `<option>${g}</option>`).join("")}
       </select>
       <label class="flabel">رقم الموبايل (واتساب)</label>
       <input id="rg-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx">
@@ -270,6 +275,7 @@ async function doRegister() {
     });
     await fbDb.collection("registrationLookup").doc(email).set({
       pinHash,
+      saltEmail: email,
       status: "pending",
       studentId: ref.id,
       teacherIds,

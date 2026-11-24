@@ -32,8 +32,9 @@ service cloud.firestore {
     match /registrationLookup/{lookupId} {
       allow get: if true;
       allow list: if false;
-      allow create: if request.resource.data.status == "pending"
-        && request.resource.data.teacherIds is list;
+      allow create: if isAdmin() || isTeacher()
+        || (request.resource.data.status == "pending"
+            && request.resource.data.teacherIds is list);
       allow update, delete: if isAdmin() || isTeacher();
     }
 
