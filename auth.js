@@ -222,11 +222,12 @@ async function renderRegister() {
       <label class="flabel">رقم سري (4 أرقام) — هتحتاجه أول مرة تدخل</label>
       <input id="rg-pin" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="مثال: 2580">
       <label class="flabel">اختار مدرس واحد على الأقل</label>
-      <div class="teachercheck">
+      <div class="teachercheck" id="rg-teachers">
         ${regTeachersCache.length
-          ? regTeachersCache.map((t) => `<label><input type="checkbox" class="rg-t" value="${t.id}"> ${esc(t.name)}${t.subject ? " — " + esc(t.subject) : ""}</label>`).join("")
+          ? regTeachersCache.map((t) => `<label class="rg-t-row" data-stages="${(t.stages || []).join(",")}"><input type="checkbox" class="rg-t" value="${t.id}"> ${esc(t.name)}${t.subject ? " — " + esc(t.subject) : ""}</label>`).join("")
           : `<span class="muted">لسه مفيش مدرسين على المنصة</span>`}
       </div>
+      <p class="muted" id="rg-t-note" style="font-size:12.5px; display:none;">مفيش مدرسين للمرحلة دي لسه، جرّب مرحلة تانية أو كلّم الأدمن.</p>
       <button type="button" class="btn" id="rg-btn" style="width:100%;">سجّل الطلب</button>
       <p class="msg bad" id="rg-msg"></p>
       <p class="muted" style="font-size:13px;">بعد ما المدرس يوافق، هتدخل بإيميلك ورقمك السري وتختار باسوردك بنفسك.</p>
@@ -234,7 +235,29 @@ async function renderRegister() {
     </div>
     ${closing()}`;
   document.getElementById("rg-btn").onclick = doRegister;
+  document.getElementById("rg-grade").onchange = filterRegTeachers;
   window.scrollTo(0, 0);
+}
+
+function stageOfGrade(g) {
+  if (!g) return "";
+  if (g.includes("ابتدائي")) return "ابتدائي";
+  if (g.includes("إعدادي")) return "إعدادي";
+  return "ثانوي";
+}
+
+function filterRegTeachers() {
+  const st = stageOfGrade(document.getElementById("rg-grade").value);
+  let visible = 0;
+  document.querySelectorAll(".rg-t-row").forEach((row) => {
+    const stages = (row.dataset.stages || "").split(",").filter(Boolean);
+    // المدرس اللي معملوله قبل ميزة المراحل (مفيش stages) يظهر لكل المراحل
+    const show = !st || !stages.length || stages.includes(st);
+    row.style.display = show ? "" : "none";
+    if (show) visible++;
+  });
+  const note = document.getElementById("rg-t-note");
+  if (note) note.style.display = visible === 0 && document.querySelectorAll(".rg-t-row").length ? "" : "none";
 }
 
 function regMsg(t, good) {
@@ -253,7 +276,9 @@ async function doRegister() {
   const grade = document.getElementById("rg-grade").value;
   const phone = document.getElementById("rg-phone").value.trim();
   const pin = document.getElementById("rg-pin").value.trim();
-  const teacherIds = Array.from(document.querySelectorAll(".rg-t:checked")).map((c) => c.value);
+  const teacherIds = Array.from(document.querySelectorAll(".rg-t:checked"))
+    .filter((c) => { const row = c.closest(".rg-t-row"); return !row || row.style.display !== "none"; })
+    .map((c) => c.value);
   if (!name) return regMsg("اكتب اسمك.");
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return regMsg("اكتب إيميل صح.");
   if (!grade) return regMsg("اختار السنة الدراسية.");

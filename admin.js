@@ -303,8 +303,10 @@ function adminShowTeacher(id) {
   if (!t) return;
   const mine = (adminCache.students || []).filter((s) => (s.teacherIds || []).includes(id));
   showDetail("بيانات المدرس كاملة", [
+    ["الصورة", t.photoData ? `<img src="${t.photoData}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">` : "—"],
     ["الاسم", esc(t.name)],
     ["المادة", esc(t.subject || "—")],
+    ["المراحل", esc((t.stages || []).join("، ") || "—")],
     ["الإيميل", `<span class="ltr">${esc(t.email || "—")}</span>`],
     ["رقم الواتساب", `<span class="ltr">${esc(t.phone || "—")}</span>`],
     ["الحالة", t.active === false ? "معطّل" : "نشط"],
@@ -353,6 +355,17 @@ function adminTeachers() {
         <div><label class="flabel">رقم الواتساب</label><input id="ta-phone" type="tel" class="inp ltr" placeholder="201xxxxxxxxx" value="${editing ? esc(editing.phone || "") : ""}"></div>
         ${editing ? "" : `<div><label class="flabel">باسورد مؤقت</label><input id="ta-pass" type="text" class="inp ltr" placeholder="6 أحرف على الأقل"></div>`}
       </div>
+      <div style="margin-top:10px;">
+        <label class="flabel">المراحل اللي بيدرّسها (من أولى ابتدائي لتالتة ثانوي — اختار واحدة على الأقل)</label>
+        <div class="teachercheck">
+          ${STAGES.map((st) => `<label><input type="checkbox" class="ta-stage" value="${st}" ${editing && (editing.stages || []).includes(st) ? "checked" : ""}> ${st}</label>`).join("")}
+        </div>
+      </div>
+      <div>
+        <label class="flabel">صورة المدرس (اختياري — بتتصغّر وتتحفظ مع بياناته)</label>
+        <input id="ta-photo" type="file" accept="image/*" class="inp">
+        <div id="ta-photo-prev" style="margin-top:8px;">${editing && editing.photoData ? `<img src="${editing.photoData}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">` : ""}</div>
+      </div>
       <div class="btnrow">
         <button type="button" class="btn" id="ta-add">${editing ? "حفظ التعديلات" : "إضافة المدرس"}</button>
         ${editing ? `<button type="button" class="btn ghost" id="ta-cancel">إلغاء التعديل</button>` : ""}
@@ -370,7 +383,7 @@ function adminTeachers() {
           ${teachers.length ? teachers.map((t) => {
             const mine = students.filter((s) => (s.teacherIds || []).includes(t.id)).length;
             return `<tr data-rv-t="${t.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
-              <td>${esc(t.name)}</td><td>${esc(t.subject || "—")}</td><td class="ltr">${esc(t.email)}</td><td>${mine}</td>
+              <td>${t.photoData ? `<img src="${t.photoData}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-left:8px;">` : ""}${esc(t.name)}</td><td>${esc(t.subject || "—")}</td><td class="ltr">${esc(t.email)}</td><td>${mine}</td>
               <td>${t.active === false ? '<span class="chip red">معطّل</span>' : '<span class="chip green">نشط</span>'}</td>
               <td>
                 <div class="btnrow">
@@ -387,6 +400,19 @@ function adminTeachers() {
       </table>
     </div>`;
   adminLayout(content, "teachers");
+  taPhotoData = null;
+  const photoInp = document.getElementById("ta-photo");
+  if (photoInp) photoInp.onchange = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) { taPhotoData = null; return; }
+    try {
+      taPhotoData = await resizePhoto(f);
+      document.getElementById("ta-photo-prev").innerHTML = `<img src="${taPhotoData}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">`;
+    } catch (err) {
+      taPhotoData = null;
+      taMsg("الصورة دي مش مدعومة، جرّب صورة تانية (JPG أو PNG).");
+    }
+  };
   document.getElementById("ta-add").onclick = adminSaveTeacher;
   const cancelBtn = document.getElementById("ta-cancel");
   if (cancelBtn) cancelBtn.onclick = () => { editingTeacherId = null; adminTeachers(); };
@@ -402,6 +428,28 @@ function adminTeachers() {
 }
 
 let editingTeacherId = null;
+let taPhotoData = null;
+
+function resizePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 256;
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > max) { h = Math.round(h * max / w); w = max; } }
+      else { if (h > max) { w = Math.round(w * max / h); h = max; } }
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      const d = c.toDataURL("image/jpeg", 0.82);
+      URL.revokeObjectURL(img.src);
+      if (d.length > 700000) return reject(new Error("كبيرة"));
+      resolve(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error("مش صورة")); };
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 async function adminResetTeacher(id) {
   const t = adminCache.teachers.find((x) => x.id === id);
@@ -423,15 +471,19 @@ async function adminSaveTeacher() {
   const subject = document.getElementById("ta-subject").value.trim();
   const email = document.getElementById("ta-email").value.trim().toLowerCase();
   const phone = document.getElementById("ta-phone").value.trim();
+  const stages = Array.from(document.querySelectorAll(".ta-stage:checked")).map((c) => c.value);
   if (!name) return taMsg("اكتب اسم المدرس.");
   if (!subject) return taMsg("اختار المادة من القايمة.");
+  if (!stages.length) return taMsg("اختار مرحلة واحدة على الأقل اللي المدرس بيدرّسها.");
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return taMsg("اكتب إيميل صح.");
   if (editingTeacherId) {
     // تعديل بيانات مدرس موجود (السجل + النسخة العامة)
     try {
+      const newData = { name, subject, email, phone, stages };
+      if (taPhotoData) newData.photoData = taPhotoData;
       const batch = fbDb.batch();
-      batch.update(fbDb.collection("teachers").doc(editingTeacherId), { name, subject, email, phone });
-      batch.update(fbDb.collection("teachersPublic").doc(editingTeacherId), { name, subject });
+      batch.update(fbDb.collection("teachers").doc(editingTeacherId), newData);
+      batch.update(fbDb.collection("teachersPublic").doc(editingTeacherId), { name, subject, stages });
       await batch.commit();
       taMsg("اتحفظت التعديلات ✅", true);
       editingTeacherId = null;
@@ -452,11 +504,13 @@ async function adminSaveTeacher() {
     await secondary.auth().signOut();
     const batch = fbDb.batch();
     batch.set(fbDb.collection("teachers").doc(uid), {
-      name, email, subject, phone, active: true,
+      name, email, subject, phone, stages,
+      photoData: taPhotoData || "",
+      active: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    // نسخة عامة بالاسم والمادة بس لصفحة التسجيل — من غير إيميل ولا تليفون
-    batch.set(fbDb.collection("teachersPublic").doc(uid), { name, subject, active: true });
+    // نسخة عامة بالاسم والمادة والمراحل بس لصفحة التسجيل — من غير إيميل ولا تليفون ولا صورة
+    batch.set(fbDb.collection("teachersPublic").doc(uid), { name, subject, stages, active: true });
     await batch.commit();
     taMsg("اتضاف المدرس " + name + " ✅", true);
     adminCache.teachers = null;
