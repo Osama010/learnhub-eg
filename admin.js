@@ -89,6 +89,58 @@ function adminStats() {
   adminLayout(content, "stats");
 }
 
+function fmtTs(ts) {
+  try { return ts && ts.toDate ? ts.toDate().toLocaleString("ar-EG") : "—"; } catch (e) { return "—"; }
+}
+
+function showDetail(title, rows) {
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `<div class="detailcard">
+    <h3>${title}</h3>
+    ${rows.map((r) => `<div class="drow"><span class="dl">${r[0]}</span><span class="dv">${r[1]}</span></div>`).join("")}
+    <div class="btnrow" style="justify-content:center; margin-top:14px;"><button type="button" class="btn ghost" id="ov-close">إغلاق</button></div>
+  </div>`;
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  ov.querySelector("#ov-close").onclick = () => ov.remove();
+}
+
+function adminShowTeacher(id) {
+  const t = (adminCache.teachers || []).find((x) => x.id === id);
+  if (!t) return;
+  const mine = (adminCache.students || []).filter((s) => (s.teacherIds || []).includes(id));
+  showDetail("بيانات المدرس كاملة", [
+    ["الاسم", esc(t.name)],
+    ["المادة", esc(t.subject || "—")],
+    ["الإيميل", `<span class="ltr">${esc(t.email || "—")}</span>`],
+    ["رقم الواتساب", `<span class="ltr">${esc(t.phone || "—")}</span>`],
+    ["الحالة", t.active === false ? "معطّل" : "نشط"],
+    ["تاريخ الإضافة", fmtTs(t.createdAt)],
+    ["عدد الطلاب", String(mine.length)],
+    ["أسماء الطلاب", mine.length ? mine.map((s) => esc(s.name)).join("، ") : "—"],
+  ]);
+}
+
+function adminShowStudent(id) {
+  const s = (adminCache.students || []).find((x) => x.id === id);
+  if (!s) return;
+  const teachers = adminCache.teachers || [];
+  const tnames = (s.teacherIds || []).map((tid) => (teachers.find((t) => t.id === tid) || {}).name || "—").join("، ");
+  const prog = (s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0;
+  showDetail("بيانات الطالب كاملة", [
+    ["الاسم", esc(s.name)],
+    ["الإيميل", `<span class="ltr">${esc(s.email || "—")}</span>`],
+    ["الموبايل (واتساب)", `<span class="ltr">${esc(s.phone || "—")}</span>`],
+    ["السنة الدراسية", esc(s.grade || "—")],
+    ["المدرسين", esc(tnames || "—")],
+    ["الحالة", s.status === "approved" ? "مقبول" : s.status === "rejected" ? "مرفوض" : "تحت المراجعة"],
+    ["تقدمه في البرمجة والذكاء الاصطناعي", prog + "%"],
+    ["حساب الدخول", s.authLinked ? "اتعمل (دخل وعمل باسورد)" : "لسه مدخلش"],
+    ["تاريخ التسجيل", fmtTs(s.createdAt)],
+  ]);
+}
+
 function adminTeachers() {
   const teachers = adminCache.teachers || [];
   const students = adminCache.students || [];
@@ -124,6 +176,7 @@ function adminTeachers() {
               <td>${t.active === false ? '<span class="chip red">معطّل</span>' : '<span class="chip green">نشط</span>'}</td>
               <td>
                 <div class="btnrow">
+                  <button type="button" class="btn sm ghost" data-tv="${t.id}">عرض</button>
                   <button type="button" class="btn sm ghost" data-te="${t.id}">تعديل</button>
                   <button type="button" class="btn sm ghost" data-tr="${t.id}">إعادة ضبط الباسورد</button>
                   <button type="button" class="btn sm ghost" data-tg="${t.id}">${t.active === false ? "تفعيل" : "تعطيل"}</button>
@@ -139,6 +192,7 @@ function adminTeachers() {
   document.getElementById("ta-add").onclick = adminSaveTeacher;
   const cancelBtn = document.getElementById("ta-cancel");
   if (cancelBtn) cancelBtn.onclick = () => { editingTeacherId = null; adminTeachers(); };
+  document.querySelectorAll("[data-tv]").forEach((b) => b.onclick = () => adminShowTeacher(b.dataset.tv));
   document.querySelectorAll("[data-te]").forEach((b) => b.onclick = () => { editingTeacherId = b.dataset.te; adminTeachers(); });
   document.querySelectorAll("[data-tr]").forEach((b) => b.onclick = () => adminResetTeacher(b.dataset.tr));
   document.querySelectorAll("[data-tg]").forEach((b) => b.onclick = () => adminToggleTeacher(b.dataset.tg));
@@ -286,6 +340,7 @@ function adminStudents() {
               <td>${statusChip(s.status)}</td><td>${prog}%</td>
               <td>
                 <div class="btnrow">
+                  <button type="button" class="btn sm ghost" data-sv="${s.id}">عرض</button>
                   ${s.phone ? `<a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك الأدمن من منصة الدروس.")}">واتساب</a>` : ""}
                   ${s.status !== "approved" ? `<button type="button" class="btn sm ghost" data-ap="${s.id}">قبول</button>` : ""}
                   <button type="button" class="btn sm red" data-sd="${s.id}">حذف</button>
@@ -300,6 +355,7 @@ function adminStudents() {
   document.getElementById("af-t").onchange = (e) => { adminFilter.teacher = e.target.value; adminStudents(); };
   document.getElementById("af-s").onchange = (e) => { adminFilter.status = e.target.value; adminStudents(); };
   document.getElementById("af-q").oninput = (e) => { adminFilter.q = e.target.value.trim(); adminStudents(); };
+  document.querySelectorAll("[data-sv]").forEach((b) => b.onclick = () => adminShowStudent(b.dataset.sv));
   document.querySelectorAll("[data-ap]").forEach((b) => b.onclick = () => adminApprove(b.dataset.ap));
   document.querySelectorAll("[data-sd]").forEach((b) => b.onclick = () => adminDeleteStudent(b.dataset.sd));
 }
