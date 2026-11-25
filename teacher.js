@@ -83,6 +83,7 @@ function tAvatarHtml(s) {
 }
 
 async function renderTeacherDash() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل طلابك...</div>`;
   try { await teacherLoad(); }
@@ -510,6 +511,7 @@ function bindQuizEditor(p, qs, rerender) {
 }
 
 async function renderTeacherLessons(stageArg) {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل دروسك...</div>`;
   try { await teacherLoadLessons(); }
@@ -743,6 +745,7 @@ function renderStageLists(stage, myStages) {
 
 /* ---------- صفحة فورم الدرس (محتوى بس — الكويز بقى لوحده) ---------- */
 function renderLessonFormPage(stage, subject) {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   const editing = !!lessonForm.id;
   app.innerHTML = `
     <div class="hdr">
@@ -802,6 +805,7 @@ function qzMsg(t, good) {
 }
 
 function renderQuizFormPage(stage, subject) {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   const editing = !!quizForm.id;
   const stageLessons = (stage ? teacherLessons.filter((l) => l.stage === stage) : teacherLessons)
     .slice().sort((a, b) => (a.unit || 0) - (b.unit || 0) || (a.lessonNum || 0) - (b.lessonNum || 0));
@@ -853,6 +857,7 @@ function renderQuizFormPage(stage, subject) {
 
 /* ---------- صفحة فورم الامتحان ---------- */
 function renderExamFormPage(stage) {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   app.innerHTML = `
     <div class="hdr">
       <h1>${examForm.id ? "تعديل الامتحان" : "إضافة امتحان جديد"} — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}</h1>
@@ -1381,6 +1386,7 @@ function teacherExportReport(kind) {
 }
 
 async function renderTeacherReports() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنجهز تقاريرك...</div>`;
   try { await Promise.all([teacherLoad(), teacherLoadLessons()]); }
@@ -1577,6 +1583,7 @@ let annStageSel = "";
 let annGradeSel = "";
 
 async function renderTeacherAnnouncements() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الإعلانات...</div>`;
   try {
@@ -1731,6 +1738,7 @@ function tMyAvatar(size) {
 }
 
 async function renderTeacherProfile() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل حسابك...</div>`;
   try { await teacherLoadLessons(); }

@@ -90,12 +90,22 @@ function showToast(msg, type) {
    بدل ما الصفحة تضرب، والتفاصيل الفنية بتتسجل في الكونسول للمراجعة */
 window.addEventListener("error", (e) => {
   console.error("خطأ غير متوقع:", e.error || e.message);
+  if (!fbUser) return; // بعد الخروج: أي خطأ متأخر من جلسة قديمة يتجاهل بهدوء
   showToast("حصل خطأ غير متوقع في الصفحة. حدّث الصفحة وجرّب تاني.", "bad");
 });
 window.addEventListener("unhandledrejection", (e) => {
   console.error("عملية فشلت من غير التقاط:", e.reason);
+  if (!fbUser) return; // بعد الخروج: أي عملية متأخرة من جلسة قديمة تتجاهل بهدوء
   showToast("حصلت مشكلة في الاتصال أو التحميل. جرّب تاني.", "bad");
 });
+
+/* حارس الصفحات المحمية: أي رندر متأخر بعد تسجيل الخروج يرجع لصفحة الدخول
+   بدل ما يضرب قراءة فايرستور من غير جلسة فيظهر خطأ صلاحيات */
+function bailIfSignedOut() {
+  if (fbUser) return false;
+  renderLogin();
+  return true;
+}
 
 /* ---------- الشريط العلوي الثابت ----------
    اسم المنصة يمين، وشمال صورة المستخدم واسمه — الدوس عليهم يفتح حسابي.

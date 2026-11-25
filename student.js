@@ -3,6 +3,7 @@
    لو عنده حساب Auth من غير باسورد معروف، الرقم السري بيأكد هويته. */
 
 async function renderStudentHome() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (fbRole === "blocked") {
     const st = fbProfile && fbProfile.status;
     app.innerHTML = `
@@ -245,6 +246,7 @@ function renderFirstLogin(email) {
 
 /* ---------- تاب دروسي (الرئيسية) ---------- */
 async function renderStudentDash() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل دروسك...</div>`;
   try { await studentLoadAll(); }
@@ -306,6 +308,7 @@ async function renderStudentDash() {
 
 /* ---------- صفحة الدرس ---------- */
 async function renderStudentLesson(id) {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الدرس...</div>`;
   try { await studentLoadAll(); }
@@ -345,6 +348,7 @@ async function renderStudentLesson(id) {
 
 /* ---------- تاب الكويزات والامتحانات ---------- */
 async function renderStudentQuizExams() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الكويزات والامتحانات...</div>`;
   try { await studentLoadAll(); }
@@ -424,6 +428,7 @@ function sQuestionHtml(q, i) {
 }
 
 async function renderStudentTake(id, isExam) {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الاختبار...</div>`;
   try { await studentLoadAll(); }
@@ -583,6 +588,7 @@ function sShowResult(item, questions, results, isExam, given) {
 
 /* ---------- تاب الإعلانات ---------- */
 async function renderStudentAnn() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الإعلانات...</div>`;
   try { await studentLoadAll(); }
@@ -612,6 +618,7 @@ async function renderStudentAnn() {
 
 /* ---------- تاب درجاتي ---------- */
 async function renderStudentGrades() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل درجاتك...</div>`;
   try { await studentLoadAll(); }
@@ -668,6 +675,7 @@ function sAvatarHtml(size) {
 }
 
 async function renderStudentProfile() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل حسابك...</div>`;
   try { await studentLoadAll(); }

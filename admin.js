@@ -78,6 +78,7 @@ function adminLayout(content, tab) {
 }
 
 async function renderAdmin(h) {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   // بوابة الرقم السري قبل أي تحميل لبيانات اللوحة
   if (!adminPinOk()) return renderAdminPinGate(h);
   app.innerHTML = `<div class="spin">بنحمل بيانات المنصة...</div>`;
@@ -94,6 +95,7 @@ async function renderAdmin(h) {
 }
 
 function adminStats() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   const teachers = adminCache.teachers || [];
   const students = adminCache.students || [];
   const approved = students.filter((s) => s.status === "approved").length;
@@ -197,6 +199,7 @@ function sjGradeOptions(stage, val) {
 }
 
 function adminSubjects() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   const subjects = adminCache.subjects || [];
   const content = `
     <div class="card">
@@ -447,6 +450,7 @@ function adminShowStudent(id) {
 }
 
 function adminTeachers() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   const teachers = adminCache.teachers || [];
   const students = adminCache.students || [];
   const editing = editingTeacherId ? (adminCache.teachers || []).find((t) => t.id === editingTeacherId) : null;
@@ -679,6 +683,7 @@ async function adminDeleteTeacher(id) {
 let adminFilter = { teacher: "", status: "", q: "" };
 
 function adminStudents() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   const teachers = adminCache.teachers || [];
   const all = adminCache.students || [];
   const students = all.filter((s) => {
@@ -911,6 +916,7 @@ function buildReport() {
 }
 
 function adminReports() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   const rep = buildReport();
   const teachers = adminCache.teachers || [];
   const subjects = adminCache.subjects || [];
@@ -1047,6 +1053,7 @@ function admMsg(t, good) {
 }
 
 function adminAdmins() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   const admins = adminCache.admins || [];
   const myEmail = (fbUser && fbUser.email) || "";
   const content = `
@@ -1161,6 +1168,7 @@ async function adminChangePin() {
 /* ---------- تاب حسابي (الأدمن) ----------
    بيانات المشرف + تغيير الباسورد + تغيير رقم الأدمن السري من مكان واحد */
 function adminProfile() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   const myEmail = ((fbUser && fbUser.email) || "").toLowerCase();
   const me = (adminCache.admins || []).find((a) => a.id === myEmail) || {};
   const isSuper = myEmail === ADMIN_EMAIL;
