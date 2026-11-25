@@ -80,6 +80,7 @@ function tAvatarHtml(s) {
 }
 
 async function renderTeacherDash() {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل طلابك...</div>`;
   try { await teacherLoad(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -525,6 +526,7 @@ function bindQuizEditor(p, qs, rerender) {
 }
 
 async function renderTeacherLessons(stageArg) {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل دروسك...</div>`;
   try { await teacherLoadLessons(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -913,6 +915,7 @@ function renderExamFormPage(stage) {
 }
 
 /* ---------- معاينة الدرس: صفحة عرض محتوى الدرس للمدرس ---------- */async function renderTeacherLessonView(id) {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الدرس...</div>`;
   let l = null;
   try {
@@ -1392,6 +1395,7 @@ function teacherExportReport(kind) {
 }
 
 async function renderTeacherReports() {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنجهز تقاريرك...</div>`;
   try { await Promise.all([teacherLoad(), teacherLoadLessons()]); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -1587,6 +1591,7 @@ let annStageSel = "";
 let annGradeSel = "";
 
 async function renderTeacherAnnouncements() {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الإعلانات...</div>`;
   try {
     const snap = await fbDb.collection("announcements").where("teacherId", "==", fbUser.uid).get();

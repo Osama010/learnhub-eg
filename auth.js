@@ -67,6 +67,8 @@ async function resolveRole(u) {
 
 function signOut() {
   clearAdminPinSession();
+  // ننقله لصفحة الدخول فوراً عشان أي إعادة رندر متأخرة لصفحة محمية ماتشتغلش من غير جلسة
+  if (location.hash !== "#/login") location.hash = "#/login";
   fbAuth.signOut();
 }
 

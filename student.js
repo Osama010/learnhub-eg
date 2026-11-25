@@ -223,6 +223,7 @@ function renderFirstLogin(email) {
 
 /* ---------- تاب دروسي (الرئيسية) ---------- */
 async function renderStudentDash() {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل دروسك...</div>`;
   try { await studentLoadAll(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -279,6 +280,7 @@ async function renderStudentDash() {
 
 /* ---------- صفحة الدرس ---------- */
 async function renderStudentLesson(id) {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الدرس...</div>`;
   try { await studentLoadAll(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -317,6 +319,7 @@ async function renderStudentLesson(id) {
 
 /* ---------- تاب الكويزات والامتحانات ---------- */
 async function renderStudentQuizExams() {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الكويزات والامتحانات...</div>`;
   try { await studentLoadAll(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -395,6 +398,7 @@ function sQuestionHtml(q, i) {
 }
 
 async function renderStudentTake(id, isExam) {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الاختبار...</div>`;
   try { await studentLoadAll(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -553,6 +557,7 @@ function sShowResult(item, questions, results, isExam, given) {
 
 /* ---------- تاب الإعلانات ---------- */
 async function renderStudentAnn() {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل الإعلانات...</div>`;
   try { await studentLoadAll(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -581,6 +586,7 @@ async function renderStudentAnn() {
 
 /* ---------- تاب درجاتي ---------- */
 async function renderStudentGrades() {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل درجاتك...</div>`;
   try { await studentLoadAll(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -636,6 +642,7 @@ function sAvatarHtml(size) {
 }
 
 async function renderStudentProfile() {
+  if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل حسابك...</div>`;
   try { await studentLoadAll(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
