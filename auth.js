@@ -142,9 +142,29 @@ function renderLoginForm() {
     document.getElementById("li-btn").onclick = () => doLogin("teacher");
   } else {
     el.innerHTML = `
-      <p class="muted" style="font-size:13.5px;">دخول الأدمن بحساب جوجل الخاص بيه:</p>
-      <button type="button" class="btn blue" id="li-google" style="width:100%;">الدخول بحساب جوجل</button>`;
+      <label class="flabel">الإيميل</label>
+      <input id="li-email" type="email" class="inp ltr" placeholder="admin@gmail.com">
+      <label class="flabel">الباسورد</label>
+      <input id="li-pass" type="password" class="inp ltr" placeholder="••••••••">
+      <button type="button" class="btn" id="li-btn" style="width:100%;">دخول</button>
+      <div class="center" style="margin:8px 0 4px;"><a href="javascript:void(0)" id="li-forgot" style="color:var(--primary-dark); font-size:13px;">نسيت الباسورد؟</a></div>
+      <div class="center muted" style="font-size:13px; margin:6px 0;">— أو —</div>
+      <button type="button" class="btn blue" id="li-google" style="width:100%;">الدخول بحساب جوجل</button>
+      <p class="muted" style="font-size:12.5px; margin-top:8px;">الدخول بالباسورد بيشتغل لو الأدمن ربط باسورد بحسابه من تاب المشرفين بعد دخوله بجوجل. كده محدش يقدر يعمل حساب بإيميل أدمن من عنده.</p>`;
+    document.getElementById("li-btn").onclick = () => doLogin("admin");
     document.getElementById("li-google").onclick = doGoogleLogin;
+    document.getElementById("li-forgot").onclick = doAdminForgot;
+  }
+}
+
+async function doAdminForgot() {
+  const email = document.getElementById("li-email").value.trim().toLowerCase();
+  if (!email) return loginMsg("اكتب الإيميل الأول وبعدين اضغط نسيت الباسورد.");
+  try {
+    await fbAuth.sendPasswordResetEmail(email);
+    loginMsg("لو الإيميل ده مسجل مشرف ومرتبط بباسورد، هيوصله لينك إعادة الضبط على إيميله.");
+  } catch (e) {
+    loginMsg(authErrAr(e));
   }
 }
 
@@ -162,7 +182,9 @@ async function doLogin(expectedRole) {
       await fbAuth.signOut();
       return loginMsg(expectedRole === "student"
         ? "الحساب ده مش حساب طالب. لو انت مدرس اختار كارت مدرس."
-        : "الحساب ده مش حساب مدرس.");
+        : expectedRole === "teacher"
+        ? "الحساب ده مش حساب مدرس."
+        : "الحساب ده مش مسجل كمشرف. لو انت أدمن جديد، ادخل الأول بجوجل واربط باسورد من تاب المشرفين.");
     }
     route();
   } catch (e) {

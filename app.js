@@ -16,8 +16,17 @@ function statusChip(st) {
 }
 
 function waLink(phone, text) {
-  const p = String(phone || "").replace(/[^\d]/g, "");
-  return `https://wa.me/${p}?text=${encodeURIComponent(text)}`;
+  let p = String(phone || "").replace(/[^\d]/g, "");
+  // توحيد الرقم المصري: 00201... → 201... و 01xxxxxxxxx → 201xxxxxxxxx (كود البلد من غير + ولا صفر)
+  if (p.startsWith("00")) p = p.slice(2);
+  if (p.startsWith("0")) p = "2" + p;
+  const t = encodeURIComponent(text);
+  // على الموبايل: wa.me بيفتح التطبيق على طول. على الكمبيوتر: web.whatsapp.com/send
+  // بيفتح الشات في واتساب ويب مباشرة من غير صفحة وسيطة
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+  return isMobile
+    ? `https://wa.me/${p}?text=${t}`
+    : `https://web.whatsapp.com/send?phone=${p}&text=${t}`;
 }
 
 /* ---------- الراوتر ---------- */

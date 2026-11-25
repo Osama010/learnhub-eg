@@ -391,7 +391,7 @@ function adminTeachers() {
         </select>
         ${subjects.length === 0 ? `<p class="muted" style="font-size:12.5px;">ضيف المواد الأول من تاب "المواد الدراسية" وبعدين ارجع هنا.</p>` : ""}</div>
         <div><label class="flabel">الإيميل</label><input id="ta-email" type="email" class="inp ltr" placeholder="teacher@example.com" value="${editing ? esc(editing.email || "") : ""}"></div>
-        <div><label class="flabel">رقم الواتساب</label><input id="ta-phone" type="tel" class="inp ltr" placeholder="201xxxxxxxxx" value="${editing ? esc(editing.phone || "") : ""}"></div>
+        <div><label class="flabel">رقم الواتساب</label><input id="ta-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx" value="${editing ? esc(editing.phone || "") : ""}"></div>
         ${editing ? "" : `<div><label class="flabel">باسورد مؤقت</label><input id="ta-pass" type="text" class="inp ltr" placeholder="6 أحرف على الأقل"></div>`}
       </div>
       <div style="margin-top:10px;">
@@ -978,6 +978,16 @@ function adminAdmins() {
       <p class="muted" style="font-size:12.5px;">المشرف الجديد بيدخل من زر "دخول الأدمن" بحساب جوجل بتاع الإيميل ده، وبيقدر يعمل كل حاجة في اللوحة زي الأدمن الأساسي. الإيميل بيتحفظ صغير (lowercase) عشان المطابقة تظبط.</p>
     </div>
     <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">باسورد حسابي (اختياري)</h2>
+      <p class="muted" style="font-size:13px;">اربط باسورد بحسابك عشان تقدر تدخل بالإيميل والباسورد كمان، وجوجل هيفضل شغال. الباسورد بيتربط بحسابك المتحقق منه بس، فمحدش يقدر يعمل حساب بإيميلك من برّه.</p>
+      <div class="fgrid">
+        <div><label class="flabel">الباسورد الجديد (6 أحرف على الأقل)</label><input id="adp-pass1" type="password" class="inp ltr"></div>
+        <div><label class="flabel">تأكيد الباسورد</label><input id="adp-pass2" type="password" class="inp ltr"></div>
+      </div>
+      <button type="button" class="btn" id="adp-btn">ربط الباسورد بحسابي</button>
+      <p id="adp-msg" class="msg"></p>
+    </div>
+    <div class="card">
       <h2 style="font-size:18px; margin-top:0;">المشرفين (${admins.length})</h2>
       <table class="ttable">
         <thead><tr><th>الاسم</th><th>الإيميل</th><th>أضافه</th><th>تاريخ الإضافة</th><th>إجراءات</th></tr></thead>
@@ -1000,6 +1010,7 @@ function adminAdmins() {
     </div>`;
   adminLayout(content, "admins");
   document.getElementById("an-add").onclick = adminAddAdmin;
+  document.getElementById("adp-btn").onclick = adminLinkPassword;
   document.querySelectorAll("[data-admdel]").forEach((b) => b.onclick = () => adminDeleteAdmin(b.dataset.admdel));
 }
 
@@ -1034,4 +1045,43 @@ async function adminDeleteAdmin(email) {
   } catch (e) {
     alert("حصلت مشكلة: " + (e.message || e));
   }
+}
+
+function adpMsg(t, good) {
+  const m = document.getElementById("adp-msg");
+  if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
+}
+
+// ربط باسورد بحساب الأدمن الحالي (المتحقق منه) عشان يدخل بالإيميل والباسورد كمان
+async function adminLinkPassword() {
+  const p1 = document.getElementById("adp-pass1").value;
+  const p2 = document.getElementById("adp-pass2").value;
+  if (p1.length < 6) return adpMsg("الباسورد لازم يكون 6 أحرف أو أرقام على الأقل.");
+  if (p1 !== p2) return adpMsg("الباسوردين مش زي بعض.");
+  const btn = document.getElementById("adp-btn");
+  btn.disabled = true;
+  try {
+    const cred = firebase.auth.EmailAuthProvider.credential(fbUser.email, p1);
+    await fbUser.linkWithCredential(cred);
+    adpMsg("اتربط الباسورد بحسابك. تقدر تدخل بالإيميل والباسورد من صفحة الدخول.", true);
+  } catch (e) {
+    if (e.code === "auth/provider-already-linked" || e.code === "auth/credential-already-in-use" || e.code === "auth/email-already-in-use") {
+      // فيه باسورد مربوط أصلاً: نغيّره
+      try {
+        await fbUser.updatePassword(p1);
+        adpMsg("الباسورد اتغيّر بنجاح.", true);
+      } catch (e2) {
+        if (e2.code === "auth/requires-recent-login") {
+          adpMsg("لأسباب أمنية: اخرج وسجّل دخول من جديد، وبعدين غيّر الباسورد.");
+        } else {
+          adpMsg("حصلت مشكلة: " + authErrAr(e2));
+        }
+      }
+    } else if (e.code === "auth/requires-recent-login") {
+      adpMsg("لأسباب أمنية: اخرج وسجّل دخول من جديد، وبعدين اربط الباسورد.");
+    } else {
+      adpMsg("حصلت مشكلة: " + authErrAr(e));
+    }
+  }
+  btn.disabled = false;
 }
