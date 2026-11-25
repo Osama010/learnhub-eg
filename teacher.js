@@ -11,7 +11,6 @@ function teacherTabs(active) {
     <button type="button" class="tab ${active === "lessons" ? "active" : ""}" data-g="#/teacher/lessons">الدروس والكويزات</button>
     <button type="button" class="tab ${active === "ann" ? "active" : ""}" data-g="#/teacher/announcements">الإعلانات</button>
     <button type="button" class="tab ${active === "reports" ? "active" : ""}" data-g="#/teacher/reports">التقارير</button>
-    <button type="button" class="tab ${active === "profile" ? "active" : ""}" data-g="#/teacher/profile">حسابي</button>
   </div>`;
 }
 
@@ -21,14 +20,28 @@ function bindTeacherTabs() {
 }
 
 async function teacherLoad() {
-  const [snap, at] = await Promise.all([
+  const [snap, at, rt] = await Promise.all([
     fbDb.collection("students").where("teacherIds", "array-contains", fbUser.uid).get(),
     fbDb.collection("quizAttempts").where("teacherId", "==", fbUser.uid).get(),
+    fbDb.collection("lessonRatings").where("teacherId", "==", fbUser.uid).get(),
   ]);
   teacherCache = snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (b.createdAt && a.createdAt ? b.createdAt.seconds - a.createdAt.seconds : 0));
   teacherAttempts = at.docs.map((d) => ({ id: d.id, ...d.data() }));
+  teacherRatings = rt.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/* متوسط تقييم درس بالنجوم وعدد المقيّمين — بيرجع null لو مفيش تقييمات لسه */
+function tLessonRating(lid) {
+  const rs = teacherRatings.filter((r) => r.lessonId === lid);
+  if (!rs.length) return null;
+  const avg = rs.reduce((s, r) => s + (r.stars || 0), 0) / rs.length;
+  return { avg: Math.round(avg * 10) / 10, count: rs.length };
+}
+function tLessonRatingHtml(lid) {
+  const r = tLessonRating(lid);
+  return r ? `<div class="muted" style="font-size:12px; margin:4px 0;">⭐ ${r.avg} من 5 (${r.count} ${r.count === 1 ? "تقييم" : "تقييمات"})</div>` : "";
 }
 
 // متوسط درجات الطالب في الكويزات كنسبة مئوية
@@ -93,7 +106,6 @@ async function renderTeacherDash() {
   app.innerHTML = `
     <div class="hdr">
       <h1>أهلاً ${esc(fbProfile ? fbProfile.name : "بيك")} 👋</h1>
-      <div class="fact">${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
     </div>
     ${teacherTabs("students")}
     ${(fbProfile && (fbProfile.stages || []).length) ? `
@@ -132,7 +144,10 @@ async function renderTeacherDash() {
       </table>
     </div>` : ""}
     <div class="card">
-      <h2 style="font-size:18px; margin-top:0;">طلابك${dashGradeFilter ? " — " + esc(dashGradeFilter) : ""} (${dashGradeFilter ? approved.filter((s) => s.grade === dashGradeFilter).length : approved.length})</h2>
+      <div class="btnrow" style="justify-content:space-between; align-items:center;">
+        <h2 style="font-size:18px; margin-top:0;">طلابك${dashGradeFilter ? " — " + esc(dashGradeFilter) : ""} (${dashGradeFilter ? approved.filter((s) => s.grade === dashGradeFilter).length : approved.length})</h2>
+        <a class="btn sm ghost" href="#/teacher/transfer" title="صفحة منفصلة لنقل دفعة من طلابك لصف تاني">📦 نقل جماعي بين الصفوف</a>
+      </div>
       ${((fbProfile && fbProfile.stages) || []).length ? `<div class="btnrow" style="margin-bottom:10px;">
         <button type="button" class="btn sm ${!dashGradeFilter ? "" : "ghost"}" data-dgf="">كل الصفوف</button>
         ${[...new Set(((fbProfile && fbProfile.stages) || []).flatMap((st) => gradesOfStage(st)))].map((g) => `<button type="button" class="btn sm ${dashGradeFilter === g ? "" : "ghost"}" data-dgf="${esc(g)}">${esc(g.replace("الصف ", ""))}</button>`).join("")}
@@ -143,14 +158,16 @@ async function renderTeacherDash() {
           ${approved.length ? approved.filter((s) => !dashGradeFilter || s.grade === dashGradeFilter).map((s) => {
             const avg = studentQuizAvg(s.id);
             const prog = avg !== null ? avg + "%" : ((s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0) + "%";
+            const sus = ((s.suspendedBy || []).indexOf(fbUser.uid) !== -1);
             return `<tr>
-              <td data-h="الاسم">${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a></td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td><td data-h="تقدمه">${prog}</td>
+              <td data-h="الاسم">${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a>${sus ? ` <span class="chip red">⛔ موقوف عن محتواك</span>` : ""}</td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td><td data-h="تقدمه">${prog}</td>
               <td>
                 <div class="btnrow">
                   <a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك مدرسك من منصة الدروس.")}">واتساب</a>
                   <button type="button" class="btn sm ghost" data-snotes="${s.id}">📝 ملاحظات</button>
                   <button type="button" class="btn sm ghost" data-rs="${s.id}">إعادة ضبط الباسورد</button>
-                  <button type="button" class="btn sm red" data-dl="${s.id}">حذف</button>
+                  ${sus ? `<button type="button" class="btn sm" data-us="${s.id}">▶️ إلغاء الإيقاف</button>` : `<button type="button" class="btn sm ghost" data-ss="${s.id}">⛔ إيقاف مؤقت</button>`}
+                  <button type="button" class="btn sm red" data-dl="${s.id}">حذف نهائي</button>
                 </div>
               </td>
             </tr>`;
@@ -165,6 +182,8 @@ async function renderTeacherDash() {
   document.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => teacherSetStatus(b.dataset.no, "rejected"));
   document.querySelectorAll("[data-rs]").forEach((b) => b.onclick = () => teacherResetStudent(b.dataset.rs));
   document.querySelectorAll("[data-dl]").forEach((b) => b.onclick = () => teacherDeleteStudent(b.dataset.dl));
+  document.querySelectorAll("[data-ss]").forEach((b) => b.onclick = () => teacherSuspendToggle(b.dataset.ss, true));
+  document.querySelectorAll("[data-us]").forEach((b) => b.onclick = () => teacherSuspendToggle(b.dataset.us, false));
   document.querySelectorAll("[data-spop]").forEach((b) => b.onclick = () => teacherShowStudent(b.dataset.spop));
   document.querySelectorAll("[data-snotes]").forEach((b) => b.onclick = () => openStudentNotes(b.dataset.snotes));
   document.querySelectorAll("[data-dgf]").forEach((b) => b.onclick = () => { dashGradeFilter = b.dataset.dgf; renderTeacherDash(); });
@@ -277,24 +296,50 @@ async function teacherResetStudent(id) {
   } catch (e) { alert(authErrAr(e)); }
 }
 
-async function teacherDeleteStudent(id) {
+/* إيقاف طالب مؤقتًا عن محتوى المدرس ده بس (من غير ما يتأثر باقي مدرسيه): بنضيف/نشيل uid المدرس في suspendedBy */
+async function teacherSuspendToggle(id, suspend) {
   const s = teacherCache.find((x) => x.id === id);
-  if (!confirm(`متأكد إنك عايز تحذف الطالب "${s ? s.name : ""}" نهائياً؟`)) return;
+  if (!s) return;
   try {
-    const batch = fbDb.batch();
-    batch.delete(fbDb.collection("students").doc(id));
-    if (s && s.email) {
-      batch.delete(fbDb.collection("registrationLookup").doc(String(s.email).toLowerCase()));
-    }
-    await batch.commit();
+    await fbDb.collection("students").doc(id).update({
+      suspendedBy: suspend
+        ? firebase.firestore.FieldValue.arrayUnion(fbUser.uid)
+        : firebase.firestore.FieldValue.arrayRemove(fbUser.uid),
+    });
+    showToast(suspend ? `اتوقف ${s.name} عن محتواك مؤقتًا ⛔` : `رجع وصول ${s.name} لمحتواك ✅`, "good");
     await teacherLoad();
     renderTeacherDash();
   } catch (e) { alert("مشكلة: " + (e.message || e)); }
 }
 
+/* حذف نهائي: مودال تأكيد بيوضح إن المحاولات والتقييمات والبيانات كلها هتتمسح */
+function teacherDeleteStudent(id) {
+  const s = teacherCache.find((x) => x.id === id);
+  if (!s) return;
+  confirmDeleteStudent(s, async () => { await teacherLoad(); renderTeacherDash(); });
+}
+
+/* صفحة النقل الجماعي للمدرس — طلابه المقبولين بس */
+async function renderTeacherTransfer() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
+  if (!fbUser) return renderLogin();
+  if (!teacherCache) {
+    app.innerHTML = `<div class="spin">بنحمل طلابك...</div>`;
+    try { await teacherLoad(); }
+    catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
+  }
+  renderTransferPage({
+    students: teacherCache || [],
+    wrap: (content) => { app.innerHTML = teacherTabs("students") + content + closing(); bindTeacherTabs(); },
+    backHash: "#/teacher",
+    onDone: async () => { await teacherLoad(); renderTeacherTransfer(); },
+  });
+}
+
 /* ---------- الدروس والكويزات ---------- */
 let teacherLessons = [];
 let teacherAttempts = [];
+let teacherRatings = []; // تقييمات الطلبة لدروسي بالنجوم (متوسطات بس، من غير أسماء)
 let teacherExams = [];
 let teacherQuizzes = [];
 let lessonForm = null; // {id, unit, lessonNum, title, desc, videoUrl, pdfUrl}
@@ -310,15 +355,41 @@ let lessonsGradeFilter = ""; // فلتر الصف في قوائم المحتوى
 let dashGradeFilter = "";    // فلتر الصف في تاب طلابي
 
 function emptyExamForm() {
-  return { id: null, title: "", desc: "", openAt: "", closeAt: "", closed: false, quiz: [], grade: "" };
+  return { id: null, title: "", desc: "", openAt: "", closeAt: "", closed: false, quiz: [], grade: "", term: termCurrent() };
 }
 
 function emptyLessonForm() {
-  return { id: null, unit: "", lessonNum: "", title: "", desc: "", videoUrl: "", pdfUrl: "", publishAt: "", grade: "" };
+  return { id: null, unit: "", lessonNum: "", title: "", desc: "", videoUrl: "", pdfUrl: "", publishAt: "", grade: "", term: termCurrent() };
 }
 
 function emptyQuizForm() {
-  return { id: null, title: "", lessonId: "", quiz: [], grade: "" };
+  return { id: null, title: "", lessonId: "", quiz: [], grade: "", oneAttempt: false, term: termCurrent() };
+}
+
+/* تاب الترم الحالي في قوائم محتوى المدرس — الافتراضي الترم الحالي اللي الأدمن محدده */
+var tTermTab = null;
+function tTerm() {
+  if (tTermTab !== 1 && tTermTab !== 2) tTermTab = termCurrent();
+  return tTermTab;
+}
+
+/* اختيار الترم في فورم المحتوى: بيتقفل لو بتعدل محتوى ترم قديم (للقراءة بس) */
+function termPickerHtml(form) {
+  const ro = form.id && !termWritable(form);
+  return `<div style="margin-bottom:10px;">
+    <label style="font-size:13.5px; font-weight:700;">الترم</label>
+    ${ro ? `<div class="card card-sub" style="margin:6px 0; font-size:13px;">🔒 ده محتوى ${termName(termOf(form))} المنتهي — للقراءة بس، مش هتقدر تحفظ تعديلات عليه.</div>` : ""}
+    <div class="btnrow" style="margin-top:6px;">
+      ${[1, 2].map((t) => `<button type="button" class="btn sm ${termOf(form) === t ? "" : "ghost"}" data-tterm="${t}" ${ro ? "disabled" : ""}>${t === 1 ? "📘 الترم الأول" : "📗 الترم الثاني"}${t === termCurrent() ? " (الحالي)" : ""}</button>`).join("")}
+    </div>
+  </div>`;
+}
+function bindTermPicker(form, rerender) {
+  document.querySelectorAll("[data-tterm]").forEach((b) => b.onclick = () => {
+    if (b.disabled) return;
+    form.term = Number(b.dataset.tterm);
+    rerender();
+  });
 }
 
 function lsMsg(t, good) {
@@ -359,9 +430,33 @@ function qValidate(q, i) {
   return null;
 }
 
+// تصغير صورة سؤال قبل الحفظ: بحد أقصى 800px وجودة مناسبة، ورفض لو عدّت 400KB
+// (صور الأسئلة بتتخزن جوه مستند الكويز نفسه، ولازم المستند كله يفضل أقل من 1MB)
+function resizeQuestionImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 800;
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > max) { h = Math.round(h * max / w); w = max; } }
+      else { if (h > max) { w = Math.round(w * max / h); h = max; } }
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      const d = c.toDataURL("image/jpeg", 0.8);
+      URL.revokeObjectURL(img.src);
+      if (d.length > 400000) return reject(new Error("الصورة كبيرة حتى بعد التصغير — جرّب صورة أبسط أو أصغر."));
+      resolve(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error("الملف ده مش صورة.")); };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 // تجهيز السؤال للحفظ في قاعدة البيانات
 function qSerialize(q) {
   const base = { type: q.type, q: String(q.q || "").trim() };
+  if (q.img) base.img = q.img; // صورة السؤال (اختيارية) — بتتخزن مضغوطة جوه المستند
   if (q.type === "mcq") return { ...base, options: q.options.map((o) => String(o).trim()), correct: q.correct ?? 0 };
   if (q.type === "multi") return { ...base, options: q.options.map((o) => String(o).trim()), correct: Array.from(new Set(q.correct)).sort((a, b) => a - b) };
   if (q.type === "tf") return { ...base, options: ["صح", "غلط"], correct: q.correct ?? 0 };
@@ -380,6 +475,7 @@ function qFromStored(q) {
   if (t === "text" || t === "fill") n.answer = q.answer || "";
   if (t === "match") n.pairs = (q.pairs || [{ a: "", b: "" }, { a: "", b: "" }]).map((pr) => ({ a: pr.a || "", b: pr.b || "" }));
   if (t === "num") { n.answer = q.answer ?? ""; n.tolerance = q.tolerance || ""; }
+  n.img = q.img || ""; // صورة السؤال لو موجودة
   return n;
 }
 
@@ -463,6 +559,13 @@ function quizBuilderHtml(p, qs) {
         <input type="checkbox" data-${p}qbank="${i}" ${q.saveToBank ? "checked" : ""}> احفظ السؤال ده في بنك الأسئلة
       </label>
       <input type="text" class="inp" placeholder="نص السؤال" data-${p}qt="${i}" value="${esc(q.q)}">
+      <div class="btnrow" style="align-items:center; margin-top:8px;">
+        ${q.img ? `<img src="${q.img}" alt="صورة السؤال" style="max-width:110px; max-height:80px; border-radius:10px; border:1px solid var(--line);">` : ""}
+        <button type="button" class="btn sm ghost" data-${p}qimg="${i}">🖼️ ${q.img ? "تغيير الصورة" : "إضافة صورة للسؤال"}</button>
+        ${q.img ? `<button type="button" class="btn sm red" data-${p}qimgd="${i}">حذف الصورة</button>` : ""}
+        <input type="file" accept="image/*" style="display:none;" data-${p}qimgf="${i}">
+      </div>
+      ${q.img ? "" : `<p class="muted" style="font-size:12px; margin:6px 0 0;">تقدر تضيف صورة للسؤال (رسم هندسي، شكل خلية...) — بتتصغّر لوحدها قبل الحفظ.</p>`}
       ${body}
     </div>`;
   }).join("");
@@ -472,7 +575,9 @@ function bindQuizEditor(p, qs, rerender) {
   document.querySelectorAll(`[data-${p}qdel]`).forEach((b) => b.onclick = () => { qs.splice(Number(b.dataset[p + "qdel"]), 1); rerender(); });
   document.querySelectorAll(`[data-${p}qtype]`).forEach((el) => el.onchange = () => {
     const i = Number(el.dataset[p + "qtype"]);
+    const keepImg = qs[i].img; // صورة السؤال تفضل موجودة عند تغيير نوعه
     qs[i] = qNew(el.value, qs[i].q);
+    qs[i].img = keepImg || "";
     rerender();
   });
   document.querySelectorAll(`[data-${p}qt]`).forEach((el) => el.oninput = () => qs[Number(el.dataset[p + "qt"])].q = el.value);
@@ -504,6 +609,18 @@ function bindQuizEditor(p, qs, rerender) {
   });
   document.querySelectorAll(`[data-${p}qadd]`).forEach((b) => b.onclick = () => { qs[Number(b.dataset[p + "qadd"])].pairs.push({ a: "", b: "" }); rerender(); });
   document.querySelectorAll(`[data-${p}qbank]`).forEach((el) => el.onchange = () => qs[Number(el.dataset[p + "qbank"])].saveToBank = el.checked);
+  document.querySelectorAll(`[data-${p}qimg]`).forEach((b) => b.onclick = () => {
+    const f = document.querySelector(`[data-${p}qimgf="${b.dataset[p + "qimg"]}"]`);
+    if (f) f.click();
+  });
+  document.querySelectorAll(`[data-${p}qimgf]`).forEach((el) => el.onchange = async () => {
+    const i = Number(el.dataset[p + "qimgf"]);
+    const file = el.files && el.files[0];
+    if (!file) return;
+    try { qs[i].img = await resizeQuestionImage(file); rerender(); }
+    catch (err) { alert(err.message || "مشكلة في الصورة."); }
+  });
+  document.querySelectorAll(`[data-${p}qimgd]`).forEach((b) => b.onclick = () => { qs[Number(b.dataset[p + "qimgd"])].img = ""; rerender(); });
   document.querySelectorAll(`[data-${p}qpd]`).forEach((b) => b.onclick = () => {
     const [i, j] = b.dataset[p + "qpd"].split("-").map(Number);
     qs[i].pairs.splice(j, 1); rerender();
@@ -529,8 +646,7 @@ async function renderTeacherLessons(stageArg) {
     app.innerHTML = `
       <div class="hdr">
         <h1>الدروس والكويزات 📚</h1>
-        <div class="fact">${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
-      </div>
+        </div>
       ${teacherTabs("lessons")}
       <div class="card">
         <h2 style="font-size:18px; margin-top:0;">اختار المرحلة الأول</h2>
@@ -567,7 +683,7 @@ async function renderTeacherLessons(stageArg) {
 }
 
 function bigAddBtn(id, txt) {
-  return `<button type="button" id="${id}" style="width:100%; border:2px dashed var(--line); background:#fff; padding:20px; font-family:inherit; font-size:17px; font-weight:800; color:var(--primary-dark); border-radius:14px; cursor:pointer;">${txt}</button>`;
+  return `<button type="button" id="${id}" style="width:100%; border:2px dashed var(--line); background:var(--card); padding:20px; font-family:inherit; font-size:17px; font-weight:800; color:var(--primary-dark); border-radius:14px; cursor:pointer;">${txt}</button>`;
 }
 
 function innerTabsHtml(stage) {
@@ -588,11 +704,13 @@ function quizAttemptsFor(q) {
 function renderStageLists(stage, myStages) {
   // فلتر الصف: "الصف الأول" بيوري محتوى الصف ده + محتوى "كل الصفوف"
   const gf = (items) => lessonsGradeFilter ? items.filter((x) => !x.grade || x.grade === lessonsGradeFilter) : items;
-  const list = gf(stage ? teacherLessons.filter((l) => l.stage === stage) : teacherLessons)
+  // فلتر الترم: كل تاب بيوري محتوى ترمه بس
+  const tf = (items) => items.filter((x) => termOf(x) === tTerm());
+  const list = tf(gf(stage ? teacherLessons.filter((l) => l.stage === stage) : teacherLessons))
     .slice().sort((a, b) => (a.unit || 0) - (b.unit || 0) || (a.lessonNum || 0) - (b.lessonNum || 0));
-  const quizList = gf(stage ? teacherQuizzes.filter((q) => q.stage === stage) : teacherQuizzes)
+  const quizList = tf(gf(stage ? teacherQuizzes.filter((q) => q.stage === stage) : teacherQuizzes))
     .slice().sort((a, b) => (a.title || "").localeCompare(b.title || "", "ar"));
-  const examList = gf(stage ? teacherExams.filter((e) => e.stage === stage) : teacherExams);
+  const examList = tf(gf(stage ? teacherExams.filter((e) => e.stage === stage) : teacherExams));
   const gradeRow = stage ? gradeFilterRowHtml("gf", stage, lessonsGradeFilter) : "";
   let content = "";
 
@@ -601,19 +719,21 @@ function renderStageLists(stage, myStages) {
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">دروسك — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}${lessonsGradeFilter ? " — " + esc(lessonsGradeFilter) : ""} (${list.length})</h2>
       ${gradeRow}
-      ${bigAddBtn("ls-addbig", "＋ إضافة درس جديد")}
+      ${tTerm() === termCurrent() ? bigAddBtn("ls-addbig", "＋ إضافة درس جديد") : `<p class="muted" style="font-size:13px;">🔒 ${termName(tTerm())} منتهي — محتواه للقراءة بس. إضافة محتوى جديد بتكون على ${termName(termCurrent())} من تابه فوق.</p>`}
       ${list.length ? `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px;">
         ${list.map((l) => `
           <div class="card" style="margin:0;">
               <div style="font-size:12px; color:var(--primary-dark); font-weight:700;">الوحدة ${l.unit || "—"} · الدرس ${l.lessonNum || "—"}</div>
               <div style="margin:2px 0;">${gradeChip(l.grade)}</div>
-              <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(l.title)}</b>${l.publishAt && l.publishAt.toDate && l.publishAt.toDate() > new Date() ? `<span class="chip amber">🕒 مجدول: ${fmtTs(l.publishAt)}</span>` : ""}</div>
+              <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(l.title)}</b>${termRoChip(l)}${l.pinned ? `<span class="chip">📌 مثبت</span>` : ""}${l.publishAt && l.publishAt.toDate && l.publishAt.toDate() > new Date() ? `<span class="chip amber">🕒 مجدول: ${fmtTs(l.publishAt)}</span>` : ""}</div>
               ${l.desc ? `<div class="muted" style="font-size:13px; margin-top:4px;">${esc(l.desc)}</div>` : ""}
               <div class="muted" style="font-size:12px; margin:4px 0;">${l.videoUrl ? "🎬 فيديو" : ""}${l.videoUrl && l.pdfUrl ? " · " : ""}${l.pdfUrl ? "📄 PDF" : ""}${!l.videoUrl && !l.pdfUrl ? "من غير وسائط" : ""}</div>
+              ${tLessonRatingHtml(l.id)}
               <div class="btnrow">
                 <button type="button" class="btn sm" data-lview="${l.id}">عرض</button>
-                <button type="button" class="btn sm ghost" data-ledit="${l.id}">تعديل</button>
-                <button type="button" class="btn sm red" data-ldel="${l.id}">حذف</button>
+                ${termWritable(l) ? `<button type="button" class="btn sm ghost" data-ledit="${l.id}">تعديل</button>
+                <button type="button" class="btn sm ghost" data-lpin="${l.id}">${l.pinned ? "📌 إلغاء التثبيت" : "📌 تثبيت"}</button>
+                <button type="button" class="btn sm red" data-ldel="${l.id}">حذف</button>` : ""}
               </div>
           </div>`).join("")}
       </div>` : `<p class="muted center" style="margin-top:12px;">لسه مفيش دروس في المرحلة دي — دوس "＋ إضافة درس جديد" فوق عشان تضيف أول درس.</p>`}
@@ -623,7 +743,7 @@ function renderStageLists(stage, myStages) {
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">الكويزات${lessonsGradeFilter ? " — " + esc(lessonsGradeFilter) : ""} (${quizList.length})</h2>
       ${gradeRow}
-      ${bigAddBtn("qz-addbig", "＋ إضافة كويز جديد")}
+      ${tTerm() === termCurrent() ? bigAddBtn("qz-addbig", "＋ إضافة كويز جديد") : `<p class="muted" style="font-size:13px;">🔒 ${termName(tTerm())} منتهي — محتواه للقراءة بس.</p>`}
       ${quizList.length ? `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px;">
         ${quizList.map((q) => {
           const linked = q.lessonId ? teacherLessons.find((l) => l.id === q.lessonId) : null;
@@ -636,12 +756,12 @@ function renderStageLists(stage, myStages) {
                 ? `<div style="margin:4px 0;"><span class="chip">🔗 مرتبط بالدرس: ${esc(linked ? linked.title : "درس محذوف")}</span></div>`
                 : `<div class="muted" style="font-size:12px; margin:4px 0;">كويز عام — مش مرتبط بدرس</div>`}
               <div style="margin:4px 0;">${gradeChip(q.grade)}</div>
-              <div class="muted" style="font-size:12px; margin:4px 0;">📝 ${(q.questions || []).length} سؤال</div>
+              <div class="muted" style="font-size:12px; margin:4px 0;">📝 ${(q.questions || []).length} سؤال${q.maxAttempts === 1 ? " · 🔁 محاولة واحدة" : ""}</div>
               <div class="muted" style="font-size:12px; margin:4px 0;">${at.length ? `${at.length} محاولة · المتوسط ${avg}%` : "مفيش محاولات لسه"}</div>
               <div class="btnrow">
                 <button type="button" class="btn sm ghost" data-qres="${q.id}">النتائج</button>
-                <button type="button" class="btn sm ghost" data-qedit="${q.id}">تعديل</button>
-                <button type="button" class="btn sm red" data-qdel="${q.id}">حذف</button>
+                ${termWritable(q) ? `<button type="button" class="btn sm ghost" data-qedit="${q.id}">تعديل</button>
+                <button type="button" class="btn sm red" data-qdel="${q.id}">حذف</button>` : termRoChip(q)}
               </div>
               ${quizResultsOpenFor === q.id ? quizResultsHtml(q) : ""}
           </div>`;
@@ -650,7 +770,7 @@ function renderStageLists(stage, myStages) {
     </div>
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">الامتحانات (${examList.length})</h2>
-      ${bigAddBtn("ex-addbig", "＋ إضافة امتحان جديد")}
+      ${tTerm() === termCurrent() ? bigAddBtn("ex-addbig", "＋ إضافة امتحان جديد") : `<p class="muted" style="font-size:13px;">🔒 ${termName(tTerm())} منتهي — محتواه للقراءة بس.</p>`}
       ${examList.length ? `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px;">
         ${examList.map((e) => {
           const [stTxt, stCls] = examStatus(e);
@@ -665,9 +785,9 @@ function renderStageLists(stage, myStages) {
               <div class="muted" style="font-size:12px; margin:4px 0;">${at.length ? `${at.length} محاولة · المتوسط ${avg}%` : "مفيش محاولات لسه"}</div>
               <div class="btnrow">
                 <button type="button" class="btn sm ghost" data-xres="${e.id}">النتائج</button>
-                <button type="button" class="btn sm ghost" data-xedit="${e.id}">تعديل</button>
+                ${termWritable(e) ? `<button type="button" class="btn sm ghost" data-xedit="${e.id}">تعديل</button>
                 <button type="button" class="btn sm ${e.closed ? "" : "amber"}" data-xtgl="${e.id}">${e.closed ? "فتح" : "قفل"}</button>
-                <button type="button" class="btn sm red" data-xdel="${e.id}">حذف</button>
+                <button type="button" class="btn sm red" data-xdel="${e.id}">حذف</button>` : termRoChip(e)}
               </div>
               ${examResultsOpenFor === e.id ? examResultsHtml(e) : ""}
           </div>`;
@@ -679,14 +799,15 @@ function renderStageLists(stage, myStages) {
   app.innerHTML = `
     <div class="hdr">
       <h1>المرحلة ${esc(STAGE_NAMES[stage] || stage || "")} ${STAGE_ICONS[stage] || "📚"}</h1>
-      <div class="fact">${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
     </div>
     ${teacherTabs("lessons")}
     ${myStages.length > 1 ? `<div class="btnrow" style="margin-bottom:10px;"><button type="button" class="btn ghost" id="ls-backst">← رجوع لاختيار المرحلة</button></div>` : ""}
     ${innerTabsHtml(stage)}
+    ${termTabsHtml(tTerm())}
     ${content}
     ${closing()}`;
   bindTeacherTabs();
+  bindTermTabs((t) => { tTermTab = t; renderTeacherLessons(stage); });
   const backBtn = document.getElementById("ls-backst");
   if (backBtn) backBtn.onclick = () => location.hash = "#/teacher/lessons";
   document.getElementById("it-lessons").onclick = () => { lessonsInnerTab = "lessons"; renderTeacherLessons(stage); };
@@ -705,16 +826,17 @@ function renderStageLists(stage, myStages) {
     lessonForm = {
       id: l.id, unit: l.unit || "", lessonNum: l.lessonNum || "", title: l.title || "",
       videoUrl: l.videoUrl || "", pdfUrl: l.pdfUrl || "", desc: l.desc || "",
-      publishAt: tsToLocalInput(l.publishAt), grade: l.grade || "",
+      publishAt: tsToLocalInput(l.publishAt), grade: l.grade || "", term: termOf(l),
     };
     lessonFormOpen = true;
     renderTeacherLessons(stage);
   });
   document.querySelectorAll("[data-ldel]").forEach((b) => b.onclick = () => teacherDeleteLesson(b.dataset.ldel, stage));
+  document.querySelectorAll("[data-lpin]").forEach((b) => b.onclick = () => teacherTogglePin(b.dataset.lpin, stage));
   document.querySelectorAll("[data-qedit]").forEach((b) => b.onclick = () => {
     const q = teacherQuizzes.find((x) => x.id === b.dataset.qedit);
     if (!q) return;
-    quizForm = { id: q.id, title: q.title || "", lessonId: q.lessonId || "", quiz: (q.questions || []).map(qFromStored), grade: q.grade || "" };
+    quizForm = { id: q.id, title: q.title || "", lessonId: q.lessonId || "", quiz: (q.questions || []).map(qFromStored), grade: q.grade || "", oneAttempt: q.maxAttempts === 1, term: termOf(q) };
     quizFormOpen = true;
     renderTeacherLessons(stage);
   });
@@ -729,7 +851,7 @@ function renderStageLists(stage, myStages) {
     examForm = {
       id: e.id, title: e.title || "", desc: e.desc || "",
       openAt: tsToLocalInput(e.openAt), closeAt: tsToLocalInput(e.closeAt),
-      closed: !!e.closed, quiz: (e.quiz || []).map(qFromStored), grade: e.grade || "",
+      closed: !!e.closed, quiz: (e.quiz || []).map(qFromStored), grade: e.grade || "", term: termOf(e),
     };
     examFormOpen = true;
     renderTeacherLessons(stage);
@@ -750,11 +872,12 @@ function renderLessonFormPage(stage, subject) {
   app.innerHTML = `
     <div class="hdr">
       <h1>${editing ? "تعديل الدرس" : "إضافة درس جديد"} — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}</h1>
-      <div class="fact">مادة ${esc(subject || "—")} · ${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
+      <div class="fact">مادة ${esc(subject || "—")}</div>
     </div>
     ${teacherTabs("lessons")}
     <div class="btnrow" style="margin-bottom:10px;"><button type="button" class="btn ghost" id="lf-back">← رجوع للدروس</button></div>
     <div class="card">
+      ${termPickerHtml(lessonForm)}
       <div class="fgrid">
         <div><label class="flabel">الوحدة رقم</label><input id="ls-unit" type="number" min="1" step="1" class="inp" placeholder="مثال: 1" value="${esc(String(lessonForm.unit))}"></div>
         <div><label class="flabel">الدرس رقم</label><input id="ls-num" type="number" min="1" step="1" class="inp" placeholder="مثال: 2" value="${esc(String(lessonForm.lessonNum))}"></div>
@@ -782,6 +905,7 @@ function renderLessonFormPage(stage, subject) {
     </div>
     ${closing()}`;
   bindTeacherTabs();
+  bindTermPicker(lessonForm, () => renderLessonFormPage(stage, subject));
   document.getElementById("ls-unit").oninput = (e) => lessonForm.unit = e.target.value;
   document.getElementById("ls-num").oninput = (e) => lessonForm.lessonNum = e.target.value;
   document.getElementById("ls-title").oninput = (e) => lessonForm.title = e.target.value;
@@ -812,11 +936,12 @@ function renderQuizFormPage(stage, subject) {
   app.innerHTML = `
     <div class="hdr">
       <h1>${editing ? "تعديل الكويز" : "إضافة كويز جديد"} — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}</h1>
-      <div class="fact">مادة ${esc(subject || "—")} · ${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
+      <div class="fact">مادة ${esc(subject || "—")}</div>
     </div>
     ${teacherTabs("lessons")}
     <div class="btnrow" style="margin-bottom:10px;"><button type="button" class="btn ghost" id="qf-back">← رجوع للكويزات والامتحانات</button></div>
     <div class="card">
+      ${termPickerHtml(quizForm)}
       <label class="flabel">عنوان الكويز</label>
       <input id="qz-title" type="text" class="inp" placeholder="مثال: كويز الوحدة الأولى" value="${esc(quizForm.title)}">
       <label class="flabel">الصف (اختياري)</label>
@@ -826,6 +951,10 @@ function renderQuizFormPage(stage, subject) {
         <option value="">كويز عام — مش مرتبط بدرس</option>
         ${stageLessons.map((l) => `<option value="${l.id}" ${quizForm.lessonId === l.id ? "selected" : ""}>الوحدة ${l.unit || "؟"} · الدرس ${l.lessonNum || "؟"} — ${esc(l.title)}</option>`).join("")}
       </select>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:14px; font-weight:700; cursor:pointer;">
+        <input type="checkbox" id="qz-oneattempt" ${quizForm.oneAttempt ? "checked" : ""} style="width:18px; height:18px;">
+        محاولة واحدة بس للطالب — ميعرفش يعيد الكويز بعد ما يحله
+      </label>
       <h3 style="font-size:16px; margin:14px 0 8px;">أسئلة الكويز</h3>
       <div id="qz-quiz">${quizBuilderHtml("q", quizForm.quiz)}</div>
       <div class="btnrow">
@@ -839,9 +968,11 @@ function renderQuizFormPage(stage, subject) {
     </div>
     ${closing()}`;
   bindTeacherTabs();
+  bindTermPicker(quizForm, () => renderQuizFormPage(stage, subject));
   document.getElementById("qz-title").oninput = (e) => quizForm.title = e.target.value;
   document.getElementById("qz-grade").onchange = (e) => quizForm.grade = e.target.value;
   document.getElementById("qz-lesson").onchange = (e) => quizForm.lessonId = e.target.value;
+  document.getElementById("qz-oneattempt").onchange = (e) => quizForm.oneAttempt = e.target.checked;
   document.getElementById("qz-addq").onclick = () => {
     quizForm.quiz.push(qNew("mcq"));
     renderTeacherLessons(stage);
@@ -861,11 +992,11 @@ function renderExamFormPage(stage) {
   app.innerHTML = `
     <div class="hdr">
       <h1>${examForm.id ? "تعديل الامتحان" : "إضافة امتحان جديد"} — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}</h1>
-      <div class="fact">${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
     </div>
     ${teacherTabs("lessons")}
     <div class="btnrow" style="margin-bottom:10px;"><button type="button" class="btn ghost" id="xf-back">← رجوع للكويزات والامتحانات</button></div>
     <div class="card">
+      ${termPickerHtml(examForm)}
       <p class="muted" style="font-size:13px;">امتحان رسمي لكل طلاب المرحلة — بنفس أنواع الأسئلة السبعة. ممكن تحدد موعد فتح وقفل أو تسيبه مفتوح على طول، وتقدر تقفله يدوي في أي وقت.</p>
       <label class="flabel">عنوان الامتحان</label>
       <input id="ex-title" type="text" class="inp" placeholder="مثال: امتحان شهر نوفمبر" value="${esc(examForm.title)}">
@@ -889,6 +1020,7 @@ function renderExamFormPage(stage) {
     </div>
     ${closing()}`;
   bindTeacherTabs();
+  bindTermPicker(examForm, () => renderExamFormPage(stage));
   document.getElementById("ex-title").oninput = (e) => examForm.title = e.target.value;
   document.getElementById("ex-desc").oninput = (e) => examForm.desc = e.target.value;
   document.getElementById("ex-open").onchange = (e) => examForm.openAt = e.target.value;
@@ -968,6 +1100,7 @@ function quizResultsHtml(q) {
 }
 
 async function teacherSaveLesson(stage) {
+  if (!termWritable(lessonForm)) return lsMsg("ده محتوى ترم منتهي — للقراءة بس، مش ممكن تعديله.");
   const subject = (fbProfile && fbProfile.subject) || "";
   const unit = Number(lessonForm.unit);
   const lessonNum = Number(lessonForm.lessonNum);
@@ -991,6 +1124,7 @@ async function teacherSaveLesson(stage) {
     desc: lessonForm.desc.trim(),
     publishAt: lessonForm.publishAt ? firebase.firestore.Timestamp.fromDate(new Date(lessonForm.publishAt)) : null,
     grade: lessonForm.grade || "",
+    term: termOf(lessonForm),
   };
   try {
     if (lessonForm.id) {
@@ -1010,6 +1144,7 @@ async function teacherSaveLesson(stage) {
 
 // حفظ الكويز المستقل (مع ربط اختياري بدرس)
 async function teacherSaveQuiz(stage) {
+  if (!termWritable(quizForm)) return qzMsg("ده محتوى ترم منتهي — للقراءة بس، مش ممكن تعديله.");
   if (!quizForm.title.trim()) return qzMsg("اكتب عنوان الكويز.");
   if (!quizForm.quiz.length) return qzMsg("ضيف سؤال واحد على الأقل من زرار \"+ إضافة سؤال\".");
   for (let i = 0; i < quizForm.quiz.length; i++) {
@@ -1027,6 +1162,8 @@ async function teacherSaveQuiz(stage) {
     lessonId: quizForm.lessonId || null,
     questions: quizForm.quiz.map(qSerialize),
     grade: quizForm.grade || "",
+    maxAttempts: quizForm.oneAttempt ? 1 : 0, // 1 = محاولة واحدة بس للطالب، غير كده إعادة مفتوحة
+    term: termOf(quizForm),
   };
   try {
     if (quizForm.id) {
@@ -1049,6 +1186,7 @@ async function teacherSaveQuiz(stage) {
 
 async function teacherDeleteQuiz(id, stage) {
   const q = teacherQuizzes.find((x) => x.id === id);
+  if (q && !termWritable(q)) return showToast("ده محتوى ترم منتهي — للقراءة بس.", "bad");
   if (!confirm(`متأكد إنك عايز تحذف الكويز "${q ? q.title : ""}"؟`)) return;
   try {
     await fbDb.collection("quizzes").doc(id).delete();
@@ -1058,8 +1196,21 @@ async function teacherDeleteQuiz(id, stage) {
   } catch (e) { alert("مشكلة: " + (e.message || e)); }
 }
 
+/* تثبيت/إلغاء تثبيت درس: المثبت يطلع فوق قسم مادته عند الطلاب (مراجعة قبل الامتحان مثلاً) */
+async function teacherTogglePin(id, stage) {
+  const l = teacherLessons.find((x) => x.id === id);
+  if (!l) return;
+  if (!termWritable(l)) return showToast("ده محتوى ترم منتهي — للقراءة بس.", "bad");
+  try {
+    await fbDb.collection("lessons").doc(id).update({ pinned: !l.pinned });
+    showToast(l.pinned ? "اتلغى تثبيت الدرس." : "الدرس اتثبت — هيظهر الأول عند طلابك في قسم المادة.", "good");
+    await renderTeacherLessons(stage);
+  } catch (e) { alert("مشكلة: " + (e.message || e)); }
+}
+
 async function teacherDeleteLesson(id, stage) {
   const l = teacherLessons.find((x) => x.id === id);
+  if (l && !termWritable(l)) return showToast("ده محتوى ترم منتهي — للقراءة بس.", "bad");
   const linked = teacherQuizzes.filter((q) => q.lessonId === id);
   const extra = linked.length ? `\nتنبيه: فيه ${linked.length} كويز مرتبط بالدرس ده هيتحذف معاه.` : "";
   if (!confirm(`متأكد إنك عايز تحذف الدرس "${l ? l.title : ""}"؟${extra}`)) return;
@@ -1111,6 +1262,7 @@ function examResultsHtml(e) {
 }
 
 async function teacherSaveExam(stage) {
+  if (!termWritable(examForm)) return exMsg("ده محتوى ترم منتهي — للقراءة بس، مش ممكن تعديله.");
   const subject = (fbProfile && fbProfile.subject) || "";
   if (!examForm.title.trim()) return exMsg("اكتب عنوان الامتحان.");
   if (!examForm.quiz.length) return exMsg("ضيف سؤال واحد على الأقل للامتحان.");
@@ -1133,6 +1285,7 @@ async function teacherSaveExam(stage) {
     closed: !!examForm.closed,
     quiz: examForm.quiz.map(qSerialize),
     grade: examForm.grade || "",
+    term: termOf(examForm),
   };
   try {
     if (examForm.id) {
@@ -1156,6 +1309,7 @@ async function teacherSaveExam(stage) {
 async function teacherToggleExam(id, stage) {
   const e = teacherExams.find((x) => x.id === id);
   if (!e) return;
+  if (!termWritable(e)) return showToast("ده محتوى ترم منتهي — للقراءة بس.", "bad");
   try {
     await fbDb.collection("exams").doc(id).update({ closed: !e.closed });
     await renderTeacherLessons(stage);
@@ -1164,6 +1318,7 @@ async function teacherToggleExam(id, stage) {
 
 async function teacherDeleteExam(id, stage) {
   const e = teacherExams.find((x) => x.id === id);
+  if (e && !termWritable(e)) return showToast("ده محتوى ترم منتهي — للقراءة بس.", "bad");
   if (!confirm(`متأكد إنك عايز تحذف الامتحان "${e ? e.title : ""}"؟`)) return;
   try {
     await fbDb.collection("exams").doc(id).delete();
@@ -1414,7 +1569,6 @@ async function renderTeacherReports() {
   app.innerHTML = `
     <div class="hdr">
       <h1>التقارير 📊</h1>
-      <div class="fact">${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
     </div>
     ${teacherTabs("reports")}
     <div class="tabs">${TREP_TYPES.map(([v, lbl]) => `<button type="button" class="tab ${trepState.type === v ? "active" : ""}" data-trt="${v}">${lbl}</button>`).join("")}</div>
@@ -1596,7 +1750,6 @@ async function renderTeacherAnnouncements() {
   app.innerHTML = `
     <div class="hdr">
       <h1>الإعلانات 📢</h1>
-      <div class="fact">${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
     </div>
     ${teacherTabs("ann")}
     <div class="card">
@@ -1749,7 +1902,6 @@ async function renderTeacherProfile() {
   app.innerHTML = `
     <div class="hdr">
       <h1 style="display:flex; align-items:center; gap:10px;">${tMyAvatar(44)} حسابي</h1>
-      <div class="fact">${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
     </div>
     ${teacherTabs("profile")}
     <div class="card center" style="padding:28px;">

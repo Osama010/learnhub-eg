@@ -21,13 +21,14 @@ let fbProfile = null;   // بيانات المدرس أو الطالب
 function initFirebase() {
   fbApp = firebase.initializeApp(FIREBASE_CONFIG);
   fbAuth = firebase.auth();
+  fbAuth.languageCode = "ar"; // إيميلات التفعيل واسترجاع الباسورد توصل بالعربي
   fbDb = firebase.firestore();
   fbAuth.onAuthStateChanged(async (u) => {
     fbReady = true;
     fbUser = u;
     fbRole = null;
     fbProfile = null;
-    if (u) await resolveRole(u);
+    if (u) { await resolveRole(u); await loadAppSettings(); }
     route();
   });
 }
@@ -43,6 +44,12 @@ async function resolveRole(u) {
     const t = await fbDb.collection("teachers").doc(u.uid).get();
     if (t.exists && t.data().active !== false) {
       fbRole = "teacher";
+      fbProfile = { id: u.uid, ...t.data() };
+      return;
+    }
+    // مدرس موقوف من الأدمن: دور مميز عشان تظهر له رسالة واضحة بدل "مش حساب مدرس"
+    if (t.exists && t.data().active === false) {
+      fbRole = "teacherSuspended";
       fbProfile = { id: u.uid, ...t.data() };
       return;
     }
@@ -100,7 +107,7 @@ function renderLogin() {
   app.innerHTML = `<div class="loginwrap">
     <div class="hero">
       ${LOGO_FULL_SVG}
-      <div style="color:#64748b; font-weight:700; font-size:18px; margin-top:2px;">منصة تعليمية متكاملة</div>
+      <div style="color:var(--muted); font-weight:700; font-size:18px; margin-top:2px;">منصة تعليمية متكاملة</div>
       <div class="fact" style="margin-top:8px;">اختار نوع حسابك وسجّل دخولك</div>
     </div>
     <div class="card logincard" style="max-width:520px; margin:14px auto 0;">
@@ -244,12 +251,14 @@ async function doLogin(expectedRole) {
       await fbAuth.signOut();
       return loginMsg(expectedRole === "student"
         ? (fbRole === "blocked"
-          ? (blockedSt === "rejected" ? "طلبك اترفض، كلّم مدرسك." : "طلبك لسه تحت المراجعة، استنى موافقة مدرسك.")
+          ? (blockedSt === "rejected" ? "طلبك اترفض، كلّم مدرسك." : blockedSt === "suspended" ? "حسابك متوقف مؤقتًا، كلّم مدرسك أو إدارة المنصة." : "طلبك لسه تحت المراجعة، استنى موافقة مدرسك.")
           : fbRole === "unknown"
           ? "حسابك موجود بس ملف الطالب مش متربط بيه. جرّب تاني بعد شوية، ولو المشكلة فضلت ابعتلنا الكود ده: " + (relinkStage || "R?")
           : "الحساب ده مش حساب طالب. لو انت مدرس اختار كارت مدرس.")
         : expectedRole === "teacher"
-        ? "الحساب ده مش حساب مدرس."
+        ? (fbRole === "teacherSuspended"
+          ? "حسابك متوقف مؤقتًا من إدارة المنصة. كلّم إدارة المنصة."
+          : "الحساب ده مش حساب مدرس.")
         : "الحساب ده مش مسجل كمشرف. لو انت أدمن جديد، ادخل الأول بجوجل واربط باسورد من تاب المشرفين.");
     }
     route();
@@ -302,6 +311,101 @@ async function doGoogleLogin() {
   }
 }
 
+/* ---------- بوابة تأكيد الإيميل (للحسابات الجديدة فقط) ----------
+   الحسابات الجديدة بس (طالب عمل حسابه من أول دخول، أو مدرس ضافه الأدمن) بيتحط
+   في ملفها علامة emailVerifyRequired، ولازم تدوس لينك التفعيل اللي بيتبعت على
+   إيميلها قبل ما تدخل. الحسابات القديمة مفيهاش العلامة فبتدخل عادي زي ما هي. */
+
+function needsEmailVerify() {
+  return !!(fbUser && (fbRole === "student" || fbRole === "teacher")
+    && fbProfile && fbProfile.emailVerifyRequired && !fbUser.emailVerified);
+}
+
+// عداد إعادة الإرسال: 60 ثانية بين كل لينك والتاني، محفوظ لكل إيميل
+const EV_COOLDOWN_SEC = 60;
+let evTimer = null;
+
+function evCooldownLeft(email) {
+  try {
+    const until = +(localStorage.getItem("evCool:" + email) || 0);
+    return Math.max(0, Math.ceil((until - Date.now()) / 1000));
+  } catch (_) { return 0; }
+}
+
+function renderVerifyGate(msg, resent) {
+  if (evTimer) { clearInterval(evTimer); evTimer = null; }
+  const email = (fbUser && fbUser.email) || "";
+  const isTeacher = fbRole === "teacher";
+  app.innerHTML = `<div class="loginwrap">
+    <div class="hero">
+      ${LOGO_FULL_SVG}
+      <div style="color:var(--muted); font-weight:700; font-size:18px; margin-top:2px;">فعّل إيميلك الأول 📧</div>
+      <div class="fact" style="margin-top:8px;">${isTeacher
+        ? "حسابك كمدرس مش هيتفتح غير بعد التفعيل."
+        : "حسابك مش هيتفتح غير بعد التفعيل."} بعتنا لينك على <b class="ltr">${esc(email)}</b> — افتح إيميلك ودوس اللينك وبعدين ارجع هنا</div>
+    </div>
+    <div class="card logincard" style="max-width:520px; margin:14px auto 0;">
+      ${resent ? `<p class="msg good" style="text-align:center;">اتبعت اللينك تاني ✅ شوف البريد الوارد أو السبام</p>` : ""}
+      ${msg ? `<p class="msg bad" style="text-align:center;">${esc(msg)}</p>` : ""}
+      <div class="btnrow" style="flex-direction:column; align-items:stretch; gap:10px;">
+        <button type="button" class="btn" id="ev-done">عملت التفعيل ✅</button>
+        <button type="button" class="btn ghost" id="ev-resend">إعادة إرسال اللينك</button>
+        <button type="button" class="btn ghost" id="ev-out">خروج</button>
+      </div>
+      <p class="muted" style="font-size:13px; margin-top:14px; text-align:center;">${isTeacher
+        ? "اللينك ممكن يوصل في السبام. لو الإيميل ده غلط أو مش بتاعك، كلّم الأدمن يعدّله."
+        : "اللينك ممكن يوصل في السبام. لو الإيميل ده غلط أو مش بتاعك، كلّم مدرسك يعدّله."}</p>
+    </div>
+    ${closing()}
+  </div>`;
+  window.scrollTo(0, 0);
+
+  // زرار "عملت التفعيل": بنحدّث حالة الحساب من فايربيز — اتفعّل؟ يدخل. لسه؟ رسالة
+  document.getElementById("ev-done").onclick = async () => {
+    const b = document.getElementById("ev-done");
+    b.disabled = true; b.textContent = "بنتأكد...";
+    try {
+      await fbUser.reload();
+      if (fbUser.emailVerified) { await resolveRole(fbUser); route(); return; }
+      renderVerifyGate("اللينك لسه ما اتدوسش — بص على إيميلك تاني وبعدين دوس هنا.");
+    } catch (e) {
+      renderVerifyGate("مشكلة في الاتصال، جرّب تاني.");
+    }
+  };
+
+  // إعادة الإرسال مع عداد 60 ثانية ضد السبام
+  const resBtn = document.getElementById("ev-resend");
+  const startCountdown = () => {
+    const tick = () => {
+      const left = evCooldownLeft(email);
+      if (left > 0) {
+        resBtn.disabled = true;
+        resBtn.textContent = "إعادة الإرسال متاحة بعد " + left + " ثانية";
+      } else {
+        resBtn.disabled = false;
+        resBtn.textContent = "إعادة إرسال اللينك";
+        if (evTimer) { clearInterval(evTimer); evTimer = null; }
+      }
+    };
+    tick();
+    if (evCooldownLeft(email) > 0) evTimer = setInterval(tick, 1000);
+  };
+  resBtn.onclick = async () => {
+    if (evCooldownLeft(email) > 0) return;
+    resBtn.disabled = true; resBtn.textContent = "بنبعت...";
+    try {
+      await fbUser.sendEmailVerification();
+      try { localStorage.setItem("evCool:" + email, String(Date.now() + EV_COOLDOWN_SEC * 1000)); } catch (_) {}
+      renderVerifyGate(null, true);
+    } catch (e) {
+      renderVerifyGate("مشكلة في الإرسال، جرّب تاني بعد شوية.");
+    }
+  };
+  startCountdown();
+
+  document.getElementById("ev-out").onclick = signOut;
+}
+
 /* ---------- تسجيل طالب جديد (من غير باسورد) ---------- */
 let regTeachersCache = null;
 
@@ -317,7 +421,7 @@ async function renderRegister() {
   app.innerHTML = `<div class="loginwrap">
     <div class="hero">
       ${LOGO_FULL_SVG}
-      <div style="color:#64748b; font-weight:700; font-size:18px; margin-top:2px;">تسجيل طالب جديد</div>
+      <div style="color:var(--muted); font-weight:700; font-size:18px; margin-top:2px;">تسجيل طالب جديد</div>
       <div class="fact" style="margin-top:8px;">بعد التسجيل طلبك يروح للمدرس يوافق عليه</div>
     </div>
     <div class="card logincard" style="max-width:520px; margin:14px auto 0;">
