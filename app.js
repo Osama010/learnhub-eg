@@ -53,6 +53,16 @@ function ytEmbed(url) {
   return m ? "https://www.youtube.com/embed/" + m[1] : null;
 }
 
+// تجهيز تضمين فيديو الدرس: يقبل رابط يوتيوب أو رابط ملف فيديو على جوجل درايف
+// (file/d/<id> أو open?id=<id> أو uc?id=<id>) — ويرجع نوع المضيف ورابط التضمين
+function videoEmbed(url) {
+  const yt = ytEmbed(url);
+  if (yt) return { kind: "youtube", src: yt };
+  const m = String(url || "").match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]{10,})/);
+  if (m) return { kind: "drive", src: "https://drive.google.com/file/d/" + m[1] + "/preview" };
+  return null;
+}
+
 /* ---------- الراوتر ---------- */
 function route() {
   const h = location.hash || "#/login";

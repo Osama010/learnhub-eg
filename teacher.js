@@ -700,9 +700,10 @@ function renderLessonFormPage(stage, subject) {
       <label class="flabel">عنوان الدرس</label>
       <input id="ls-title" type="text" class="inp" placeholder="مثال: البرمجة بلغة بايثون" value="${esc(lessonForm.title)}">
       <div class="fgrid">
-        <div><label class="flabel">رابط فيديو يوتيوب</label><input id="ls-video" type="url" class="inp ltr" placeholder="https://youtube.com/watch?v=..." value="${esc(lessonForm.videoUrl)}"></div>
+        <div><label class="flabel">رابط الفيديو (يوتيوب أو جوجل درايف)</label><input id="ls-video" type="url" class="inp ltr" placeholder="https://youtube.com/watch?v=... أو https://drive.google.com/file/d/..." value="${esc(lessonForm.videoUrl)}"></div>
         <div><label class="flabel">رابط ملف PDF (جوجل درايف)</label><input id="ls-pdf" type="url" class="inp ltr" placeholder="https://drive.google.com/..." value="${esc(lessonForm.pdfUrl)}"></div>
       </div>
+      <p class="muted" style="font-size:12.5px; margin-top:2px;">فيديو درايف لازم يكون متشارك: من جوجل درايف ← كليك يمين على الملف ← مشاركة ← "أي شخص لديه الرابط". فيديو يوتيوب بيشتغل على طول.</p>
       <label class="flabel">وصف الدرس (اختياري — يظهر على كارت الدرس)</label>
       <textarea id="ls-desc" class="inp" rows="2" placeholder="مثال: في الدرس ده هنتعلم أساسيات لغة بايثون ونكتب أول برنامج">${esc(lessonForm.desc)}</textarea>
       <div class="btnrow">
@@ -710,7 +711,7 @@ function renderLessonFormPage(stage, subject) {
         <button type="button" class="btn ghost" id="ls-cancel">إلغاء</button>
       </div>
       <p id="ls-msg" class="msg"></p>
-      <p class="muted" style="font-size:12.5px;">الكويزات بقت لوحدها في تاب "الكويزات والامتحانات" — من هناك تقدر تضيف كويز وترابطه بالدرس ده. الدرس بيظهر لطلابك المقبولين بس. الفيديو يفضل على قناة يوتيوب والـPDF على درايف — المنصة بتعرضهم بس.</p>
+      <p class="muted" style="font-size:12.5px;">الكويزات بقت لوحدها في تاب "الكويزات والامتحانات" — من هناك تقدر تضيف كويز وترابطه بالدرس ده. الدرس بيظهر لطلابك المقبولين بس. الفيديو يفضل على يوتيوب أو درايف والـPDF على درايف — المنصة بتعرضهم بس.</p>
     </div>
     ${closing()}`;
   bindTeacherTabs();
@@ -839,7 +840,7 @@ function renderExamFormPage(stage) {
     </div>${closing()}`;
     return;
   }
-  const embed = l.videoUrl ? ytEmbed(l.videoUrl) : null;
+  const embed = l.videoUrl ? videoEmbed(l.videoUrl) : null;
   // الكويزات المرتبطة بالدرس (بتتدار من تاب الكويزات والامتحانات)
   let linkedQuizzes = [];
   try {
@@ -856,8 +857,11 @@ function renderExamFormPage(stage) {
     ${l.desc ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">وصف الدرس</h2><p style="white-space:pre-wrap; margin:0;">${esc(l.desc)}</p></div>` : ""}
     ${embed ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">الفيديو 🎬</h2>
       <div style="position:relative; padding-top:56.25%; border-radius:12px; overflow:hidden; background:#0f172a;">
-        <iframe src="${esc(embed)}" title="فيديو الدرس" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-      </div></div>`
+        <iframe src="${esc(embed.src)}" title="فيديو الدرس" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
+      </div>
+      <p class="muted" style="font-size:12.5px;">${embed.kind === "youtube"
+        ? "مشغل يوتيوب كامل: تشغيل وإيقاف وتقديم وصوت وملء الشاشة وسرعة التشغيل وجودة العرض من إعدادات المشغل."
+        : "مشغل جوجل درايف: تشغيل وإيقاف وتقديم وصوت وملء الشاشة. لو الفيديو لسه مترفع على درايف ممكن ياخد دقايق للمعالجة قبل ما يشتغل."}</p></div>`
       : l.videoUrl ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">الفيديو 🎬</h2><a class="btn ghost" href="${esc(l.videoUrl)}" target="_blank" rel="noopener">فتح رابط الفيديو في تاب جديد</a></div>` : ""}
     ${l.pdfUrl ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">ملف PDF 📄</h2><a class="btn ghost" href="${esc(l.pdfUrl)}" target="_blank" rel="noopener">فتح الملف في تاب جديد</a></div>` : ""}
     ${linkedQuizzes.length ? `<div class="card">
@@ -888,7 +892,7 @@ async function teacherSaveLesson(stage) {
   if (!lessonNum || lessonNum < 1) return lsMsg("اكتب رقم الدرس.");
   if (!lessonForm.title.trim()) return lsMsg("اكتب عنوان الدرس.");
   if (!lessonForm.videoUrl.trim() && !lessonForm.pdfUrl.trim()) return lsMsg("ضيف على الأقل رابط فيديو أو PDF.");
-  if (lessonForm.videoUrl.trim() && !ytEmbed(lessonForm.videoUrl)) return lsMsg("رابط اليوتيوب مش واضح. انسخ الرابط من المتصفح وهو شغال.");
+  if (lessonForm.videoUrl.trim() && !videoEmbed(lessonForm.videoUrl)) return lsMsg("رابط الفيديو مش واضح. انسخ رابط يوتيوب أو رابط ملف فيديو من جوجل درايف وهو مفتوح في المتصفح.");
   const btn = document.getElementById("ls-save");
   btn.disabled = true;
   const data = {
