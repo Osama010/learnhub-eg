@@ -51,12 +51,25 @@ service cloud.firestore {
 
     // فهرس تسجيل عام آمن: مفتاحه الإيميل، وفيه هاش الرقم السري + الحالة + رقم ملف الطالب
     // القراءة بمستند واحد بإيميل معروف فقط، وممنوع سرد الفهرس كله
+    // الإنشاء العام (تسجيل طالب جديد من غير دخول) مقيد بشكل البيانات بالظبط:
+    // الحقول المسموحة فقط، حالة pending، هاش بطول SHA-256، مدرس واحد على الأقل،
+    // saltEmail مطابق لإيميل المستند، ولازم يكون فيه ملف طالب pending موجود فعلاً
+    // بنفس الإيميل — فمحدش يقدر يزرع فهرس وهمي أو يوافق على نفسه
     match /registrationLookup/{lookupId} {
       allow get: if true;
       allow list: if false;
       allow create: if isAdmin() || isTeacher()
-        || (request.resource.data.status == "pending"
-            && request.resource.data.teacherIds is list);
+        || (request.resource.data.keys().hasOnly(["pinHash", "saltEmail", "status", "studentId", "teacherIds"])
+            && request.resource.data.status == "pending"
+            && request.resource.data.pinHash is string
+            && request.resource.data.pinHash.size() == 64
+            && request.resource.data.saltEmail == lookupId
+            && request.resource.data.studentId is string
+            && request.resource.data.teacherIds is list
+            && request.resource.data.teacherIds.size() > 0
+            && exists(/databases/$(database)/documents/students/$(request.resource.data.studentId))
+            && get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.status == "pending"
+            && get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.email == lookupId);
       allow update, delete: if isAdmin() || isTeacher();
     }
 
@@ -152,9 +165,12 @@ service cloud.firestore {
         || (isTeacher() && request.auth.uid in resource.data.teacherIds)
         || (request.auth != null && request.auth.uid == studentId)
         || (request.auth != null && request.auth.token.email == resource.data.email
-            && resource.data.authLinked != true);
-      // السرد: الأدمن يشوف الكل، والمدرس (استعلاماته في الكود مقيدة بطلابه بس)
-      allow list: if isAdmin() || isTeacher();
+            && resource.data.get("authLinked", false) != true);
+      // السرد: الأدمن يشوف الكل. المدرس يقدر يسرد بس لما الاستعلام نفسه
+      // يكون متقيد بمدرسين الطالب (array-contains بنفس uid المدرس) —
+      // فايرستور بترفض أي استعلام ممكن يرجع طالب مش من طلابه
+      allow list: if isAdmin()
+        || (isTeacher() && request.auth.uid in resource.data.teacherIds);
       // إنشاء: تسجيل جديد بحالة pending، أو الطالب بينقل بياناته لحسابه عند أول دخول.
       // في النقل: لازم الفهرس العام يكون حالته approved (مدرس أو أدمن بس اللي يعمل كده)
       // وبيانات المستند الجديد تطابق اللي في الفهرس، فمحدش يقدر يوافق على نفسه
@@ -178,7 +194,7 @@ service cloud.firestore {
       allow delete: if isAdmin()
         || (isTeacher() && request.auth.uid in resource.data.teacherIds)
         || (request.auth != null && request.auth.token.email == resource.data.email
-            && resource.data.authLinked != true);
+            && resource.data.get("authLinked", false) != true);
     }
   }
 }

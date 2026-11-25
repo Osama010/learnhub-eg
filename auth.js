@@ -67,7 +67,12 @@ async function resolveRole(u) {
 
 function signOut() {
   clearAdminPinSession();
-  // ننقله لصفحة الدخول فوراً عشان أي إعادة رندر متأخرة لصفحة محمية ماتشتغلش من غير جلسة
+  // نفضّي الجلسة محلياً قبل ما نطلب الخروج من فايربيز: أي إعادة رندر متأخرة لصفحة
+  // محمية (زي بوابة الأدمن) هتشوف إن مفيش جلسة فترجع لصفحة الدخول بهدوء، بدل ما
+  // تضرب قراءة فايرستور وهي مش مسجلة فتظهر رسالة صلاحيات لحظة الخروج
+  fbUser = null;
+  fbRole = null;
+  fbProfile = null;
   if (location.hash !== "#/login") location.hash = "#/login";
   fbAuth.signOut();
 }
@@ -481,6 +486,8 @@ function stopIdleWatch() {
 }
 
 async function renderAdminPinGate(afterHash) {
+  // الجلسة اتقفلت (خروج): منعرضش البوابة ولا نقرا من فايرستور — نرجع للدخول
+  if (!fbUser) { renderLogin(); return; }
   const email = ((fbUser && fbUser.email) || "").toLowerCase();
   let doc = null;
   let loadErr = null;
