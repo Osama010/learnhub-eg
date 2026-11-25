@@ -67,6 +67,19 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
     }
 
+    // الكويزات المستقلة (منفصلة عن الدروس، ممكن تترابط بدرس اختيارياً):
+    // نفس صلاحيات الدروس بالظبط — الطالب يشوف كويزات مدرسينه بس،
+    // والمدرس يضيف ويعدّل ويحذف كويزاته بس
+    match /quizzes/{quizId} {
+      allow get, list: if isAdmin()
+        || (isTeacher() && resource.data.teacherId == request.auth.uid)
+        || (request.auth != null
+            && exists(/databases/$(database)/documents/students/$(request.auth.uid))
+            && resource.data.teacherId in get(/databases/$(database)/documents/students/$(request.auth.uid)).data.teacherIds);
+      allow create: if isAdmin() || (isTeacher() && request.resource.data.teacherId == request.auth.uid);
+      allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
     // الامتحانات المستقلة (خارج الدروس، لكل مرحلة): زي الدروس بالظبط —
     // الطالب يشوف امتحانات مدرسينه بس، والمدرس يضيف ويعدّل ويحذف امتحاناته بس
     match /exams/{examId} {
