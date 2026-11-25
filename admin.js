@@ -985,16 +985,6 @@ function adminAdmins() {
       <p class="muted" style="font-size:12.5px;">المشرف الجديد بيدخل من زر "دخول الأدمن" بحساب جوجل بتاع الإيميل ده، وبيقدر يعمل كل حاجة في اللوحة زي الأدمن الأساسي. الإيميل بيتحفظ صغير (lowercase) عشان المطابقة تظبط.</p>
     </div>
     <div class="card">
-      <h2 style="font-size:18px; margin-top:0;">باسورد حسابي (اختياري)</h2>
-      <p class="muted" style="font-size:13px;">اربط باسورد بحسابك عشان تقدر تدخل بالإيميل والباسورد كمان، وجوجل هيفضل شغال. الباسورد بيتربط بحسابك المتحقق منه بس، فمحدش يقدر يعمل حساب بإيميلك من برّه.</p>
-      <div class="fgrid">
-        <div><label class="flabel">الباسورد الجديد (6 أحرف على الأقل)</label><input id="adp-pass1" type="password" class="inp ltr"></div>
-        <div><label class="flabel">تأكيد الباسورد</label><input id="adp-pass2" type="password" class="inp ltr"></div>
-      </div>
-      <button type="button" class="btn" id="adp-btn">ربط الباسورد بحسابي</button>
-      <p id="adp-msg" class="msg"></p>
-    </div>
-    <div class="card">
       <h2 style="font-size:18px; margin-top:0;">رقم الأدمن السري (PIN)</h2>
       <p class="muted" style="font-size:13px;">ده الرقم اللي اللوحة بتطلبه منك كل مرة تدخل فيها بعد تسجيل الدخول — حماية إضافية لو الجهاز في إيد حد تاني. بيتحفظ مشفّر ومحدش يقدر يقرأه، ولو نسيته تقدر تغيّره من هنا في أي وقت.</p>
       <div class="fgrid">
@@ -1027,7 +1017,6 @@ function adminAdmins() {
     </div>`;
   adminLayout(content, "admins");
   document.getElementById("an-add").onclick = adminAddAdmin;
-  document.getElementById("adp-btn").onclick = adminLinkPassword;
   document.getElementById("apc-btn").onclick = adminChangePin;
   document.querySelectorAll("[data-admdel]").forEach((b) => b.onclick = () => adminDeleteAdmin(b.dataset.admdel));
 }
@@ -1065,10 +1054,6 @@ async function adminDeleteAdmin(email) {
   }
 }
 
-function adpMsg(t, good) {
-  const m = document.getElementById("adp-msg");
-  if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
-}
 
 function apcMsg(t, good) {
   const m = document.getElementById("apc-msg");
@@ -1092,40 +1077,6 @@ async function adminChangePin() {
     apcMsg("اتغيّر الرقم السري. هتستخدمه من أول مرة دخول جاية.", true);
   } catch (e) {
     apcMsg("حصلت مشكلة: " + (e.message || e));
-  }
-  btn.disabled = false;
-}
-
-// ربط باسورد بحساب الأدمن الحالي (المتحقق منه) عشان يدخل بالإيميل والباسورد كمان
-async function adminLinkPassword() {
-  const p1 = document.getElementById("adp-pass1").value;
-  const p2 = document.getElementById("adp-pass2").value;
-  if (p1.length < 6) return adpMsg("الباسورد لازم يكون 6 أحرف أو أرقام على الأقل.");
-  if (p1 !== p2) return adpMsg("الباسوردين مش زي بعض.");
-  const btn = document.getElementById("adp-btn");
-  btn.disabled = true;
-  try {
-    const cred = firebase.auth.EmailAuthProvider.credential(fbUser.email, p1);
-    await fbUser.linkWithCredential(cred);
-    adpMsg("اتربط الباسورد بحسابك. تقدر تدخل بالإيميل والباسورد من صفحة الدخول.", true);
-  } catch (e) {
-    if (e.code === "auth/provider-already-linked" || e.code === "auth/credential-already-in-use" || e.code === "auth/email-already-in-use") {
-      // فيه باسورد مربوط أصلاً: نغيّره
-      try {
-        await fbUser.updatePassword(p1);
-        adpMsg("الباسورد اتغيّر بنجاح.", true);
-      } catch (e2) {
-        if (e2.code === "auth/requires-recent-login") {
-          adpMsg("لأسباب أمنية: اخرج وسجّل دخول من جديد، وبعدين غيّر الباسورد.");
-        } else {
-          adpMsg("حصلت مشكلة: " + authErrAr(e2));
-        }
-      }
-    } else if (e.code === "auth/requires-recent-login") {
-      adpMsg("لأسباب أمنية: اخرج وسجّل دخول من جديد، وبعدين اربط الباسورد.");
-    } else {
-      adpMsg("حصلت مشكلة: " + authErrAr(e));
-    }
   }
   btn.disabled = false;
 }
