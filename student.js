@@ -482,7 +482,7 @@ async function renderStudentDash() {
             || (l.publishAt && l.publishAt.seconds && (Date.now() / 1000 - l.publishAt.seconds < 3 * 86400));
           return `<div class="card lcard" style="margin:0;">
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
-              ${l.pinned ? `<span class="bdg pin">📌 مثبت</span>` : ""}${isNew ? `<span class="bdg new">جديد</span>` : ""}${l.videoUrl ? `<span class="bdg vid">🎬 فيديو</span>` : ""}${l.pdfUrl ? `<span class="bdg pdf">📄 PDF</span>` : ""}${!open ? `<span class="chip amber">🕒 ينزل ${fmtTs(l.publishAt)}</span>` : ""}
+              ${l.pinned ? `<span class="bdg pin">📌 مثبت</span>` : ""}${isNew ? `<span class="bdg new">جديد</span>` : ""}${lessonHasVideo(l) ? `<span class="bdg vid">🎬 فيديو</span>` : ""}${lessonHasPdf(l) ? `<span class="bdg pdf">📄 PDF</span>` : ""}${!open ? `<span class="chip amber">🕒 ينزل ${fmtTs(l.publishAt)}</span>` : ""}
             </div>
             <div style="font-size:12px; color:var(--primary-dark); font-weight:700;">الوحدة ${l.unit || "—"} · الدرس ${l.lessonNum || "—"}</div>
             <b style="font-size:15px;">${esc(l.title)}</b>
@@ -533,7 +533,7 @@ async function renderStudentLesson(id) {
   sMarkWatched(id); // علامة «شوفت الدرس» لشريط التقدم والتذكير
   if (firstWatch) sPingActivity("lesson", id, l.teacherId, 10);
   const myStars = sMyRating(id);
-  const emb = l.videoUrl ? videoEmbed(l.videoUrl) : null;
+  const hasV = lessonHasVideo(l), hasP = lessonHasPdf(l);
   const linked = (studentData.quizzes || []).filter((q) => q.lessonId === id && sVisible(q) && !sTeacherLocked(q));
   app.innerHTML = `
     <div class="hdr">
@@ -543,10 +543,10 @@ async function renderStudentLesson(id) {
     ${studentTabs("lessons")}
     <div class="btnrow" style="margin-bottom:10px;"><a class="btn ghost" href="#/student">← رجوع لدروسي</a></div>
     <div class="card">
-      ${emb ? `<div style="border-radius:14px; overflow:hidden; aspect-ratio:16/9; background:#0f172a;"><iframe src="${esc(emb.src)}" style="width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>` : ""}
+      ${hasV ? `<div data-media-video><p class="muted center">جاري تحميل الفيديو…</p></div>` : ""}
       ${l.desc ? `<p class="muted" style="font-size:13.5px; margin-top:10px;">${esc(l.desc)}</p>` : ""}
-      ${l.pdfUrl ? `<div class="btnrow" style="margin-top:10px;"><a class="btn ghost" target="_blank" rel="noopener" href="${esc(l.pdfUrl)}">📄 فتح ملف الـ PDF</a></div>` : ""}
-      ${!emb && !l.pdfUrl ? `<p class="muted center">الدرس ده من غير وسائط لسه.</p>` : ""}
+      ${hasP ? `<div data-media-pdf style="margin-top:12px;"></div>` : ""}
+      ${!hasV && !hasP ? `<p class="muted center">الدرس ده من غير وسائط لسه.</p>` : ""}
     </div>
     <div class="card center">
       <b style="font-size:15px;">قيّم الدرس</b>
@@ -568,6 +568,7 @@ async function renderStudentLesson(id) {
   bindStudentTabs();
   document.querySelectorAll("[data-sq]").forEach((b) => b.onclick = () => { location.hash = "#/student/quiz/" + b.dataset.sq; });
   document.querySelectorAll("[data-star]").forEach((b) => b.onclick = () => sRate(id, Number(b.dataset.star)));
+  mountLessonMedia(app, l, { student: true });
   window.scrollTo(0, 0);
 }
 
@@ -825,6 +826,7 @@ function sShowResult(item, questions, results, isExam, given) {
   const r = document.getElementById("sr-retry");
   if (r) r.onclick = () => renderStudentTake(item.id, isExam);
   window.scrollTo(0, 0);
+  if (pct >= 85 && typeof t4kConfetti === "function") t4kConfetti();
 }
 
 /* ---------- تاب القادم: أجندة الدروس المجدولة والامتحانات اللي ليها معاد ---------- */
@@ -853,7 +855,7 @@ function sUpLessonCard(l) {
   return `<div class="card" style="margin:0;">
     <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(l.title || "")}</b><span class="chip amber">🕒 ينزل ${fmtTs(l.publishAt)}</span></div>
     <div class="muted" style="font-size:13px; margin-top:4px;">${esc(l.subject || "")}${tchr.name ? " · " + esc(tchr.name) : ""}</div>
-    <div class="muted" style="font-size:12px; margin:4px 0;">${l.videoUrl ? "🎬 فيديو" : ""}${l.videoUrl && l.pdfUrl ? " · " : ""}${l.pdfUrl ? "📄 PDF" : ""}</div>
+    <div class="muted" style="font-size:12px; margin:4px 0;">${lessonHasVideo(l) ? "🎬 فيديو" : ""}${lessonHasVideo(l) && lessonHasPdf(l) ? " · " : ""}${lessonHasPdf(l) ? "📄 PDF" : ""}</div>
   </div>`;
 }
 function sUpExamCard(e) {
@@ -1226,12 +1228,73 @@ function sAvatarHtml(size) {
   return `<span style="width:${size}px; height:${size}px; border-radius:50%; background:var(--primary); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:${Math.round(size * 0.45)}px; font-weight:800; vertical-align:middle;">${esc(nm ? nm[0] : "؟")}</span>`;
 }
 
+/* ---------- مدرسيني + طلب إضافة مدرس (المدرس هو اللي بيوافق) ---------- */
+async function studentLoadTeacherReqs() {
+  let pubs = [], reqs = [];
+  try {
+    const snap = await fbDb.collection("teachersPublic").where("active", "==", true).get();
+    pubs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (_) {}
+  try {
+    const rs = await fbDb.collection("teacherRequests").where("studentId", "==", fbUser.uid).get();
+    reqs = rs.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (_) {}
+  return { pubs, reqs };
+}
+function studentTeachersCardHtml(tr) {
+  const mine = ((fbProfile && fbProfile.teacherIds) || []);
+  const grade = (fbProfile && fbProfile.grade) || "";
+  const st = typeof stageOfGrade === "function" ? stageOfGrade(grade) : "";
+  const mineList = tr.pubs.filter((t) => mine.includes(t.id));
+  const others = tr.pubs.filter((t) => !mine.includes(t.id) && (!st || !(t.stages || []).length || (t.stages || []).includes(st)));
+  const reqOf = (tid) => tr.reqs.find((r) => r.teacherId === tid && r.status !== "accepted");
+  const row = (t) => {
+    const r = reqOf(t.id);
+    let act;
+    if (!r) act = `<button type="button" class="btn sm" data-treq="${esc(t.id)}">اطلب الإضافة</button>`;
+    else if (r.status === "pending") act = `<span class="chip amber">قيد الانتظار</span> <button type="button" class="btn sm ghost" data-tcancel="${esc(r.id)}">إلغاء الطلب</button>`;
+    else act = `<span class="chip red">اترفض</span> <button type="button" class="btn sm ghost" data-tcancel="${esc(r.id)}">حذف الطلب</button>`;
+    return `<div class="btnrow" style="justify-content:space-between; border-bottom:1px solid var(--line); padding:8px 0;"><span><b>${esc(t.name)}</b>${t.subject ? ` <span class="muted" style="font-size:12.5px;">— ${esc(t.subject)}</span>` : ""}</span><span>${act}</span></div>`;
+  };
+  return `<div class="card" id="sp-teachers">
+    <h2 style="font-size:18px; margin-top:0;">👩‍🏫 مدرسيني</h2>
+    <div class="btnrow" style="margin-bottom:6px;">${mineList.length ? mineList.map((t) => `<span class="chip green">${esc(t.name)}</span>`).join("") : '<span class="muted">—</span>'}</div>
+    ${others.length ? `<h3 style="font-size:15px; margin:12px 0 4px;">إضافة مدرس جديد</h3>
+      <p class="muted" style="font-size:12.5px; margin:0 0 4px;">بتبعت طلب للمدرس، ولما يوافق عليه بيظهر عندك محتواه.</p>
+      ${others.map(row).join("")}` : `<p class="muted" style="font-size:13px;">مفيش مدرسين تانيين متاحين دلوقتي.</p>`}
+    <p class="msg" id="sp-t-msg"></p>
+  </div>`;
+}
+function bindStudentTeachers() {
+  const msg = document.getElementById("sp-t-msg");
+  const say = (t, ok) => { if (msg) { msg.className = "msg " + (ok ? "good" : "bad"); msg.textContent = t; } };
+  document.querySelectorAll("[data-treq]").forEach((b) => b.onclick = async () => {
+    const tid = b.dataset.treq;
+    b.disabled = true;
+    try {
+      await fbDb.collection("teacherRequests").doc(fbUser.uid + "_" + tid).set({
+        studentId: fbUser.uid, teacherId: tid,
+        studentName: (fbProfile && fbProfile.name) || "", grade: (fbProfile && fbProfile.grade) || "",
+        email: fbUser.email || "", status: "pending",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      renderStudentProfile();
+    } catch (e) { b.disabled = false; say("مشكلة في إرسال الطلب: " + (e.message || e)); }
+  });
+  document.querySelectorAll("[data-tcancel]").forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    try { await fbDb.collection("teacherRequests").doc(b.dataset.tcancel).delete(); renderStudentProfile(); }
+    catch (e) { b.disabled = false; say("مشكلة: " + (e.message || e)); }
+  });
+}
+
 async function renderStudentProfile() {
   if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   if (!fbUser) return renderLogin();
   app.innerHTML = `<div class="spin">بنحمل حسابك...</div>`;
   try { await studentLoadAll(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
+  const trq = await studentLoadTeacherReqs();
   const s = fbProfile || {};
   const atts = studentData.attempts || [];
   const pcts = atts.map((a) => (a.total > 0 ? Math.round((a.score / a.total) * 100) : 0));
@@ -1272,6 +1335,7 @@ async function renderStudentProfile() {
       </div>
       <p class="muted" style="font-size:12.5px; margin-top:12px;">الاسم والصف ورقم ولي الأمر بيتحدثوا من مدرسك أو الأدمن — لو في حاجة غلط كلّم مدرسك.</p>
     </div>
+    ${studentTeachersCardHtml(trq)}
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">🔒 الباسورد</h2>
       <div id="sp-pass-form" style="display:none; margin-top:10px;">
@@ -1286,6 +1350,7 @@ async function renderStudentProfile() {
     </div>
     ${closing()}`;
   bindStudentTabs();
+  bindStudentTeachers();
   const msg = document.getElementById("sp-msg");
   document.getElementById("sp-pick").onclick = () => document.getElementById("sp-file").click();
   document.getElementById("sp-file").onchange = (e) => sAvatarSave(e.target.files && e.target.files[0], msg);

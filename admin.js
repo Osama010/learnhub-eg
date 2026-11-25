@@ -588,9 +588,6 @@ async function adminDeleteSubject(id) {
   } catch (e) { alert("مشكلة: " + (e.message || e)); }
 }
 
-function fmtTs(ts) {
-  try { return ts && ts.toDate ? ts.toDate().toLocaleString("ar-EG") : "—"; } catch (e) { return "—"; }
-}
 
 function showDetail(title, rows) {
   const ov = document.createElement("div");
@@ -1056,6 +1053,13 @@ async function adminTeacherContentData(tid) {
   const [lessons, quizzes, exams, ann, attempts, ratings] = await Promise.all([
     byT("lessons"), byT("quizzes"), byT("exams"), byT("announcements"), byT("quizAttempts"), byT("lessonRatings"),
   ]);
+  // الروابط الأصلية متخزنة في lessonMedia — الأدمن بيشوفها ويدخلها في التصدير
+  await Promise.all(lessons.filter((l) => l.hasVideo || l.hasPdf).map(async (l) => {
+    try {
+      const m = await fbDb.collection("lessonMedia").doc(l.id).get();
+      if (m.exists) { const d = m.data(); l.videoUrl = d.videoUrl || l.videoUrl || ""; l.pdfUrl = d.pdfUrl || (d.pdfFile ? "(ملف مرفوع: " + (d.pdfFile.name || "PDF") + ")" : l.pdfUrl || ""); }
+    } catch (_) {}
+  }));
   return { lessons, quizzes, exams, ann, attempts, ratings };
 }
 
@@ -1102,7 +1106,7 @@ async function renderAdminTeacherContent(tid) {
         return `<div class="card card-sub" style="margin:0;">
           <div style="font-size:12px; color:var(--primary-dark); font-weight:700;">الوحدة ${l.unit || "—"} · الدرس ${l.lessonNum || "—"} · ${l.term === 2 ? "الترم الثاني" : "الترم الأول"}</div>
           <b style="font-size:14.5px;">${esc(l.title || "")}</b>
-          <div class="muted" style="font-size:12px; margin-top:4px;">${l.videoUrl ? "🎬 فيديو " : ""}${l.pdfUrl ? "📄 PDF " : ""}${st.avg ? `· ⭐ ${st.avg} (${st.count} تقييم)` : ""}</div>
+          <div class="muted" style="font-size:12px; margin-top:4px;">${lessonHasVideo(l) ? "🎬 فيديو " : ""}${lessonHasPdf(l) ? "📄 PDF " : ""}${st.avg ? `· ⭐ ${st.avg} (${st.count} تقييم)` : ""}</div>
         </div>`;
       }).join("")}</div>` : `<p class="muted center">مفيش دروس</p>`}
     </div>
@@ -1689,14 +1693,6 @@ function exportReport(kind) {
   }
 }
 
-function downloadBlob(blob, filename) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
-}
 
 /* ---------- المشرفين (أكتر من أدمن) ---------- */
 function admMsg(t, good) {
@@ -1865,6 +1861,17 @@ function adminProfile() {
       <p class="msg" id="ab-msg"></p>
     </div>
     <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">📊 أرقام الصفحة الرئيسية</h2>
+      <p class="muted" style="font-size:13px;">الأرقام الكبيرة اللي بتعد في صفحة الهبوط. بتكتبها بنفسك (مش بتتحسب من الداتا) وبتظهر للزوار من غير تسجيل دخول.</p>
+      <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px;">
+        <div><label class="flabel">عدد المدرسين</label><input id="st-teachers" type="number" min="0" class="inp ltr" value="${esc(statsGet().teachers)}"></div>
+        <div><label class="flabel">عدد الدروس</label><input id="st-lessons" type="number" min="0" class="inp ltr" value="${esc(statsGet().lessons)}"></div>
+        <div><label class="flabel">عدد الطلاب</label><input id="st-students" type="number" min="0" class="inp ltr" value="${esc(statsGet().students)}"></div>
+      </div>
+      <div class="btnrow" style="margin-top:10px;"><button type="button" class="btn" id="st-save">حفظ الأرقام</button></div>
+      <p class="msg" id="st-msg"></p>
+    </div>
+    <div class="card">
       <h2 style="font-size:18px; margin-top:0;">📝 جملة أسفل الصفحات</h2>
       <p class="muted" style="font-size:13px;">بتظهر في أسفل كل صفحات المنصة (حتى صفحة الدخول). منفصلة تمامًا عن النبذة — تعديلها مبيأثرش على النبذة والعكس.</p>
       <label class="flabel">النص</label>
@@ -1956,6 +1963,33 @@ function adminProfile() {
       setAbMsg("تمام، النبذة اتحفظت ✅", true);
       showToast("تمام، النبذة اتحفظت ✅", "good");
     } catch (e) { setAbMsg("مشكلة: " + (e.message || e)); }
+    btn.disabled = false;
+  };
+
+  /* --- أرقام صفحة الهبوط: settings/stats --- */
+  const stMsg = document.getElementById("st-msg");
+  const stIds = ["teachers", "lessons", "students"];
+  loadStatsSettings().then(() => {
+    stIds.forEach((k) => { const el = document.getElementById("st-" + k); if (el && !el.dataset.dirty) el.value = statsGet()[k]; });
+  });
+  stIds.forEach((k) => { const el = document.getElementById("st-" + k); if (el) el.oninput = () => { el.dataset.dirty = "1"; }; });
+  document.getElementById("st-save").onclick = async () => {
+    const btn = document.getElementById("st-save");
+    const vals = {};
+    for (const k of stIds) {
+      const n = Number(document.getElementById("st-" + k).value);
+      if (!isFinite(n) || n < 0 || n > 100000000) { stMsg.className = "msg bad"; stMsg.textContent = "اكتب أرقام صحيحة (صفر أو أكتر)."; return; }
+      vals[k] = Math.round(n);
+    }
+    btn.disabled = true;
+    stMsg.className = "msg"; stMsg.textContent = "بنحفظ...";
+    try {
+      await fbDb.collection("settings").doc("stats").set({ ...vals, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      statsCfg = Object.assign({}, statsCfg || {}, vals);
+      adminLogAction("تعديل أرقام الصفحة الرئيسية", "settings", "stats", JSON.stringify(vals));
+      stMsg.className = "msg good"; stMsg.textContent = "تمام، الأرقام اتحفظت ✅";
+      showToast("تمام، الأرقام اتحفظت ✅", "good");
+    } catch (e) { stMsg.className = "msg bad"; stMsg.textContent = "مشكلة: " + (e.message || e); }
     btn.disabled = false;
   };
 

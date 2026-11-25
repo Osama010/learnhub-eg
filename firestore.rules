@@ -70,7 +70,7 @@ service cloud.firestore {
     
     
     match /settings/{docId} {
-      allow read: if request.auth != null || docId == "footer";
+      allow read: if request.auth != null || docId == "footer" || docId == "stats" || docId == "about";
       allow write: if isAdmin();
     }
 
@@ -149,6 +149,41 @@ service cloud.firestore {
     
     
     
+    function mediaReader(tid) {
+      return isAdmin()
+        || (isTeacher() && tid == request.auth.uid)
+        || (studentActive()
+            && tid in studentData().teacherIds
+            && notSuspendedBy(tid)
+            && teacherNotAdminSuspended(tid));
+    }
+    function ownsLesson(lid) {
+      return exists(/databases/$(database)/documents/lessons/$(lid))
+        && get(/databases/$(database)/documents/lessons/$(lid)).data.teacherId == request.auth.uid;
+    }
+
+    match /lessonMedia/{lessonId} {
+      allow get: if mediaReader(resource.data.teacherId);
+      allow list: if isAdmin();
+      allow create, update: if isTeacher() && request.resource.data.teacherId == request.auth.uid
+        && ownsLesson(lessonId)
+        && request.resource.data.keys().hasOnly(["teacherId", "videoUrl", "pdfUrl", "pdfFile", "updatedAt"]);
+      allow delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
+    match /lessonFileChunks/{chunkId} {
+      allow get: if mediaReader(resource.data.teacherId);
+      allow list: if isAdmin();
+      allow create, update: if isTeacher() && request.resource.data.teacherId == request.auth.uid
+        && ownsLesson(request.resource.data.lessonId)
+        && request.resource.data.keys().hasOnly(["teacherId", "lessonId", "i", "data"])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() <= 800000
+        && request.resource.data.i is int
+        && chunkId == request.resource.data.lessonId + "_" + string(request.resource.data.i);
+      allow delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
     match /quizzes/{quizId} {
       allow get, list: if isAdmin()
         || (isTeacher() && resource.data.teacherId == request.auth.uid)
@@ -281,6 +316,11 @@ service cloud.firestore {
       
       allow update: if isAdmin()
         || (isTeacher() && request.auth.uid in resource.data.teacherIds)
+        || (isTeacher() && !(request.auth.uid in resource.data.teacherIds)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["teacherIds"])
+            && request.resource.data.teacherIds.toSet() == resource.data.teacherIds.toSet().union([request.auth.uid].toSet())
+            && exists(/databases/$(database)/documents/teacherRequests/$(studentId + "_" + request.auth.uid))
+            && get(/databases/$(database)/documents/teacherRequests/$(studentId + "_" + request.auth.uid)).data.status == "pending")
         || (request.auth != null && request.auth.uid == studentId
             && request.resource.data.status == resource.data.status
             && request.resource.data.email == resource.data.email
@@ -294,6 +334,32 @@ service cloud.firestore {
     }
 
     
+    match /teacherRequests/{reqId} {
+      allow get, list: if isAdmin()
+        || (isTeacher() && resource.data.teacherId == request.auth.uid)
+        || (request.auth != null && resource.data.studentId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(["studentId", "teacherId", "studentName", "grade", "email", "status", "createdAt"])
+        && request.resource.data.studentId == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && reqId == request.auth.uid + "_" + request.resource.data.teacherId
+        && request.resource.data.status == "pending"
+        && request.resource.data.studentName is string
+        && request.resource.data.teacherId is string
+        && studentActive()
+        && studentData().get("status", "approved") == "approved"
+        && !(request.resource.data.teacherId in studentData().teacherIds)
+        && exists(/databases/$(database)/documents/teachersPublic/$(request.resource.data.teacherId))
+        && get(/databases/$(database)/documents/teachersPublic/$(request.resource.data.teacherId)).data.get("active", true) != false;
+      allow update: if isTeacher() && resource.data.teacherId == request.auth.uid
+        && resource.data.status == "pending"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
+        && request.resource.data.status in ["accepted", "rejected"];
+      allow delete: if isAdmin()
+        || (isTeacher() && resource.data.teacherId == request.auth.uid)
+        || (request.auth != null && resource.data.studentId == request.auth.uid);
+    }
+
     match /subscriptionPayments/{paymentId} {
       allow read, write: if isAdmin();
     }

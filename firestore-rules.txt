@@ -2,10 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // الأدمن: الإيميل الأساسي، أو إيميل مسجل في مجموعة admins (يضيفهم الأدمن من اللوحة)
-    // الدخول بجوجل يُعتبر تحقق بحد ذاته (جوجل بيملك gmail.com)، فمش محتاجين email_verified معاه
-    // لازم الإيميل يكون متحقق منه (جوجل بيحقق تلقائياً)، عشان محدش يعمل حساب
-    // بإيميل وباسورد بإيميل أدمن من غير تحقق وياخد صلاحياته
     function isAdmin() {
       return request.auth != null
         && (request.auth.token.email_verified == true
@@ -13,7 +9,7 @@ service cloud.firestore {
         && (request.auth.token.email == "osamaasas0@gmail.com"
             || exists(/databases/$(database)/documents/admins/$(request.auth.token.email)));
     }
-    // اشتراك المدرس ساري: مجاني، أو من غير تاريخ نهاية، أو تاريخ النهاية لسه ماجاش
+
     function teacherSubActive(tid) {
       let d = get(/databases/$(database)/documents/teachers/$(tid)).data;
       return d.get("subType", "free") == "free"
@@ -27,28 +23,25 @@ service cloud.firestore {
         && teacherSubActive(request.auth.uid);
     }
 
-    // الترم الحالي من إعدادات المنصة — ترم أول افتراضياً لو مستند الإعدادات مش موجود
     function currentTerm() {
       return (!exists(/databases/$(database)/documents/settings/app)
           || get(/databases/$(database)/documents/settings/app).data.get("currentTerm", 1) == 1) ? 1 : 2;
     }
 
-    // ملف الطالب الحالي (بيتعمل كاش جوه الطلب الواحد، فتكراره ميكلفش قراءات زيادة)
     function studentData() {
       return get(/databases/$(database)/documents/students/$(request.auth.uid)).data;
     }
-    // طالب حالته مش موقوفة كليًا (pending و approved يعدوا — تدفق التسجيل محتاجهم)
+
     function studentActive() {
       return request.auth != null
         && exists(/databases/$(database)/documents/students/$(request.auth.uid))
         && studentData().get("status", "approved") != "suspended";
     }
-    // مدرس معين مش موقف الطالب ده عن محتواه
+
     function notSuspendedBy(tid) {
       return !(tid in studentData().get("suspendedBy", []));
     }
-    // المدرس مش موقوف من الأدمن (النسخة العامة متاحة للكل وactive=false يعني موقوف)
-    // المحتوى القديم لمدرس مفقودة نسخته العامة يفضل متاح — الاستبعاد بيحصل بس لما active=false صراحة
+
     function teacherNotAdminSuspended(tid) {
       let pub = get(/databases/$(database)/documents/teachersPublic/$(tid)).data;
       return !exists(/databases/$(database)/documents/teachersPublic/$(tid))
@@ -58,8 +51,6 @@ service cloud.firestore {
                 || request.time <= pub.subEnd));
     }
 
-    // المشرفين: مفتاح المستند هو الإيميل. القراءة والإضافة والحذف للأدمن بس،
-    // ومستند الأدمن الأساسي ميتحذفش أبداً
     match /admins/{email} {
       allow read: if isAdmin();
       allow create: if isAdmin();
@@ -67,14 +58,11 @@ service cloud.firestore {
       allow delete: if isAdmin() && email != "osamaasas0@gmail.com";
     }
 
-    // إعدادات المنصة: الترم الحالي والنبذة أي مستخدم مسجل يقراهم،
-    // وجملة أسفل الصفحات (footer) قراءتها عامة عشان تظهر في صفحة الدخول، والكتابة للأدمن بس
     match /settings/{docId} {
-      allow read: if request.auth != null || docId == "footer";
+      allow read: if request.auth != null || docId == "footer" || docId == "stats" || docId == "about";
       allow write: if isAdmin();
     }
 
-    // ملفات المدرسين الكاملة (فيها إيميل وتليفون): الأدمن أو المدرس نفسه بس
     match /teachers/{teacherId} {
       allow get: if isAdmin() || request.auth.uid == teacherId;
       allow list: if isAdmin();
@@ -82,27 +70,19 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (isTeacher() && request.auth.uid == teacherId
             && request.resource.data.active == resource.data.active
-            // حقول الاشتراك يديرها الأدمن بس — المدرس ميعرفش يمدد لنفسه
+
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["subType", "subAmount", "subStart", "subEnd"]));
     }
 
-    // أسماء ومواد وصور المدرسين للعرض العام في صفحة التسجيل وعند طلابهم — من غير تليفونات.
-    // الإيميل موجود عشان تحذير "الإيميل مش مسجل" في صفحة دخول المدرس.
     match /teachersPublic/{teacherId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      // الأدمن يعدل أي حاجة؛ والمدرس يقدر يغير صورته هو بس — أي حقل تاني يفضل زي ما هو
+
       allow update: if isAdmin()
         || (isTeacher() && request.auth.uid == teacherId
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["avatar"]));
     }
 
-    // فهرس تسجيل عام آمن: مفتاحه الإيميل، وفيه هاش الرقم السري + الحالة + رقم ملف الطالب
-    // القراءة بمستند واحد بإيميل معروف فقط، وممنوع سرد الفهرس كله
-    // الإنشاء العام (تسجيل طالب جديد من غير دخول) مقيد بشكل البيانات بالظبط:
-    // الحقول المسموحة فقط، حالة pending، هاش بطول SHA-256، مدرس واحد على الأقل،
-    // saltEmail مطابق لإيميل المستند، ولازم يكون فيه ملف طالب pending موجود فعلاً
-    // بنفس الإيميل — فمحدش يقدر يزرع فهرس وهمي أو يوافق على نفسه
     match /registrationLookup/{lookupId} {
       allow get: if true;
       allow list: if false;
@@ -118,10 +98,7 @@ service cloud.firestore {
             && exists(/databases/$(database)/documents/students/$(request.resource.data.studentId))
             && get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.status == "pending"
             && get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.email == lookupId);
-      // تعديل: الأدمن أو المدرس. وكمان الطالب نفسه — لحظة ربط حسابه فقط — يقدر
-      // يمسح رقمه السري من فهرس إيميله هو ويعلّم الحساب كمربوط، من غير ما يقدر
-      // يلمس حالته أو مدرسينه أو أي حقل تاني، ومن غير ما يقدر يزرع رقم سري جديد.
-      // ده بيمنع إن طالب مسجّل يترجع لشاشة التسجيل لو كتب باسورده غلط
+
       allow update: if isAdmin() || isTeacher()
         || (request.auth != null
             && request.auth.token.email == lookupId
@@ -130,8 +107,6 @@ service cloud.firestore {
       allow delete: if isAdmin() || isTeacher();
     }
 
-    // الدروس (فيديو وPDF وكويز): الطالب يشوف دروس مدرسينه بس،
-    // والمدرس يضيف ويعدّل ويحذف دروسه بس
     match /lessons/{lessonId} {
       allow get, list: if isAdmin()
         || (isTeacher() && resource.data.teacherId == request.auth.uid)
@@ -139,16 +114,48 @@ service cloud.firestore {
             && resource.data.teacherId in studentData().teacherIds
             && notSuspendedBy(resource.data.teacherId)
             && teacherNotAdminSuspended(resource.data.teacherId));
-      // إنشاء/تعديل/حذف المحتوى في الترم الحالي بس — محتوى ترم منتهي للقراءة بس
+
       allow create: if isAdmin() || (isTeacher() && request.resource.data.teacherId == request.auth.uid
         && request.resource.data.get("term", 1) == currentTerm());
       allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid
         && resource.data.get("term", 1) == currentTerm());
     }
 
-    // الكويزات المستقلة (منفصلة عن الدروس، ممكن تترابط بدرس اختيارياً):
-    // نفس صلاحيات الدروس بالظبط — الطالب يشوف كويزات مدرسينه بس،
-    // والمدرس يضيف ويعدّل ويحذف كويزاته بس
+    function mediaReader(tid) {
+      return isAdmin()
+        || (isTeacher() && tid == request.auth.uid)
+        || (studentActive()
+            && tid in studentData().teacherIds
+            && notSuspendedBy(tid)
+            && teacherNotAdminSuspended(tid));
+    }
+    function ownsLesson(lid) {
+      return exists(/databases/$(database)/documents/lessons/$(lid))
+        && get(/databases/$(database)/documents/lessons/$(lid)).data.teacherId == request.auth.uid;
+    }
+
+    match /lessonMedia/{lessonId} {
+      allow get: if mediaReader(resource.data.teacherId);
+      allow list: if isAdmin();
+      allow create, update: if isTeacher() && request.resource.data.teacherId == request.auth.uid
+        && ownsLesson(lessonId)
+        && request.resource.data.keys().hasOnly(["teacherId", "videoUrl", "pdfUrl", "pdfFile", "updatedAt"]);
+      allow delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
+    match /lessonFileChunks/{chunkId} {
+      allow get: if mediaReader(resource.data.teacherId);
+      allow list: if isAdmin();
+      allow create, update: if isTeacher() && request.resource.data.teacherId == request.auth.uid
+        && ownsLesson(request.resource.data.lessonId)
+        && request.resource.data.keys().hasOnly(["teacherId", "lessonId", "i", "data"])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() <= 800000
+        && request.resource.data.i is int
+        && chunkId == request.resource.data.lessonId + "_" + string(request.resource.data.i);
+      allow delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
     match /quizzes/{quizId} {
       allow get, list: if isAdmin()
         || (isTeacher() && resource.data.teacherId == request.auth.uid)
@@ -162,8 +169,6 @@ service cloud.firestore {
         && resource.data.get("term", 1) == currentTerm());
     }
 
-    // إعلانات المدرس لطلاب مرحلة: المدرس يضيف ويحذف إعلاناته بس،
-    // والطالب يشوف إعلانات مدرسينه بس (العرض عند الطالب بيتفعل مع واجهته لما تجهز)
     match /announcements/{annId} {
       allow get, list: if isAdmin()
         || (isTeacher() && resource.data.teacherId == request.auth.uid)
@@ -175,22 +180,18 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
     }
 
-    // بنك الأسئلة: خاص بكل مدرس لوحده — الطلبة مالهمش أي وصول خالص
     match /questionBank/{qId} {
       allow get, list: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
       allow create: if isAdmin() || (isTeacher() && request.resource.data.teacherId == request.auth.uid);
       allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
     }
 
-    // ملاحظات المدرس الخاصة على الطلبة: صاحب الملاحظة بس — الطلبة مالهمش أي وصول خالص
     match /studentNotes/{noteId} {
       allow get, list: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
       allow create: if isAdmin() || (isTeacher() && request.resource.data.teacherId == request.auth.uid);
       allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
     }
 
-    // الامتحانات المستقلة (خارج الدروس، لكل مرحلة): زي الدروس بالظبط —
-    // الطالب يشوف امتحانات مدرسينه بس، والمدرس يضيف ويعدّل ويحذف امتحاناته بس
     match /exams/{examId} {
       allow get, list: if isAdmin()
         || (isTeacher() && resource.data.teacherId == request.auth.uid)
@@ -204,8 +205,6 @@ service cloud.firestore {
         && resource.data.get("term", 1) == currentTerm());
     }
 
-    // نتائج الكويزات: مستند لكل طالب في كل درس (studentId_lessonId).
-    // الطالب يسجل نتيجته بس، ويشوف نتائجه بس. المدرس يشوف نتايج دروسه بس.
     match /quizAttempts/{attemptId} {
       allow get, list: if isAdmin()
         || (isTeacher() && resource.data.teacherId == request.auth.uid)
@@ -215,13 +214,10 @@ service cloud.firestore {
         && studentActive()
         && request.resource.data.teacherId in studentData().teacherIds
         && notSuspendedBy(request.resource.data.teacherId);
-      // الحذف للأدمن، أو المدرس صاحب المحاولة (بيستخدم في الحذف النهائي للطالب)
+
       allow delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
     }
 
-    // تقييمات الدروس بالنجوم: مستند لكل طالب في كل درس (studentId_lessonId).
-    // الطالب يسجل ويعدّل تقييمه بس (من 1 لـ 5 نجوم، ولازم المدرس يكون من مدرسيه
-    // ورقم المستند يطابق uid_درس)، والمدرس يقرا تقييمات دروسه بس عشان المتوسط
     match /lessonRatings/{ratingId} {
       allow get, list: if isAdmin()
         || (isTeacher() && resource.data.teacherId == request.auth.uid)
@@ -235,42 +231,31 @@ service cloud.firestore {
         && studentActive()
         && request.resource.data.teacherId in studentData().teacherIds
         && notSuspendedBy(request.resource.data.teacherId);
-      // الحذف للأدمن، أو المدرس صاحب التقييم (بيستخدم في الحذف النهائي للطالب)
+
       allow delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
     }
 
-    // المكتبة العامة: أي مستخدم مسجل يقرا، والكتابة للأدمن بس
     match /library/{docId} {
       allow get, list: if request.auth != null;
       allow create, update, delete: if isAdmin();
     }
 
-    // المواد الدراسية: القراءة للأدمن والمدرسين، والكتابة للأدمن بس
     match /subjects/{subjectId} {
       allow read: if isAdmin() || isTeacher();
       allow write: if isAdmin();
     }
 
-    // الطلاب: ممنوع أي قراءة عامة
     match /students/{studentId} {
-      // مستند واحد: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه.
-      // المطابقة بالإيميل شغالة بس قبل ما الطالب يربط ملفه بحسابه (authLinked):
-      // كده حساب بإيميل وباسورد غير متحقق بنفس إيميل طالب ميقدرش يقرا ملفه
-      // بعد الربط، والربط نفسه محمي بالرقم السري في registrationLookup
+
       allow get: if isAdmin()
         || (isTeacher() && request.auth.uid in resource.data.teacherIds)
         || (request.auth != null && request.auth.uid == studentId)
         || (request.auth != null && request.auth.token.email == resource.data.email
             && resource.data.get("authLinked", false) != true);
-      // السرد: الأدمن يشوف الكل. المدرس يقدر يسرد بس لما الاستعلام نفسه
-      // يكون متقيد بمدرسين الطالب (array-contains بنفس uid المدرس) —
-      // فايرستور بترفض أي استعلام ممكن يرجع طالب مش من طلابه
+
       allow list: if isAdmin()
         || (isTeacher() && request.auth.uid in resource.data.teacherIds);
-      // إنشاء: تسجيل جديد بحالة pending، أو الطالب بينقل بياناته لحسابه عند أول دخول.
-      // في النقل: لازم الفهرس العام يكون حالته approved (مدرس أو أدمن بس اللي يعمل كده)
-      // وبيانات المستند الجديد تطابق اللي في الفهرس، فمحدش يقدر يوافق على نفسه
-      // أو يضيف مدرسين من عنده.
+
       allow create: if isAdmin() || isTeacher()
         || request.resource.data.status == "pending"
         || (request.auth != null && request.auth.uid == studentId
@@ -278,37 +263,61 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/registrationLookup/$(request.auth.token.email)).data.status == "approved"
             && request.resource.data.status == "approved"
             && request.resource.data.teacherIds == get(/databases/$(database)/documents/registrationLookup/$(request.auth.token.email)).data.teacherIds);
-      // تعديل: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه من غير ما يغير حالته أو إيميله أو مدرسينه
+
       allow update: if isAdmin()
         || (isTeacher() && request.auth.uid in resource.data.teacherIds)
+        || (isTeacher() && !(request.auth.uid in resource.data.teacherIds)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["teacherIds"])
+            && request.resource.data.teacherIds.toSet() == resource.data.teacherIds.toSet().union([request.auth.uid].toSet())
+            && exists(/databases/$(database)/documents/teacherRequests/$(studentId + "_" + request.auth.uid))
+            && get(/databases/$(database)/documents/teacherRequests/$(studentId + "_" + request.auth.uid)).data.status == "pending")
         || (request.auth != null && request.auth.uid == studentId
             && request.resource.data.status == resource.data.status
             && request.resource.data.email == resource.data.email
             && request.resource.data.teacherIds == resource.data.teacherIds);
-      // حذف: الأدمن، أو مدرس من مدرسين الطالب، أو الطالب نفسه (بشيل ملفه القديم عند أول دخول).
-      // المطابقة بالإيميل برضه قبل الربط بس
+
       allow delete: if isAdmin()
         || (isTeacher() && request.auth.uid in resource.data.teacherIds)
         || (request.auth != null && request.auth.token.email == resource.data.email
             && resource.data.get("authLinked", false) != true);
     }
 
-    // سجل مدفوعات اشتراكات المدرسين: حسابات الأدمن الخاصة — هو بس اللي يقرا ويكتب
+    match /teacherRequests/{reqId} {
+      allow get, list: if isAdmin()
+        || (isTeacher() && resource.data.teacherId == request.auth.uid)
+        || (request.auth != null && resource.data.studentId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(["studentId", "teacherId", "studentName", "grade", "email", "status", "createdAt"])
+        && request.resource.data.studentId == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && reqId == request.auth.uid + "_" + request.resource.data.teacherId
+        && request.resource.data.status == "pending"
+        && request.resource.data.studentName is string
+        && request.resource.data.teacherId is string
+        && studentActive()
+        && studentData().get("status", "approved") == "approved"
+        && !(request.resource.data.teacherId in studentData().teacherIds)
+        && exists(/databases/$(database)/documents/teachersPublic/$(request.resource.data.teacherId))
+        && get(/databases/$(database)/documents/teachersPublic/$(request.resource.data.teacherId)).data.get("active", true) != false;
+      allow update: if isTeacher() && resource.data.teacherId == request.auth.uid
+        && resource.data.status == "pending"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
+        && request.resource.data.status in ["accepted", "rejected"];
+      allow delete: if isAdmin()
+        || (isTeacher() && resource.data.teacherId == request.auth.uid)
+        || (request.auth != null && resource.data.studentId == request.auth.uid);
+    }
+
     match /subscriptionPayments/{paymentId} {
       allow read, write: if isAdmin();
     }
 
-    // سجل نشاط الأدمن: بيتكتب مرة واحدة مع كل حركة وميتعدلش وبيتحذفش أبداً
     match /adminLog/{entryId} {
       allow read: if isAdmin();
       allow create: if isAdmin();
       allow update, delete: if false;
     }
 
-    // سجل نشاط الطلبة اليومي (نقاط الأسبوع للوحة الشرف + سلسلة المذاكرة):
-    // الطالب يكتب عن نفسه بس وبنقاط ثابتة (درس 10 / اختبار 20) ولمدرس من مدرسينه؛
-    // القراءة: الأدمن، أو المدرس صاحب النشاط، أو طالب عنده نفس المدرس
-    // (بيحسب ترتيبه من غير ما يشوف أسماء — السجل مفيهوش أسماء)
     match /activityLog/{entryId} {
       allow get, list: if isAdmin()
         || (isTeacher() && resource.data.teacherId == request.auth.uid)
@@ -324,7 +333,6 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // الإعلان العام: مستند واحد "current" يكتبه الأدمن ويقراه أي مستخدم مسجل
     match /broadcasts/{docId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();

@@ -1,7 +1,7 @@
 /* عامل الخدمة لمنصة المستر — خلي التطبيق يفتح حتى من غير نت (الشيل الثابت).
    شبكة-أولاً عشان أي نسخة جديدة توصل فورًا، والكاش احتياطي وقت انقطاع النت. */
-const CACHE = "elmoster-v1";
-const SHELL = ["./index.html", "./style.css", "./app.js", "./auth.js", "./admin.js", "./teacher.js", "./student.js", "./firebase-config.js", "./logo-icon.svg", "./logo-full.svg", "./icon-192.png", "./icon-512.png", "./manifest.webmanifest"];
+const CACHE = "elmoster-v3";
+const SHELL = ["./index.html", "./style.css", "./app.js", "./auth.js", "./admin.js", "./teacher.js", "./student.js", "./firebase-config.js", "./logo-icon.svg", "./logo-full.svg", "./icon-192.png", "./icon-512.png", "./manifest.webmanifest", "./student/", "./teacher/", "./admin/", "./student/manifest.webmanifest", "./teacher/manifest.webmanifest", "./admin/manifest.webmanifest"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });

@@ -10,6 +10,22 @@ const GRADES = [
   "الصف الأول الثانوي", "الصف الثاني الثانوي", "الصف الثالث الثانوي",
 ];
 
+/* بوابات الأدوار: كل فولدر (student/ teacher/ admin/) بيحدد T4K_PORTAL و T4K_BASE (مسار الجذر).
+   في الجذر الاتنين فاضيين: صفحة الهبوط + دخول عام زي الأول. */
+const PORTAL = (typeof window !== "undefined" && window.T4K_PORTAL) || "";
+const BASE = (typeof window !== "undefined" && window.T4K_BASE) || "";
+const PORTAL_INFO = {
+  student: { icon: "🎓", title: "بوابة الطلاب", sub: "سجّل دخولك لدروسك واختباراتك" },
+  teacher: { icon: "📚", title: "بوابة المدرسين", sub: "سجّل دخولك لطلابك وتقاريرك" },
+  admin: { icon: "🛠️", title: "لوحة الإدارة", sub: "دخول إدارة المنصة" },
+};
+function rolePortal(role) {
+  if (role === "student") return "student";
+  if (role === "teacher" || role === "teacherSuspended" || role === "teacherSubExpired") return "teacher";
+  if (role === "admin") return "admin";
+  return "";
+}
+
 let fbApp = null;
 let fbAuth = null;
 let fbDb = null;
@@ -100,6 +116,7 @@ function authErrAr(e) {
 let loginRole = "student";
 
 function renderLogin() {
+  if (PORTAL) loginRole = PORTAL;
   // جملة أسفل الصفحة قراءتها عامة: بتتقري async وبتتحدث في مكانها أول ما توصل
   loadFooterSettings().then(() => {
     const c = document.querySelector(".loginwrap .closing");
@@ -114,11 +131,11 @@ function renderLogin() {
     <button type="button" class="themebtn" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي" style="position:fixed; top:14px; left:14px; z-index:60;">${themeIcon()}</button>
     <div class="hero">
       ${LOGO_FULL_SVG}
-      <div style="color:var(--muted); font-weight:700; font-size:18px; margin-top:2px;">منصة تعليمية متكاملة</div>
-      <div class="fact" style="margin-top:8px;">اختار نوع حسابك وسجّل دخولك</div>
+      <div style="color:var(--muted); font-weight:700; font-size:18px; margin-top:2px;">${PORTAL ? PORTAL_INFO[PORTAL].icon + " " + PORTAL_INFO[PORTAL].title : "منصة تعليمية متكاملة"}</div>
+      <div class="fact" style="margin-top:8px;">${PORTAL ? PORTAL_INFO[PORTAL].sub : "اختار نوع حسابك وسجّل دخولك"}</div>
     </div>
     <div class="card logincard" style="max-width:520px; margin:14px auto 0;">
-      <div class="rolecards">
+      <div class="rolecards" ${PORTAL ? 'style="display:none;"' : ""}>
         ${roles.map((r) => `
           <button type="button" class="rolecard ${loginRole === r.id ? "active" : ""}" data-role="${r.id}">
             <div class="ric ${r.cls}">${r.icon}</div>
@@ -130,6 +147,7 @@ function renderLogin() {
       <p class="msg bad" id="login-msg"></p>
     </div>
     ${pwaInstallCard()}
+    <div class="center" style="margin-top:12px;"><a href="${BASE || "./"}" style="color:var(--primary-dark); font-weight:700; font-size:14px;">← الصفحة الرئيسية</a></div>
     ${closing()}</div>`;
   document.querySelectorAll(".rolecard").forEach((b) => {
     b.onclick = () => {
@@ -278,7 +296,7 @@ async function doLogin(expectedRole) {
           ? (blockedSt === "rejected" ? "طلبك اترفض، كلّم مدرسك." : blockedSt === "suspended" ? "حسابك متوقف مؤقتًا، كلّم مدرسك أو إدارة المنصة." : "طلبك لسه تحت المراجعة، استنى موافقة مدرسك.")
           : fbRole === "unknown"
           ? "حسابك موجود بس ملف الطالب مش متربط بيه. جرّب تاني بعد شوية، ولو المشكلة فضلت ابعتلنا الكود ده: " + (relinkStage || "R?")
-          : "الحساب ده مش حساب طالب. لو انت مدرس اختار كارت مدرس.")
+          : (PORTAL ? "الحساب ده مش حساب طالب. لو انت مدرس ادخل من رابط المدرسين." : "الحساب ده مش حساب طالب. لو انت مدرس اختار كارت مدرس."))
         : expectedRole === "teacher"
         ? (fbRole === "teacherSuspended"
           ? "حسابك متوقف مؤقتًا من إدارة المنصة. كلّم إدارة المنصة."
@@ -487,6 +505,15 @@ async function renderRegister() {
     ${closing()}</div>`;
   document.getElementById("rg-btn").onclick = doRegister;
   document.getElementById("rg-grade").onchange = filterRegTeachers;
+  // جاي من كارت مدرس في صفحة الهبوط: نختاره مسبقاً
+  try {
+    const pre = localStorage.getItem("t4kPreTeacher");
+    if (pre) {
+      localStorage.removeItem("t4kPreTeacher");
+      const cb = Array.from(document.querySelectorAll(".rg-t")).find((c) => c.value === pre);
+      if (cb) cb.checked = true;
+    }
+  } catch (_) {}
   document.querySelectorAll("[data-themebtn]").forEach((b) => b.onclick = () => themeCycle());
   window.scrollTo(0, 0);
 }

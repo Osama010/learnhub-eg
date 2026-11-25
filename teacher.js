@@ -140,6 +140,12 @@ async function renderTeacherDash() {
     const bcSnap = await fbDb.collection("broadcasts").doc("current").get();
     bcData = bcSnap.exists ? bcSnap.data() : null;
   } catch (_) {}
+  let addReqs = [];
+  try {
+    const rq = await fbDb.collection("teacherRequests").where("teacherId", "==", fbUser.uid).where("status", "==", "pending").get();
+    addReqs = rq.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (_) {}
+  teacherAddReqs = addReqs;
   try { await loadAboutSettings(); } catch (_) {} // تيذر «عن المهندس» في آخر اللوحة
   try {
     const ws = weekStartFriday();
@@ -179,6 +185,15 @@ async function renderTeacherDash() {
       <div class="statcard"><div class="num">${pending.length}</div><div class="lbl">طلبات جديدة</div></div>
     </div>
     ${honorBoardCard(approved, weekActs)}
+    ${addReqs.length ? `
+    <div class="card" style="border-right:4px solid var(--amber);">
+      <h2 style="font-size:18px; margin-top:0;">🙋 طلبات طلاب عاوزين يضيفوك (${addReqs.length})</h2>
+      <p class="muted" style="font-size:12.5px; margin:0 0 6px;">دول طلاب عندهم حساب على المنصة مع مدرس تاني وطلبوا يكونوا معاك. لما توافق بيظهر لهم محتواك.</p>
+      ${addReqs.map((r) => `<div class="btnrow" style="justify-content:space-between; border-bottom:1px solid var(--line); padding:8px 0;">
+        <span><b>${esc(r.studentName || "طالب")}</b> <span class="muted" style="font-size:12.5px;">${esc(r.grade || "")}</span></span>
+        <span><button type="button" class="btn sm" data-req-ok="${esc(r.id)}">قبول</button> <button type="button" class="btn sm red" data-req-no="${esc(r.id)}">رفض</button></span>
+      </div>`).join("")}
+    </div>` : ""}
     ${pending.length ? `
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">طلبات تسجيل جديدة (${pending.length})</h2>
@@ -234,6 +249,8 @@ async function renderTeacherDash() {
   bindTeacherTabs();
   bindAboutTeaser();
   document.querySelectorAll("[data-glink]").forEach((el) => el.onclick = () => location.hash = el.dataset.glink);
+  document.querySelectorAll("[data-req-ok]").forEach((b) => b.onclick = () => teacherAnswerAddReq(b.dataset.reqOk, true));
+  document.querySelectorAll("[data-req-no]").forEach((b) => b.onclick = () => teacherAnswerAddReq(b.dataset.reqNo, false));
   document.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => teacherSetStatus(b.dataset.ok, "approved"));
   document.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => teacherSetStatus(b.dataset.no, "rejected"));
   document.querySelectorAll("[data-rs]").forEach((b) => b.onclick = () => teacherResetStudent(b.dataset.rs));
@@ -328,6 +345,25 @@ function teacherShowStudent(id) {
   };
 }
 
+var teacherAddReqs = [];
+/* قبول/رفض طلب طالب عاوز يضيف المدرس ده: القبول بيضيفه لـ teacherIds بتاعة الطالب
+   (القواعد بتسمح بده بس لو الطلب موجود ومعلّق وموجّه لنفس المدرس) */
+async function teacherAnswerAddReq(id, accept) {
+  const r = teacherAddReqs.find((x) => x.id === id);
+  if (!r) return;
+  try {
+    const batch = fbDb.batch();
+    if (accept) batch.update(fbDb.collection("students").doc(r.studentId), { teacherIds: firebase.firestore.FieldValue.arrayUnion(fbUser.uid) });
+    batch.update(fbDb.collection("teacherRequests").doc(id), { status: accept ? "accepted" : "rejected" });
+    await batch.commit();
+    if (accept && r.email) {
+      // الفهرس العام بيتحدّث عشان إعادة ربط حساب الطالب تفضل سليمة (فشله ميوقفش القبول)
+      try { await fbDb.collection("registrationLookup").doc(String(r.email).toLowerCase()).update({ teacherIds: firebase.firestore.FieldValue.arrayUnion(fbUser.uid) }); } catch (_) {}
+    }
+    renderTeacherDash();
+  } catch (e) { alert("مشكلة: " + (e.message || e)); }
+}
+
 async function teacherSetStatus(id, status) {
   try {
     const s = teacherCache.find((x) => x.id === id);
@@ -415,7 +451,7 @@ function emptyExamForm() {
 }
 
 function emptyLessonForm() {
-  return { id: null, unit: "", lessonNum: "", title: "", desc: "", videoUrl: "", pdfUrl: "", publishAt: "", grade: "", term: termCurrent() };
+  return { id: null, unit: "", lessonNum: "", title: "", desc: "", videoUrl: "", pdfUrl: "", pdfMode: "file", pdfFile: null, pdfMeta: null, publishAt: "", grade: "", term: termCurrent() };
 }
 
 function emptyQuizForm() {
@@ -783,7 +819,7 @@ function renderStageLists(stage, myStages) {
               <div style="margin:2px 0;">${gradeChip(l.grade)}</div>
               <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(l.title)}</b>${termRoChip(l)}${l.pinned ? `<span class="chip">📌 مثبت</span>` : ""}${l.publishAt && l.publishAt.toDate && l.publishAt.toDate() > new Date() ? `<span class="chip amber">🕒 مجدول: ${fmtTs(l.publishAt)}</span>` : ""}</div>
               ${l.desc ? `<div class="muted" style="font-size:13px; margin-top:4px;">${esc(l.desc)}</div>` : ""}
-              <div class="muted" style="font-size:12px; margin:4px 0;">${l.videoUrl ? "🎬 فيديو" : ""}${l.videoUrl && l.pdfUrl ? " · " : ""}${l.pdfUrl ? "📄 PDF" : ""}${!l.videoUrl && !l.pdfUrl ? "من غير وسائط" : ""}</div>
+              <div class="muted" style="font-size:12px; margin:4px 0;">${lessonHasVideo(l) ? "🎬 فيديو" : ""}${lessonHasVideo(l) && lessonHasPdf(l) ? " · " : ""}${lessonHasPdf(l) ? "📄 PDF" : ""}${!lessonHasVideo(l) && !lessonHasPdf(l) ? "من غير وسائط" : ""}</div>
               ${tLessonRatingHtml(l.id)}
               <div class="btnrow">
                 <button type="button" class="btn sm" data-lview="${l.id}">عرض</button>
@@ -876,12 +912,13 @@ function renderStageLists(stage, myStages) {
   const addX = document.getElementById("ex-addbig");
   if (addX) addX.onclick = () => { examForm = emptyExamForm(); examFormOpen = true; renderTeacherLessons(stage); };
   document.querySelectorAll("[data-lview]").forEach((b) => b.onclick = () => { location.hash = "#/teacher/lesson/" + b.dataset.lview; });
-  document.querySelectorAll("[data-ledit]").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("[data-ledit]").forEach((b) => b.onclick = async () => {
     const l = teacherLessons.find((x) => x.id === b.dataset.ledit);
     if (!l) return;
+    const med = await loadLessonMedia(l);
     lessonForm = {
       id: l.id, unit: l.unit || "", lessonNum: l.lessonNum || "", title: l.title || "",
-      videoUrl: l.videoUrl || "", pdfUrl: l.pdfUrl || "", desc: l.desc || "",
+      videoUrl: med.videoUrl || "", pdfUrl: med.pdfUrl || "", pdfMode: med.pdfFile || !med.pdfUrl ? "file" : "link", pdfFile: null, pdfMeta: med.pdfFile || null, desc: l.desc || "",
       publishAt: tsToLocalInput(l.publishAt), grade: l.grade || "", term: termOf(l),
     };
     lessonFormOpen = true;
@@ -945,7 +982,15 @@ function renderLessonFormPage(stage, subject) {
       <p class="muted" style="font-size:12.5px; margin-top:2px;">سيبه "كل صفوف المرحلة" لو الدرس لكل طلاب المرحلة، أو اختار صف معين لو الدرس موجه ليه بس.</p>
       <div class="fgrid">
         <div><label class="flabel">رابط الفيديو (يوتيوب أو جوجل درايف)</label><input id="ls-video" type="url" class="inp ltr" placeholder="https://youtube.com/watch?v=... أو https://drive.google.com/file/d/..." value="${esc(lessonForm.videoUrl)}"></div>
-        <div><label class="flabel">رابط ملف PDF (جوجل درايف)</label><input id="ls-pdf" type="url" class="inp ltr" placeholder="https://drive.google.com/..." value="${esc(lessonForm.pdfUrl)}"></div>
+        <div><label class="flabel">ملف PDF</label>
+          <div class="btnrow" style="margin:4px 0;">
+            <label style="font-size:13px;"><input type="radio" name="ls-pdfmode" value="file" ${lessonForm.pdfMode !== "link" ? "checked" : ""}> رفع ملف</label>
+            <label style="font-size:13px;"><input type="radio" name="ls-pdfmode" value="link" ${lessonForm.pdfMode === "link" ? "checked" : ""}> رابط درايف</label>
+          </div>
+          ${lessonForm.pdfMode === "link"
+            ? `<input id="ls-pdf" type="url" class="inp ltr" placeholder="https://drive.google.com/..." value="${esc(lessonForm.pdfUrl)}">`
+            : `<input id="ls-pdffile" type="file" accept="application/pdf,.pdf" class="inp">${lessonForm.pdfMeta && !lessonForm.pdfFile ? `<div class="muted" style="font-size:12.5px;">الملف الحالي: ${esc(lessonForm.pdfMeta.name || "PDF")} — اختار ملف جديد لو عايز تبدله.</div>` : ""}<div class="muted" style="font-size:12px;">أقصى حجم 10 ميجا.</div>`}
+        </div>
       </div>
       <p class="muted" style="font-size:12.5px; margin-top:2px;">فيديو درايف لازم يكون متشارك: من جوجل درايف ← كليك يمين على الملف ← مشاركة ← "أي شخص لديه الرابط". فيديو يوتيوب بيشتغل على طول.</p>
       <div><label class="flabel">🕒 موعد النشر (اختياري)</label><input id="ls-pub" type="datetime-local" class="inp ltr" value="${esc(lessonForm.publishAt || "")}"></div>
@@ -966,7 +1011,9 @@ function renderLessonFormPage(stage, subject) {
   document.getElementById("ls-num").oninput = (e) => lessonForm.lessonNum = e.target.value;
   document.getElementById("ls-title").oninput = (e) => lessonForm.title = e.target.value;
   document.getElementById("ls-video").oninput = (e) => lessonForm.videoUrl = e.target.value;
-  document.getElementById("ls-pdf").oninput = (e) => lessonForm.pdfUrl = e.target.value;
+  const pdfIn = document.getElementById("ls-pdf"); if (pdfIn) pdfIn.oninput = (e) => lessonForm.pdfUrl = e.target.value;
+  const pdfFileIn = document.getElementById("ls-pdffile"); if (pdfFileIn) pdfFileIn.onchange = (e) => { lessonForm.pdfFile = e.target.files[0] || null; };
+  document.querySelectorAll("[name=ls-pdfmode]").forEach((r) => r.onchange = () => { lessonForm.pdfMode = r.value; renderLessonFormPage(stage, subject); });
   document.getElementById("ls-desc").oninput = (e) => lessonForm.desc = e.target.value;
   document.getElementById("ls-pub").onchange = (e) => lessonForm.publishAt = e.target.value;
   document.getElementById("ls-grade").onchange = (e) => lessonForm.grade = e.target.value;
@@ -1111,7 +1158,7 @@ function renderExamFormPage(stage) {
     </div>${closing()}`;
     return;
   }
-  const embed = l.videoUrl ? videoEmbed(l.videoUrl) : null;
+  const hasV = lessonHasVideo(l), hasP = lessonHasPdf(l);
   // الكويزات المرتبطة بالدرس (بتتدار من تاب الكويزات والامتحانات)
   let linkedQuizzes = [];
   try {
@@ -1126,15 +1173,8 @@ function renderExamFormPage(stage) {
     ${teacherTabs("lessons")}
     <div class="btnrow"><button type="button" class="btn ghost" id="lv-back">← رجوع للدروس</button></div>
     ${l.desc ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">وصف الدرس</h2><p style="white-space:pre-wrap; margin:0;">${esc(l.desc)}</p></div>` : ""}
-    ${embed ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">الفيديو 🎬</h2>
-      <div style="position:relative; padding-top:56.25%; border-radius:12px; overflow:hidden; background:#0f172a;">
-        <iframe src="${esc(embed.src)}" title="فيديو الدرس" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
-      </div>
-      <p class="muted" style="font-size:12.5px;">${embed.kind === "youtube"
-        ? "مشغل يوتيوب كامل: تشغيل وإيقاف وتقديم وصوت وملء الشاشة وسرعة التشغيل وجودة العرض من إعدادات المشغل."
-        : "مشغل جوجل درايف: تشغيل وإيقاف وتقديم وصوت وملء الشاشة. لو الفيديو لسه مترفع على درايف ممكن ياخد دقايق للمعالجة قبل ما يشتغل."}</p></div>`
-      : l.videoUrl ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">الفيديو 🎬</h2><a class="btn ghost" href="${esc(l.videoUrl)}" target="_blank" rel="noopener">فتح رابط الفيديو في تاب جديد</a></div>` : ""}
-    ${l.pdfUrl ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">ملف PDF 📄</h2><a class="btn ghost" href="${esc(l.pdfUrl)}" target="_blank" rel="noopener">فتح الملف في تاب جديد</a></div>` : ""}
+    ${hasV ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">الفيديو 🎬</h2><div data-media-video><p class="muted center">جاري تحميل الفيديو…</p></div></div>` : ""}
+    ${hasP ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">ملف PDF 📄</h2><div data-media-pdf></div></div>` : ""}
     ${linkedQuizzes.length ? `<div class="card">
       <h2 style="font-size:17px; margin-top:0;">الكويزات المرتبطة بالدرس 📝 (${linkedQuizzes.length})</h2>
       ${linkedQuizzes.map((q) => `<div style="border-top:1px solid var(--line); padding:8px 0;"><b>${esc(q.title)}</b> <span class="muted" style="font-size:12.5px;">(${(q.questions || []).length} سؤال)</span></div>`).join("")}
@@ -1143,6 +1183,7 @@ function renderExamFormPage(stage) {
     ${closing()}`;
   bindTeacherTabs();
   document.getElementById("lv-back").onclick = () => location.hash = backHash;
+  mountLessonMedia(app, l, { student: false });
   window.scrollTo(0, 0);
 }
 
@@ -1163,7 +1204,13 @@ async function teacherSaveLesson(stage) {
   if (!unit || unit < 1) return lsMsg("اكتب رقم الوحدة.");
   if (!lessonNum || lessonNum < 1) return lsMsg("اكتب رقم الدرس.");
   if (!lessonForm.title.trim()) return lsMsg("اكتب عنوان الدرس.");
-  if (!lessonForm.videoUrl.trim() && !lessonForm.pdfUrl.trim()) return lsMsg("ضيف على الأقل رابط فيديو أو PDF.");
+  const pdfIsFile = lessonForm.pdfMode !== "link";
+  const hasPdfNow = pdfIsFile ? !!(lessonForm.pdfFile || lessonForm.pdfMeta) : !!lessonForm.pdfUrl.trim();
+  if (!lessonForm.videoUrl.trim() && !hasPdfNow) return lsMsg("ضيف على الأقل فيديو أو ملف PDF.");
+  if (pdfIsFile && lessonForm.pdfFile) {
+    if (lessonForm.pdfFile.size > PDF_MAX_BYTES) return lsMsg("الملف أكبر من 10 ميجا. صغّره أو استخدم رابط درايف.");
+    if (!/pdf$/i.test(lessonForm.pdfFile.name) && lessonForm.pdfFile.type !== "application/pdf") return lsMsg("لازم الملف يكون PDF.");
+  }
   if (lessonForm.videoUrl.trim() && !videoEmbed(lessonForm.videoUrl)) return lsMsg("رابط الفيديو مش واضح. انسخ رابط يوتيوب أو رابط ملف فيديو من جوجل درايف وهو مفتوح في المتصفح.");
   const btn = document.getElementById("ls-save");
   btn.disabled = true;
@@ -1175,20 +1222,44 @@ async function teacherSaveLesson(stage) {
     unit,
     lessonNum,
     title: lessonForm.title.trim(),
-    videoUrl: lessonForm.videoUrl.trim(),
-    pdfUrl: lessonForm.pdfUrl.trim(),
+    hasVideo: !!lessonForm.videoUrl.trim(),
+    hasPdf: hasPdfNow,
     desc: lessonForm.desc.trim(),
     publishAt: lessonForm.publishAt ? firebase.firestore.Timestamp.fromDate(new Date(lessonForm.publishAt)) : null,
     grade: lessonForm.grade || "",
     term: termOf(lessonForm),
   };
   try {
-    if (lessonForm.id) {
-      await fbDb.collection("lessons").doc(lessonForm.id).update(data);
+    let lid = lessonForm.id;
+    if (lid) {
+      // الروابط القديمة على وثيقة الدرس بتتشال (بتتنقل لـ lessonMedia)
+      await fbDb.collection("lessons").doc(lid).update({ ...data, videoUrl: firebase.firestore.FieldValue.delete(), pdfUrl: firebase.firestore.FieldValue.delete() });
     } else {
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await fbDb.collection("lessons").add(data);
+      lid = (await fbDb.collection("lessons").add(data)).id;
     }
+    // بعد وثيقة الدرس: الوسائط (القواعد بتتأكد إن الدرس موجود وبتاعك)
+    let pdfFile = null, oldChunks = (lessonForm.pdfMeta && lessonForm.pdfMeta.chunks) || 0;
+    if (pdfIsFile && lessonForm.pdfFile) {
+      const pm = document.getElementById("ls-msg"); const prog = (x) => { if (pm) { pm.className = "msg good"; pm.textContent = x; } }; prog("جاري رفع الملف…");
+      const parts = await fileToChunks(lessonForm.pdfFile);
+      for (let i = 0; i < parts.length; i++) {
+        await fbDb.collection("lessonFileChunks").doc(lid + "_" + i).set({ teacherId: fbUser.uid, lessonId: lid, i, data: parts[i] });
+        prog(`جاري رفع الملف… ${i + 1}/${parts.length}`);
+      }
+      pdfFile = { name: lessonForm.pdfFile.name, size: lessonForm.pdfFile.size, chunks: parts.length };
+      for (let i = parts.length; i < oldChunks; i++) { try { await fbDb.collection("lessonFileChunks").doc(lid + "_" + i).delete(); } catch (_) {} }
+    } else if (pdfIsFile && lessonForm.pdfMeta) {
+      pdfFile = lessonForm.pdfMeta;
+    }
+    if (!pdfIsFile && oldChunks) { for (let i = 0; i < oldChunks; i++) { try { await fbDb.collection("lessonFileChunks").doc(lid + "_" + i).delete(); } catch (_) {} } }
+    await fbDb.collection("lessonMedia").doc(lid).set({
+      teacherId: fbUser.uid,
+      videoUrl: lessonForm.videoUrl.trim(),
+      pdfUrl: pdfIsFile ? "" : lessonForm.pdfUrl.trim(),
+      pdfFile: pdfFile || null,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
     lessonForm = emptyLessonForm();
     lessonFormOpen = false;
     await renderTeacherLessons(stage);
@@ -1271,6 +1342,13 @@ async function teacherDeleteLesson(id, stage) {
   const extra = linked.length ? `\nتنبيه: فيه ${linked.length} كويز مرتبط بالدرس ده هيتحذف معاه.` : "";
   if (!confirm(`متأكد إنك عايز تحذف الدرس "${l ? l.title : ""}"؟${extra}`)) return;
   try {
+    // نمسح الوسائط الأول (best effort) لأن القواعد محتاجة الدرس موجود
+    try {
+      const md = await fbDb.collection("lessonMedia").doc(id).get();
+      const n = md.exists && md.data().pdfFile ? md.data().pdfFile.chunks || 0 : 0;
+      for (let i = 0; i < n; i++) { try { await fbDb.collection("lessonFileChunks").doc(id + "_" + i).delete(); } catch (_) {} }
+      if (md.exists) await fbDb.collection("lessonMedia").doc(id).delete();
+    } catch (_) {}
     await fbDb.collection("lessons").doc(id).delete();
     for (const q of linked) await fbDb.collection("quizzes").doc(q.id).delete();
     if (lessonForm && lessonForm.id === id) { lessonForm = emptyLessonForm(); lessonFormOpen = false; }
@@ -1481,7 +1559,7 @@ function buildTeacherReport() {
       const linkedIds = linked.map((q) => q.id);
       const at = teacherAttempts.filter((a) => a.lessonId === l.id || linkedIds.includes(a.quizId));
       const avg = at.length ? Math.round(at.reduce((s, a) => s + attemptPct(a), 0) / at.length) : null;
-      const content = [l.videoUrl ? "فيديو" : "", l.pdfUrl ? "PDF" : ""].filter(Boolean).join(" + ") || "—";
+      const content = [lessonHasVideo(l) ? "فيديو" : "", lessonHasPdf(l) ? "PDF" : ""].filter(Boolean).join(" + ") || "—";
       return { cells: [STAGE_NAMES[l.stage] || l.stage || "—", l.grade || "كل الصفوف", String(l.unit || "—"), String(l.lessonNum || "—"), l.title || "", content, String(linked.length), String(at.length), avg !== null ? avg + "%" : "—"] };
     });
     return { title: "تقرير الدروس", columns: ["المرحلة", "الصف", "الوحدة", "الدرس", "العنوان", "المحتوى", "كويزات مرتبطة", "المحاولات", "متوسط الدرجة"], rows, filtersDesc: [] };

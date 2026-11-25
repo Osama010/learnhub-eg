@@ -11,7 +11,7 @@ function esc(s) {
    settings/footer قراءته عامة عشان الجملة تظهر في صفحة الدخول قبل تسجيل الدخول. */
 var footerText = "فكرة وإعداد: مهندس اسامه حسن عسس"; // الافتراضي لحد ما settings/footer يتقري
 
-const ABOUT_DEFAULT_PHOTO = "photos/osama.jpg"; // صورته من سايت الدروس — افتراضي لو مفيش صورة مخصصة
+const ABOUT_DEFAULT_PHOTO = BASE + "photos/osama.jpg"; // صورته من سايت الدروس — افتراضي لو مفيش صورة مخصصة
 const ABOUT_DEFAULTS = {
   name: "مهندس : اسامه حسن عسس",
   title: "معيد وباحث أكاديمي في علوم الحاسب والذكاء الاصطناعي — جامعة MTI",
@@ -107,6 +107,167 @@ function aboutTeaserHtml() {
 }
 function bindAboutTeaser() {
   document.querySelectorAll("[data-aboutmore]").forEach((b) => b.onclick = () => { location.hash = "#/about"; });
+}
+
+/* ---------- أرقام صفحة الهبوط (settings/stats، بيكتبها الأدمن) + حركات ---------- */
+const STATS_DEFAULTS = { teachers: 10, lessons: 200, students: 1000 };
+var statsCfg = null;
+function statsGet() { return Object.assign({}, STATS_DEFAULTS, statsCfg || {}); }
+async function loadStatsSettings() {
+  try {
+    if (!fbDb) return;
+    const d = await fbDb.collection("settings").doc("stats").get();
+    statsCfg = d.exists ? (d.data() || {}) : {};
+  } catch (_) { statsCfg = statsCfg || {}; }
+}
+function reducedMotion() {
+  try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (_) { return false; }
+}
+/* عدّاد: من صفر لحد الرقم الثابت ويقف. لو الجهاز طالب تقليل الحركة بيظهر الرقم النهائي علطول */
+function t4kCountUp(el, target) {
+  const n = Math.max(0, Math.round(Number(target) || 0));
+  const fmt = (v) => Math.round(v).toLocaleString("en");
+  if (reducedMotion() || typeof requestAnimationFrame !== "function") { el.textContent = fmt(n) + "+"; return; }
+  const dur = 1600, t0 = Date.now();
+  const step = () => {
+    const k = Math.min(1, (Date.now() - t0) / dur);
+    const e = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmt(n * e) + (k >= 1 ? "+" : "");
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+/* ظهور تدريجي للعناصر .rv لما توصل للشاشة + تشغيل العدادات [data-count] */
+function t4kObserveReveal(root) {
+  const scope = root || document;
+  const items = Array.from(scope.querySelectorAll(".rv, [data-count]"));
+  const show = (el) => {
+    el.classList.add("rv-in");
+    if (el.hasAttribute("data-count") && !el.dataset.done) { el.dataset.done = "1"; t4kCountUp(el, el.getAttribute("data-count")); }
+  };
+  if (typeof IntersectionObserver === "undefined" || reducedMotion()) { items.forEach(show); return; }
+  const io = new IntersectionObserver((es) => es.forEach((en) => { if (en.isIntersecting) { show(en.target); io.unobserve(en.target); } }), { threshold: 0.15 });
+  items.forEach((el) => io.observe(el));
+}
+/* كونفيتي احتفالي (CSS بس) — بيتشال لوحده بعد ثواني */
+function t4kConfetti() {
+  if (reducedMotion() || typeof document === "undefined" || !document.body) return;
+  const box = document.createElement("div");
+  box.className = "confetti";
+  const colors = ["#0d9488", "#f59e0b", "#3b82f6", "#ef4444", "#22c55e", "#a855f7"];
+  for (let i = 0; i < 46; i++) {
+    const p = document.createElement("i");
+    p.style.cssText = `left:${Math.random() * 100}%; background:${colors[i % colors.length]}; animation-delay:${(Math.random() * 0.6).toFixed(2)}s; animation-duration:${(1.8 + Math.random() * 1.4).toFixed(2)}s; transform:rotate(${Math.floor(Math.random() * 360)}deg);`;
+    box.appendChild(p);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 3600);
+}
+
+/* ---------- صفحة الهبوط (الرابط الرئيسي لو مفيش جلسة) ---------- */
+const LANDING_FEATURES = [
+  ["📚", "دروس منظمة", "شروحات مرتبة حسب السنة والمادة"],
+  ["📝", "كويزات وامتحانات", "تدريب فوري ونتيجة على طول"],
+  ["🏆", "نقاط وترتيب", "تحفيز أسبوعي لكل طالب"],
+  ["📱", "على الموبايل", "ثبّتها كتطبيق وادخل بضغطة"],
+];
+async function renderLanding() {
+  app.innerHTML = `<div class="spin">ثانية واحدة...</div>`;
+  let teachers = [];
+  await Promise.all([
+    loadAboutSettings(), loadFooterSettings(), loadStatsSettings(),
+    (async () => {
+      try {
+        const snap = await fbDb.collection("teachersPublic").where("active", "==", true).get();
+        teachers = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          .filter((t) => (t.subType || "free") === "free" || !t.subEnd || !t.subEnd.toDate || t.subEnd.toDate() >= new Date());
+      } catch (_) { teachers = []; }
+    })(),
+  ]);
+  const a = aboutGet(), st = statsGet();
+  const skills = String(a.skills || "").split(/[،,]/).map((x) => x.trim()).filter(Boolean);
+  const paras = String(a.longBio || "").split(/\n+/).map((p) => p.trim()).filter(Boolean);
+  const initial = (n) => esc(String(n || "م").replace(/^(مستر|أ\.?|د\.?)\s*/, "").trim()[0] || "م");
+  const tcard = (t, i) => `<div class="lp-t rv" style="transition-delay:${Math.min(i, 8) * 70}ms;">
+      <div class="lp-av">${t.avatar ? `<img src="${esc(t.avatar)}" alt="" onerror="this.remove()">` : ""}<span>${initial(t.name)}</span></div>
+      <div class="lp-tn">${esc(t.name)}</div>
+      <div class="lp-ts">${esc(t.subject || "")}</div>
+      <button type="button" class="btn sm" data-pickt="${esc(t.id)}">سجّل مع المدرس ده</button>
+    </div>`;
+  app.innerHTML = `<div class="landing">
+    <button type="button" class="themebtn" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي" style="position:fixed; top:14px; left:14px; z-index:60;">${themeIcon()}</button>
+    <section class="lp-hero">
+      <i class="lp-b" style="width:140px; height:140px; top:18px; right:6%;"></i>
+      <i class="lp-b" style="width:80px; height:80px; bottom:34px; left:9%; animation-delay:1.8s;"></i>
+      <i class="lp-b" style="width:46px; height:46px; top:44%; left:30%; animation-delay:3.2s;"></i>
+      <div class="lp-logo">🎓</div>
+      <h1>منصة المستر</h1>
+      <p>دروس وكويزات وامتحانات مع أفضل المدرسين، في مكان واحد</p>
+      <div class="lp-btns">
+        <a class="lp-btn" href="student/">دخول الطالب</a>
+        <a class="lp-btn o" href="student/#/register">إنشاء حساب</a>
+      </div>
+    </section>
+    <div class="lp-wrap">
+      <section class="card lp-stats rv">
+        <div><b data-count="${esc(st.teachers)}">0</b><span>مدرس</span></div>
+        <div><b data-count="${esc(st.lessons)}">0</b><span>درس</span></div>
+        <div><b data-count="${esc(st.students)}">0</b><span>طالب</span></div>
+      </section>
+      <section class="card rv">
+        <h2 class="lp-h">مدرسينا</h2>
+        ${teachers.length ? `<div class="lp-grid">${teachers.map(tcard).join("")}</div>` : `<p class="muted center">المدرسين هيظهروا هنا قريب.</p>`}
+      </section>
+      <section class="card rv">
+        <h2 class="lp-h">ليه المنصة؟</h2>
+        <div class="lp-feat">${LANDING_FEATURES.map((f, i) => `<div class="rv" style="transition-delay:${i * 80}ms;"><i>${f[0]}</i><b>${f[1]}</b><span>${f[2]}</span></div>`).join("")}</div>
+      </section>
+      <section class="card rv">
+        <h2 class="lp-h">عن المهندس</h2>
+        <div class="lp-eng">
+          ${aboutPhotoHtml(a, 84)}
+          <div style="flex:1; min-width:180px;">
+            <b style="font-size:16px;">${esc(a.name)}</b>
+            <div class="muted" style="font-size:13px; margin:2px 0 6px;">${esc(a.title)}</div>
+            <div style="font-size:14px; line-height:1.7;">${esc(a.shortBio)}</div>
+          </div>
+        </div>
+        ${skills.length ? `<div class="lp-chips">${skills.map((x) => `<span>${esc(x)}</span>`).join("")}</div>` : ""}
+        ${paras.length ? `<div class="btnrow" style="margin-top:10px;"><button type="button" class="btn sm ghost" id="lp-more">اقرأ النبذة كاملة</button></div>
+        <div id="lp-long" style="display:none; margin-top:10px; font-size:14px; line-height:1.85;">${paras.map((p) => `<p>${aboutRich(p)}</p>`).join("")}</div>` : ""}
+      </section>
+      <div class="center" style="margin:14px 0 4px;"><a href="teacher/" style="color:var(--primary-dark); font-weight:700; font-size:14px;">دخول المدرسين</a></div>
+      ${closing()}
+    </div>
+  </div>`;
+  document.querySelectorAll("[data-themebtn]").forEach((b) => b.onclick = () => themeCycle());
+  document.querySelectorAll("[data-pickt]").forEach((b) => b.onclick = () => {
+    try { localStorage.setItem("t4kPreTeacher", b.dataset.pickt); } catch (_) {}
+    location.href = "student/#/register";
+  });
+  const more = document.getElementById("lp-more");
+  if (more) more.onclick = () => {
+    const l = document.getElementById("lp-long");
+    const open = l.style.display === "none";
+    l.style.display = open ? "block" : "none";
+    more.textContent = open ? "إخفاء النبذة" : "اقرأ النبذة كاملة";
+  };
+  window.scrollTo(0, 0);
+  t4kObserveReveal(app);
+}
+
+/* دوال مشتركة (كانت في admin.js) */
+function fmtTs(ts) {
+  try { return ts && ts.toDate ? ts.toDate().toLocaleString("ar-EG") : "—"; } catch (e) { return "—"; }
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 
 function closing() {
@@ -687,12 +848,28 @@ async function renderAboutPage() {
 }
 
 /* ---------- الراوتر ---------- */
+function renderWrongPortal() {
+  const info = PORTAL_INFO[PORTAL] || {};
+  const mine = rolePortal(fbRole);
+  const where = { student: "student/", teacher: "teacher/", admin: "admin/" }[mine] || "./";
+  app.innerHTML = `<div class="loginwrap"><div class="card center" style="max-width:520px; margin:60px auto;">
+    <div style="font-size:42px;">${info.icon || "🔒"}</div>
+    <h1 style="font-size:20px; margin:8px 0;">${esc(info.title || "")}</h1>
+    <p class="muted">الحساب اللي داخل بيه مش حساب ${esc({ student: "طالب", teacher: "مدرس", admin: "أدمن" }[PORTAL] || "")}. اخرج وادخل من الرابط الخاص بحسابك.</p>
+    <div class="btnrow" style="justify-content:center;"><button type="button" class="btn" id="wp-out">خروج</button></div>
+  </div></div>`;
+  document.getElementById("wp-out").onclick = signOut;
+}
+
 function route() {
   const h = location.hash || "#/login";
   if (!fbReady) { renderLoading(); return; }
-  if (h === "#/register") return renderRegister();
+  if (!PORTAL && !fbUser && (location.hash === "" || location.hash === "#" || location.hash === "#/")) return renderLanding();
+  if (h === "#/register") return (!PORTAL || PORTAL === "student") ? renderRegister() : renderLogin();
   if (h === "#/login" || h === "#/" || h === "") return fbUser ? routeByRole() : renderLogin();
   if (!fbUser) return renderLogin();
+  // بوابة دور: حساب من دور تاني يوقف هنا برسالة واضحة (الحماية الحقيقية في القواعد)
+  if (PORTAL && rolePortal(fbRole) && rolePortal(fbRole) !== PORTAL) return renderWrongPortal();
   if (fbRole === "teacherSuspended") return renderTeacherSuspended();
   if (fbRole === "teacherSubExpired") return renderTeacherSubExpired();
   // بوابة تأكيد الإيميل: حساب جديد لسه مفعّلش إيميله يقف هنا مهما كان الرابط
@@ -757,3 +934,191 @@ function renderLoading() {
 
 window.addEventListener("hashchange", route);
 route();
+
+/* ======================= وسائط الدرس: فيديو + PDF جوه المنصة ======================= */
+// الروابط الأصلية متخزنة في lessonMedia/{lessonId} (مش على وثيقة الدرس) والطالب مبيشوفش أي رابط.
+const PDF_MAX_BYTES = 10 * 1024 * 1024;
+const PDF_CHUNK_CHARS = 700000; // لازم يتقسم على 4 (base64)
+function lessonHasVideo(l) { return !!(l && (l.hasVideo || l.videoUrl)); }
+function lessonHasPdf(l) { return !!(l && (l.hasPdf || l.pdfUrl)); }
+
+// بيرجع {videoUrl, pdfUrl, pdfFile} من lessonMedia، وللدروس القديمة من وثيقة الدرس نفسها
+async function loadLessonMedia(l) {
+  const out = { videoUrl: l.videoUrl || "", pdfUrl: l.pdfUrl || "", pdfFile: null };
+  if (l.hasVideo || l.hasPdf) {
+    try {
+      const d = await fbDb.collection("lessonMedia").doc(l.id).get();
+      if (d.exists) {
+        const m = d.data();
+        out.videoUrl = m.videoUrl || out.videoUrl;
+        out.pdfUrl = m.pdfUrl || out.pdfUrl;
+        out.pdfFile = m.pdfFile || null;
+      }
+    } catch (e) { out.error = e; }
+  }
+  return out;
+}
+
+function t4kStyleOnce() {
+  if (document.getElementById("t4k-media-css")) return;
+  const st = document.createElement("style");
+  st.id = "t4k-media-css";
+  st.textContent = `
+  .mplayer{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:16/9;background:#0f172a;user-select:none;-webkit-user-select:none;}
+  .mplayer iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+  .mplayer .mshield{position:absolute;top:0;left:0;right:0;height:16%;z-index:3;background:transparent;}
+  .mplayer .mfs{position:absolute;bottom:6px;left:8px;z-index:5;border:0;border-radius:8px;background:rgba(15,23,42,.72);color:#fff;font:600 13px Cairo,sans-serif;padding:5px 10px;cursor:pointer;}
+  .mplayer.t4k-fs{position:fixed;inset:0;z-index:99999;border-radius:0;aspect-ratio:auto;width:100vw;height:100vh;}
+  .mplayer:fullscreen{border-radius:0;aspect-ratio:auto;}
+  .mwm{position:absolute;z-index:4;pointer-events:none;color:rgba(255,255,255,.55);text-shadow:0 0 4px rgba(0,0,0,.8);font:700 15px Cairo,sans-serif;white-space:nowrap;animation:mwmdrift 26s linear infinite;}
+  @keyframes mwmdrift{0%{top:10%;left:6%}25%{top:70%;left:55%}50%{top:35%;left:68%}75%{top:78%;left:12%}100%{top:10%;left:6%}}
+  .pdfbox{border:1px solid var(--line,#e2e8f0);border-radius:14px;background:#f1f5f9;padding:8px;max-height:75vh;overflow:auto;position:relative;}
+  .pdfpage{position:relative;margin:0 auto 10px;max-width:100%;box-shadow:0 1px 6px rgba(0,0,0,.18);background:#fff;}
+  .pdfpage canvas{display:block;width:100%;height:auto;}
+  .pdfpage .pwm{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;color:rgba(100,116,139,.22);font:800 clamp(22px,6vw,46px) Cairo,sans-serif;transform:rotate(-28deg);white-space:nowrap;}
+  `;
+  document.head.appendChild(st);
+}
+
+function t4kToggleFs(box, btn) {
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl === box || box.classList.contains("t4k-fs")) {
+    if (fsEl === box) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+    box.classList.remove("t4k-fs");
+    btn.textContent = "⛶ ملء الشاشة";
+    return;
+  }
+  const req = box.requestFullscreen || box.webkitRequestFullscreen;
+  if (req) { try { const r = req.call(box); if (r && r.catch) r.catch(() => { box.classList.add("t4k-fs"); }); btn.textContent = "✕ خروج"; return; } catch (_) {} }
+  box.classList.add("t4k-fs");
+  btn.textContent = "✕ خروج";
+}
+
+// بيبني مشغل الفيديو (من غير رابط ظاهر) ويحطه جوه el
+function mountPlayer(el, url, wmName) {
+  t4kStyleOnce();
+  const emb = videoEmbed(url);
+  if (!emb) { el.innerHTML = `<p class="muted center">الفيديو مش متاح.</p>`; return null; }
+  let src = emb.src;
+  if (emb.kind === "youtube") src = emb.src.replace("www.youtube.com", "www.youtube-nocookie.com") + "?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=0&disablekb=0";
+  const box = document.createElement("div");
+  box.className = "mplayer";
+  box.setAttribute("data-kind", emb.kind);
+  const cover = emb.kind === "youtube";
+  box.innerHTML = `<iframe ${cover ? "" : `src="${esc(src)}"`} title="فيديو الدرس" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+    ${cover ? `<button type="button" class="mcover" aria-label="تشغيل" style="position:absolute;inset:0;z-index:6;border:0;cursor:pointer;background:linear-gradient(135deg,#0f172a,#134e4a);color:#fff;font-size:54px;">▶</button>` : ""}
+    <div class="mshield"></div>
+    ${wmName ? `<span class="mwm">${esc(wmName)}</span>` : ""}
+    <button type="button" class="mfs">⛶ ملء الشاشة</button>`;
+  box.oncontextmenu = (e) => e.preventDefault();
+  const cv = box.querySelector(".mcover");
+  // غلاف تشغيل: بيمنع ظهور زرار "Watch on YouTube" قبل أول تشغيل
+  if (cv) cv.onclick = () => { box.querySelector("iframe").src = src + "&autoplay=1"; cv.remove(); };
+  const btn = box.querySelector(".mfs");
+  btn.onclick = () => t4kToggleFs(box, btn);
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) { box.classList.remove("t4k-fs"); btn.textContent = "⛶ ملء الشاشة"; } });
+  el.innerHTML = "";
+  el.appendChild(box);
+  return box;
+}
+
+let _pdfjsP = null;
+function loadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (_pdfjsP) return _pdfjsP;
+  const base = (window.T4K_BASE || "./") + "vendor/pdfjs/";
+  _pdfjsP = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = base + "pdf.min.js";
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + "pdf.worker.min.js"; res(window.pdfjsLib); };
+    s.onerror = () => { _pdfjsP = null; rej(new Error("تعذر تحميل عارض الـ PDF")); };
+    document.head.appendChild(s);
+  });
+  return _pdfjsP;
+}
+
+function b64ToBytes(parts) {
+  const arrs = parts.map((b) => { const bin = atob(b); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; });
+  const total = arrs.reduce((n, a) => n + a.length, 0);
+  const out = new Uint8Array(total);
+  let o = 0; arrs.forEach((a) => { out.set(a, o); o += a.length; });
+  return out;
+}
+async function fetchPdfBytes(lessonId, n) {
+  const snaps = await Promise.all(Array.from({ length: n }, (_, i) => fbDb.collection("lessonFileChunks").doc(lessonId + "_" + i).get()));
+  return b64ToBytes(snaps.map((s) => { if (!s.exists) throw new Error("الملف ناقص"); return s.data().data; }));
+}
+async function fileToChunks(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let bin = "";
+  const step = 0x8000;
+  for (let i = 0; i < buf.length; i += step) bin += String.fromCharCode.apply(null, buf.subarray(i, i + step));
+  const b64 = btoa(bin);
+  const out = [];
+  for (let i = 0; i < b64.length; i += PDF_CHUNK_CHARS) out.push(b64.slice(i, i + PDF_CHUNK_CHARS));
+  return out;
+}
+
+// عارض PDF جوه الصفحة: بيرسم الصفحات على canvas، وزرار تحميل، وعلامة مائية باسم الطالب
+function mountPdf(el, l, media, wmName) {
+  t4kStyleOnce();
+  const drive = media.pdfUrl && String(media.pdfUrl).match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]{10,})/);
+  if (!media.pdfFile && drive) {
+    el.innerHTML = `<div class="mplayer" style="aspect-ratio:3/4;max-height:80vh;"><iframe src="https://drive.google.com/file/d/${drive[1]}/preview"></iframe><div class="mshield" style="height:56px;left:auto;width:64px;"></div></div>`;
+    return;
+  }
+  if (!media.pdfFile) {
+    el.innerHTML = media.pdfUrl ? `<a class="btn ghost" href="${esc(media.pdfUrl)}" target="_blank" rel="noopener">📄 فتح ملف الـ PDF</a>` : `<p class="muted center">الملف مش متاح.</p>`;
+    return;
+  }
+  const f = media.pdfFile;
+  el.innerHTML = `<div class="btnrow" style="margin-bottom:8px;justify-content:space-between;"><span class="muted" style="font-size:13px;">📄 ${esc(f.name || "ملف PDF")}</span><button type="button" class="btn ghost pdf-dl" disabled>⬇ تحميل الملف</button></div>
+    <div class="pdfbox"><p class="muted center pdf-status">جاري تحميل الملف…</p></div>`;
+  const box = el.querySelector(".pdfbox"), status = el.querySelector(".pdf-status"), dl = el.querySelector(".pdf-dl");
+  (async () => {
+    try {
+      const [bytes, lib] = await Promise.all([fetchPdfBytes(l.id, f.chunks), loadPdfJs()]);
+      dl.disabled = false;
+      dl.onclick = () => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+        a.download = f.name || "lesson.pdf";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      };
+      const pdf = await lib.getDocument({ data: bytes.slice() }).promise;
+      status.remove();
+      for (let n = 1; n <= pdf.numPages; n++) {
+        const page = await pdf.getPage(n);
+        const vp0 = page.getViewport({ scale: 1 });
+        const w = Math.max(320, Math.min(box.clientWidth - 16 || 700, 1000));
+        const scale = (w / vp0.width) * Math.min(window.devicePixelRatio || 1, 2);
+        const vp = page.getViewport({ scale });
+        const wrap = document.createElement("div");
+        wrap.className = "pdfpage";
+        const cv = document.createElement("canvas");
+        cv.width = vp.width; cv.height = vp.height;
+        wrap.appendChild(cv);
+        if (wmName) { const w2 = document.createElement("div"); w2.className = "pwm"; w2.textContent = wmName; wrap.appendChild(w2); }
+        box.appendChild(wrap);
+        await page.render({ canvasContext: cv.getContext("2d"), viewport: vp }).promise;
+      }
+    } catch (e) {
+      box.innerHTML = `<p class="msg bad">مشكلة في فتح الملف: ${esc(e.message || String(e))}</p>`;
+    }
+  })();
+}
+
+// بيعبّي حاويات data-media-video / data-media-pdf جوه root لدرس l
+async function mountLessonMedia(root, l, opts) {
+  const o = opts || {};
+  const vEl = root.querySelector("[data-media-video]"), pEl = root.querySelector("[data-media-pdf]");
+  if (!vEl && !pEl) return;
+  const media = await loadLessonMedia(l);
+  const wm = o.student ? ((typeof fbProfile !== "undefined" && fbProfile && fbProfile.name) || "") : "";
+  if (vEl) { if (media.videoUrl) mountPlayer(vEl, media.videoUrl, wm); else vEl.innerHTML = media.error ? `<p class="msg bad">مش قادر أحمّل الفيديو.</p>` : ""; }
+  if (pEl) { if (media.pdfUrl || media.pdfFile) mountPdf(pEl, l, media, wm); else pEl.innerHTML = media.error ? `<p class="msg bad">مش قادر أحمّل الملف.</p>` : ""; }
+  if (o.adminOpen && vEl && media.videoUrl) {
+    const a = document.createElement("a"); a.className = "btn ghost"; a.target = "_blank"; a.rel = "noopener"; a.href = media.videoUrl; a.textContent = "فتح الأصل"; vEl.appendChild(a);
+  }
+}
