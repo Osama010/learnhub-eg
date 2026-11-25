@@ -1884,20 +1884,6 @@ function adminProfile() {
       <p class="msg" id="ft-msg"></p>
     </div>
     <div class="card">
-      <h2 style="font-size:18px; margin-top:0;">🔒 الباسورد</h2>
-      ${hasPasswordProvider ? `
-        <div style="display:grid; gap:10px; max-width:340px;">
-          <input type="password" class="inp ltr" id="apr-p1" placeholder="الباسورد الجديد (٦ حروف على الأقل)">
-          <input type="password" class="inp ltr" id="apr-p2" placeholder="تأكيد الباسورد الجديد">
-          <div class="btnrow"><button type="button" class="btn sm" id="apr-pass-save">حفظ الباسورد</button></div>
-        </div>
-      ` : `
-        <p class="muted" style="font-size:13.5px;">حسابك بيدخل بجوجل من غير باسورد. تقدر تربط باسورد بالحساب عن طريق إيميل إعادة الضبط، وبعدها تقدر تدخل بالإيميل والباسورد برضه.</p>
-        <div class="btnrow"><button type="button" class="btn ghost sm" id="apr-pass-link">إرسال إيميل ربط باسورد</button></div>
-      `}
-      <p class="msg" id="apr-pass-msg"></p>
-    </div>
-    <div class="card">
       <h2 style="font-size:18px; margin-top:0;">🔐 رقم الأدمن السري (PIN)</h2>
       <p class="muted" style="font-size:13px;">الرقم اللي اللوحة بتطلبه كل مرة دخول. بيتحفظ مشفّر ومحدش يقدر يقرأه.</p>
       <div class="fgrid">
@@ -2014,31 +2000,6 @@ function adminProfile() {
       showToast("تمام، الجملة اتحفظت ✅", "good");
     } catch (e) { ftMsg.className = "msg bad"; ftMsg.textContent = "مشكلة: " + (e.message || e); }
     btn.disabled = false;
-  };
-
-  const passMsg = document.getElementById("apr-pass-msg");
-  const setPassMsg = (t, good) => { passMsg.className = "msg " + (good ? "good" : "bad"); passMsg.textContent = t; if (t) showToast(t, good ? "good" : "bad"); };
-  const saveBtn = document.getElementById("apr-pass-save");
-  if (saveBtn) saveBtn.onclick = async () => {
-    const p1 = document.getElementById("apr-p1").value;
-    const p2 = document.getElementById("apr-p2").value;
-    if (p1.length < 6) return setPassMsg("الباسورد لازم يكون ٦ حروف على الأقل.");
-    if (p1 !== p2) return setPassMsg("الباسوردين مش متطابقين.");
-    try {
-      await fbAuth.currentUser.updatePassword(p1);
-      setPassMsg("تمام، الباسورد اتغير ✅", true);
-    } catch (e) {
-      setPassMsg((e && e.code === "auth/requires-recent-login")
-        ? "لازم تسجل دخول من جديد الأول عشان تغير الباسورد. اخرج وادخل تاني وجرب."
-        : "مشكلة: " + (e.message || e));
-    }
-  };
-  const linkBtn = document.getElementById("apr-pass-link");
-  if (linkBtn) linkBtn.onclick = async () => {
-    try {
-      await fbAuth.sendPasswordResetEmail(myEmail);
-      setPassMsg("اتبعت إيميل إعادة الضبط لـ " + myEmail + " — افتحه واختار باسوردك ✅", true);
-    } catch (e) { setPassMsg(authErrAr(e)); }
   };
 
   const pinMsg = document.getElementById("apr-pin-msg");
