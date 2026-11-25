@@ -63,13 +63,18 @@ function openConfirmOverlay(innerHtml) {
    شاشة منفصلة مخصصة للنقل عشان محدش ينقل بالغلط: اختيار صف → تحديد طلبة → صف جديد → تأكيد بالعدد.
    بعد النقل الطالب يشوف محتوى صفه الجديد بس، ودرجاته القديمة بتفضل على السيرفر للتقارير.
    «متخرج» لطلاب الثالث الثانوي اللي خلصوا. */
-var transferState = { from: "", to: "", picked: {} };
+var transferState = { from: "", to: "", picked: {}, teacher: "" };
 const GRADUATED = "🎓 متخرج";
 
 function renderTransferPage(cfg) {
   const all = (cfg.students || []).filter((s) => s.status === "approved");
   if (!transferState.from || !GRADES.includes(transferState.from)) transferState.from = (all[0] && all[0].grade) || GRADES[0];
-  const list = all.filter((s) => s.grade === transferState.from);
+  const teachers = cfg.teachers || null; // الأدمن بس اللي بيبعت قايمة المدرسين (فلتر + عمود)
+  if (teachers && transferState.teacher && !teachers.some((t) => t.id === transferState.teacher)) transferState.teacher = "";
+  let list = all.filter((s) => s.grade === transferState.from);
+  if (teachers && transferState.teacher) list = list.filter((s) => (s.teacherIds || []).includes(transferState.teacher));
+  const tNames = (s) => ((s.teacherIds || []).map((id) => ((teachers.find((t) => t.id === id) || {}).name || "")).filter(Boolean).join("، ") || "—");
+  const filteredTeacherName = teachers && transferState.teacher ? ((teachers.find((t) => t.id === transferState.teacher) || {}).name || "") : "";
   const targets = GRADES.filter((g) => g !== transferState.from).concat([GRADUATED]);
   if (!transferState.to || transferState.to === transferState.from) transferState.to = targets[0] || "";
   const pickedCount = list.filter((s) => transferState.picked[s.id]).length;
@@ -81,6 +86,7 @@ function renderTransferPage(cfg) {
     <div class="card" style="border-right:4px solid var(--blue); margin-bottom:12px;">
       <div class="btnrow" style="flex-wrap:wrap; align-items:center;">
         <span style="font-size:14px;">من: <select id="tr-from" class="inp" style="width:auto; display:inline-block; padding:6px 10px;">${GRADES.map((g) => `<option ${g === transferState.from ? "selected" : ""}>${g}</option>`).join("")}</select></span>
+        ${teachers ? `<span style="font-size:14px;">المدرس: <select id="tr-teacher" class="inp" style="width:auto; display:inline-block; padding:6px 10px;"><option value="">كل المدرسين</option>${teachers.map((t) => `<option value="${t.id}" ${transferState.teacher === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></span>` : ""}
         <span style="font-size:14px;">إلى: <select id="tr-to" class="inp" style="width:auto; display:inline-block; padding:6px 10px;">${targets.map((g) => `<option ${g === transferState.to ? "selected" : ""}>${g}</option>`).join("")}</select></span>
         <button type="button" class="btn sm blue" id="tr-go" ${pickedCount ? "" : "disabled"}>نقل المحدد (${pickedCount})</button>
       </div>
@@ -88,14 +94,14 @@ function renderTransferPage(cfg) {
     </div>
     <div class="card">
       <div class="btnrow" style="justify-content:space-between; align-items:center;">
-        <h2 style="font-size:18px; margin:0;">طلاب «${esc(transferState.from)}» (${list.length})</h2>
+        <h2 style="font-size:18px; margin:0;">طلاب «${esc(transferState.from)}»${filteredTeacherName ? ` لـ«${esc(filteredTeacherName)}»` : ""} (${list.length})</h2>
         ${list.length ? `<label style="font-size:13.5px; cursor:pointer;"><input type="checkbox" id="tr-all" ${allChecked ? "checked" : ""} style="accent-color:var(--primary);"> تحديد الكل</label>` : ""}
       </div>
       ${list.length ? `<div style="overflow-x:auto;"><table class="ttable">
-        <thead><tr><th></th><th>الاسم</th><th>السنة</th><th>ولي الأمر</th></tr></thead>
+        <thead><tr><th></th><th>الاسم</th><th>السنة</th>${teachers ? "<th>المدرس</th>" : ""}<th>ولي الأمر</th></tr></thead>
         <tbody>${list.map((s) => `<tr>
           <td><input type="checkbox" data-trp="${s.id}" ${transferState.picked[s.id] ? "checked" : ""} style="accent-color:var(--primary);"></td>
-          <td>${esc(s.name)}</td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td>
+          <td>${esc(s.name)}</td><td>${esc(s.grade || "—")}</td>${teachers ? `<td>${esc(tNames(s))}</td>` : ""}<td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td>
         </tr>`).join("")}</tbody></table></div>` : `<p class="muted center" style="margin-top:10px;">مفيش طلبة مقبولين في الصف ده.</p>`}
     </div>`;
   /* الصفحة بتتلف بغلاف اللوحة بتاع الدور (أدمن أو مدرس) عشان التنقل يفضل شغال */
@@ -103,6 +109,8 @@ function renderTransferPage(cfg) {
   else app.innerHTML = cfg.headerHtml + content + closing();
   document.getElementById("tr-back").onclick = () => { transferState.picked = {}; location.hash = cfg.backHash; };
   document.getElementById("tr-from").onchange = (e) => { transferState.from = e.target.value; transferState.picked = {}; renderTransferPage(cfg); };
+  const trTeacher = teachers ? document.getElementById("tr-teacher") : null;
+  if (trTeacher) trTeacher.onchange = (e) => { transferState.teacher = e.target.value; renderTransferPage(cfg); };
   document.getElementById("tr-to").onchange = (e) => { transferState.to = e.target.value; renderTransferPage(cfg); };
   const allBox = document.getElementById("tr-all");
   if (allBox) allBox.onchange = () => {

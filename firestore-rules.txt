@@ -103,7 +103,16 @@ service cloud.firestore {
             && exists(/databases/$(database)/documents/students/$(request.resource.data.studentId))
             && get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.status == "pending"
             && get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.email == lookupId);
-      allow update, delete: if isAdmin() || isTeacher();
+      // تعديل: الأدمن أو المدرس. وكمان الطالب نفسه — لحظة ربط حسابه فقط — يقدر
+      // يمسح رقمه السري من فهرس إيميله هو ويعلّم الحساب كمربوط، من غير ما يقدر
+      // يلمس حالته أو مدرسينه أو أي حقل تاني، ومن غير ما يقدر يزرع رقم سري جديد.
+      // ده بيمنع إن طالب مسجّل يترجع لشاشة التسجيل لو كتب باسورده غلط
+      allow update: if isAdmin() || isTeacher()
+        || (request.auth != null
+            && request.auth.token.email == lookupId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["authLinked", "pinHash"])
+            && request.resource.data.get("pinHash", "") == "");
+      allow delete: if isAdmin() || isTeacher();
     }
 
     // الدروس (فيديو وPDF وكويز): الطالب يشوف دروس مدرسينه بس،

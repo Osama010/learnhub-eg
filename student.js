@@ -328,6 +328,8 @@ async function studentFirstLogin(email, pin, newPass) {
   if (l.studentId && l.studentId !== cred.user.uid) {
     await fbDb.collection("students").doc(l.studentId).delete();
   }
+  // الحساب اتربط: امسح الرقم السري من الفهرس عشان ميعرضش شاشة التسجيل تاني
+  await clearLookupPinAfterLink(em);
   // لينك التفعيل بيتبعت دلوقتي، وبوابة التفعيل هتقابله عند الدخول لحد ما يدوسه.
   // لو الإرسال فشل مش بنوقف إنشاء الحساب — يقدر يطلب لينك تاني من البوابة
   try { await cred.user.sendEmailVerification(); } catch (_) {}
@@ -356,7 +358,7 @@ function renderFirstLogin(email) {
       <input id="fl-pass2" type="password" class="inp ltr">
       <button type="button" class="btn" id="fl-btn" style="width:100%;">تأكيد ودخول</button>
       <p class="msg bad" id="fl-msg"></p>
-      <div class="center muted" style="margin-top:8px;"><a href="#/login" style="color:var(--primary-dark);">رجوع لصفحة الدخول</a></div>
+      <div class="center muted" style="margin-top:8px;"><a href="#/login" id="fl-back" style="color:var(--primary-dark);">رجوع لصفحة الدخول</a></div>
     </div>
     ${closing()}`;
   document.getElementById("fl-btn").onclick = async () => {
@@ -386,6 +388,9 @@ function renderFirstLogin(email) {
       flm(e.code ? authErrAr(e) : (e.message || "حصلت مشكلة."));
     }
   };
+  // الرابط وجهته #/login واحنا أصلاً عليها، فالهاش مبيتغيرش ومفيش حدث بيشتغل —
+  // لازم نرسم صفحة الدخول بأنفسنا بدل ما نستنى hashchange مش هيجي أبداً
+  document.getElementById("fl-back").onclick = (e) => { e.preventDefault(); renderLogin(); };
   window.scrollTo(0, 0);
 }
 

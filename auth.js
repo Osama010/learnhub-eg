@@ -105,6 +105,7 @@ function renderLogin() {
     { id: "admin", icon: "🛠️", name: "أدمن", desc: "إدارة المنصة", cls: "a" },
   ];
   app.innerHTML = `<div class="loginwrap">
+    <button type="button" class="themebtn" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي" style="position:fixed; top:14px; left:14px; z-index:60;">${themeIcon()}</button>
     <div class="hero">
       ${LOGO_FULL_SVG}
       <div style="color:var(--muted); font-weight:700; font-size:18px; margin-top:2px;">منصة تعليمية متكاملة</div>
@@ -121,9 +122,6 @@ function renderLogin() {
       </div>
       <div id="login-form"></div>
       <p class="msg bad" id="login-msg"></p>
-      <div class="center muted" style="margin-top:10px; border-top:1px solid var(--line); padding-top:12px;">
-        طالب جديد؟ <a href="#/register" style="color:var(--primary-dark); font-weight:700;">سجّل حسابك من هنا</a>
-      </div>
     </div>
     ${closing()}</div>`;
   document.querySelectorAll(".rolecard").forEach((b) => {
@@ -133,6 +131,7 @@ function renderLogin() {
       renderLoginForm();
     };
   });
+  document.querySelectorAll("[data-themebtn]").forEach((b) => b.onclick = () => themeCycle());
   renderLoginForm();
   window.scrollTo(0, 0);
 }
@@ -147,7 +146,10 @@ function renderLoginForm() {
       <label class="flabel">الباسورد</label>
       <input id="li-pass" type="password" class="inp ltr" placeholder="••••••••">
       <button type="button" class="btn" id="li-btn" style="width:100%;">دخول</button>
-      <p class="muted" style="font-size:13px; margin-top:8px;">أول مرة تدخل بعد ما المدرس قبلك؟ اكتب إيميلك والرقم السري اللي سجلت بيه، وهنخليك تختار باسوردك.</p>`;
+      <p class="muted" style="font-size:13px; margin-top:8px;">أول مرة تدخل بعد ما المدرس قبلك؟ اكتب إيميلك والرقم السري اللي سجلت بيه، وهنخليك تختار باسوردك.</p>
+      <div class="center muted" style="margin-top:10px; border-top:1px solid var(--line); padding-top:12px;">
+        طالب جديد؟ <a href="#/register" style="color:var(--primary-dark); font-weight:700;">سجّل حسابك من هنا</a>
+      </div>`;
     document.getElementById("li-btn").onclick = () => doLogin("student");
   } else if (loginRole === "teacher") {
     el.innerHTML = `
@@ -196,6 +198,19 @@ function loginMsg(t, good) {
    بيحصل لما الطالب يربط حسابه (أول دخول) وبعدين ملفه يتمسح ويتسجل من جديد —
    حساب الـ Auth بيفضل موجود بيتيم. الفهرس العام + الملف القديم (المقروء بمطابقة
    الإيميل قبل الربط) بيكفوا لنقل البيانات لمستند بنفس الـ uid من غير تدخل يدوي. */
+/* بعد ربط حساب الطالب (أول دخول أو ربط ذاتي أو دخول ناجح): نمسح الرقم السري
+   من الفهرس العام ونعلّم الحساب كمربوط. ليه؟ لأن الفهرس لسه شايل الرقم السري
+   بيفسّر أي محاولة دخول فاشلة (باسورد غلط مثلاً) على إنها "أول دخول"، فيرجع
+   الطالب المسجّل لشاشة التسجيل من تاني. القواعد بتسمح للطالب يعدّل الحقلين دول
+   بس في فهرس إيميله هو. محاولة غير حرجة: لو فشلت ميتأثرش الدخول نفسه. */
+async function clearLookupPinAfterLink(email) {
+  try {
+    const ref = fbDb.collection("registrationLookup").doc(String(email || "").toLowerCase());
+    const lk = await ref.get();
+    if (lk.exists && lk.data().pinHash) await ref.update({ pinHash: "", authLinked: true });
+  } catch (e) { console.warn("تعذر تنضيف فهرس التسجيل بعد الربط", e); }
+}
+
 async function tryRelinkStudent(email, user) {
   // بيرجع {ok:true} أو {ok:false, stage:"R1..R6"} — الكود بينزل في رسالة الخطأ
   // عشان نعرف بالظبط أنهي خطوة وقفت من غير ما نطلب اسكرينات كونسول
@@ -226,6 +241,7 @@ async function tryRelinkStudent(email, user) {
       authLinked: true,
     });
     await fbDb.collection("students").doc(l.studentId).delete();
+    await clearLookupPinAfterLink(em); // امسح الرقم السري من الفهرس — الحساب اتربط
     return { ok: true };
   } catch (e) { return { ok: false, stage: "R5", code: (e && e.code) || "" }; }
 }
@@ -261,6 +277,9 @@ async function doLogin(expectedRole) {
           : "الحساب ده مش حساب مدرس.")
         : "الحساب ده مش مسجل كمشرف. لو انت أدمن جديد، ادخل الأول بجوجل واربط باسورد من تاب المشرفين.");
     }
+    // دخول طالب ناجح: لو فهرسه لسه شايل الرقم السري (حسابات اتربطت قبل التنضيف)
+    // ننضّفه دلوقتي، عشان أي باسورد غلط بعد كده ما يرجّعوش لشاشة التسجيل
+    if (expectedRole === "student") await clearLookupPinAfterLink(email);
     route();
   } catch (e) {
     // طالب جديد بعد القبول؟ لو لسه معملش باسورد، نوديه يختاره بالرقم السري
@@ -337,6 +356,7 @@ function renderVerifyGate(msg, resent) {
   const email = (fbUser && fbUser.email) || "";
   const isTeacher = fbRole === "teacher";
   app.innerHTML = `<div class="loginwrap">
+    <button type="button" class="themebtn" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي" style="position:fixed; top:14px; left:14px; z-index:60;">${themeIcon()}</button>
     <div class="hero">
       ${LOGO_FULL_SVG}
       <div style="color:var(--muted); font-weight:700; font-size:18px; margin-top:2px;">فعّل إيميلك الأول 📧</div>
@@ -358,6 +378,7 @@ function renderVerifyGate(msg, resent) {
     </div>
     ${closing()}
   </div>`;
+  document.querySelectorAll("[data-themebtn]").forEach((b) => b.onclick = () => themeCycle());
   window.scrollTo(0, 0);
 
   // زرار "عملت التفعيل": بنحدّث حالة الحساب من فايربيز — اتفعّل؟ يدخل. لسه؟ رسالة
@@ -419,6 +440,7 @@ async function renderRegister() {
     } catch (e) { regTeachersCache = []; }
   }
   app.innerHTML = `<div class="loginwrap">
+    <button type="button" class="themebtn" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي" style="position:fixed; top:14px; left:14px; z-index:60;">${themeIcon()}</button>
     <div class="hero">
       ${LOGO_FULL_SVG}
       <div style="color:var(--muted); font-weight:700; font-size:18px; margin-top:2px;">تسجيل طالب جديد</div>
@@ -455,6 +477,7 @@ async function renderRegister() {
     ${closing()}</div>`;
   document.getElementById("rg-btn").onclick = doRegister;
   document.getElementById("rg-grade").onchange = filterRegTeachers;
+  document.querySelectorAll("[data-themebtn]").forEach((b) => b.onclick = () => themeCycle());
   window.scrollTo(0, 0);
 }
 

@@ -1148,6 +1148,7 @@ function adminTransferPage() {
   if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
   renderTransferPage({
     students: adminCache.students || [],
+    teachers: adminCache.teachers || [],
     wrap: (content) => adminLayout(content, "students"),
     backHash: "#/admin/students",
     onDone: async () => { await adminLoad(); adminTransferPage(); },
