@@ -108,6 +108,7 @@ function adminLayout(content, tab) {
       <button type="button" class="tab ${tab === "students" ? "active" : ""}" data-g="#/admin/students">الطلاب</button>
       <button type="button" class="tab ${tab === "subjects" ? "active" : ""}" data-g="#/admin/subjects">المواد الدراسية</button>
       <button type="button" class="tab ${tab === "library" ? "active" : ""}" data-g="#/admin/library">المكتبة العامة</button>
+      <button type="button" class="tab ${tab === "analytics" ? "active" : ""}" data-g="#/admin/analytics">التحليل 📊</button>
       <button type="button" class="tab ${tab === "reports" ? "active" : ""}" data-g="#/admin/reports">التقارير</button>
       <button type="button" class="tab ${tab === "log" ? "active" : ""}" data-g="#/admin/log">السجل</button>
       <button type="button" class="tab ${tab === "admins" ? "active" : ""}" data-g="#/admin/admins">المشرفين</button>
@@ -132,7 +133,7 @@ async function renderAdmin(h) {
     const tid = decodeURIComponent(h.slice("#/admin/teacher-content/".length));
     return renderAdminTeacherContent(tid);
   }
-  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : h === "#/admin/library" ? "library" : h === "#/admin/reports" ? "reports" : h === "#/admin/log" ? "log" : h === "#/admin/admins" ? "admins" : h === "#/admin/profile" ? "profile" : h === "#/admin/transfer" ? "transfer" : "stats";
+  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : h === "#/admin/library" ? "library" : h === "#/admin/reports" ? "reports" : h === "#/admin/analytics" ? "analytics" : h === "#/admin/log" ? "log" : h === "#/admin/admins" ? "admins" : h === "#/admin/profile" ? "profile" : h === "#/admin/transfer" ? "transfer" : "stats";
   if (tab === "profile") return adminProfile();
   if (tab === "transfer") return adminTransferPage();
   if (tab === "teachers") return adminTeachers();
@@ -140,6 +141,7 @@ async function renderAdmin(h) {
   if (tab === "subjects") return adminSubjects();
   if (tab === "library") return adminLibrary();
   if (tab === "reports") return adminReports();
+  if (tab === "analytics") return adminAnalytics();
   if (tab === "log") return adminLogPage();
   if (tab === "admins") return adminAdmins();
   return adminStats();
@@ -2155,4 +2157,156 @@ async function adminDeleteLibrary(id) {
     await adminLoad();
     adminLibrary();
   } catch (e) { alert("مشكلة في الحذف: " + (e.message || e)); }
+}
+
+/* ======================= تحليل الأدمن (نسخة خفيفة من غير ملخص يومي) ======================= */
+let aanState = { days: 30 };
+let aanExtra = null; // { days, atts, lessons, quizzes, counts }
+const aanDate = (ts) => (ts && ts.toDate ? ts.toDate() : null);
+
+function buildAdminAnalytics(opts, extra, now) {
+  now = now || new Date();
+  const DAY = 86400000;
+  const teachers = adminCache.teachers || [], students = adminCache.students || [];
+  const approved = students.filter((s) => s.status === "approved");
+  const dayKey = (d) => subDateStr(d);
+  const activeOn = (key) => approved.filter((s) => s.activityDays && s.activityDays[key]).length;
+  const last7 = new Set(Array.from({ length: 7 }, (_, i) => dayKey(new Date(now.getTime() - i * DAY))));
+  const activeIds = new Set(approved.filter((s) => Object.keys(s.activityDays || {}).some((k) => last7.has(k))).map((s) => s.id));
+  const from = new Date(now.getTime() - opts.days * DAY);
+  const newRegs = students.filter((s) => { const d = aanDate(s.createdAt); return d && d >= from; });
+  const weeks = Math.max(4, Math.min(12, Math.round(opts.days / 7)));
+  const regWeeks = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const t1 = now.getTime() - i * 7 * DAY + DAY, t0 = t1 - 7 * DAY;
+    regWeeks.push({ label: String(weeks - i), v: students.filter((s) => { const d = aanDate(s.createdAt); return d && d.getTime() >= t0 && d.getTime() < t1; }).length });
+  }
+  const nDays = Math.min(opts.days, 30);
+  const daily = [];
+  for (let i = nDays - 1; i >= 0; i--) { const d = new Date(now.getTime() - i * DAY); daily.push({ label: String(d.getDate()), v: activeOn(dayKey(d)) }); }
+  const activeTeachers = teachers.filter((t) => t.active !== false);
+  const perTeacher = activeTeachers.map((t) => {
+    const mine = approved.filter((s) => (s.teacherIds || []).includes(t.id));
+    const act = mine.filter((s) => activeIds.has(s.id)).length;
+    const at = ((extra && extra.atts) || []).filter((a) => a.teacherId === t.id && a.total > 0);
+    return { t, n: mine.length, act, avg: at.length ? Math.round(anAvg(at.map(anPct))) : null };
+  }).sort((a, b) => b.n - a.n);
+  const attention = [];
+  const lastContent = {};
+  ((extra && extra.lessons) || []).concat((extra && extra.quizzes) || []).forEach((x) => { const d = aanDate(x.createdAt); if (d && (!lastContent[x.teacherId] || d > lastContent[x.teacherId])) lastContent[x.teacherId] = d; });
+  if (extra) activeTeachers.forEach((t) => {
+    const d = lastContent[t.id];
+    const age = d ? Math.floor((now - d) / DAY) : null;
+    if (age === null) attention.push({ txt: `${t.name || "مدرس"} · مفيش محتوى جديد من أكتر من 90 يوم`, tag: "محتوى", o: true });
+    else if (age >= 30) attention.push({ txt: `${t.name || "مدرس"} · مفيش محتوى جديد من ${age} يوم`, tag: "محتوى", o: true });
+  });
+  perTeacher.forEach((p) => { if (p.n >= 10 && p.act / p.n < 0.15) attention.push({ txt: `${p.t.name || "مدرس"} · نشاط طلابه ضعيف (${Math.round((p.act / p.n) * 100)}%)`, tag: "تفاعل" }); });
+  let expiring = 0;
+  teachers.forEach((t) => { const si = subInfo(t); if (si.status === "expiring") { expiring++; attention.push({ txt: `${t.name || "مدرس"} · اشتراك بينتهي بعد ${si.daysLeft} يوم`, tag: "اشتراك", o: true }); } else if (si.status === "expired") attention.push({ txt: `${t.name || "مدرس"} · الاشتراك منتهي`, tag: "اشتراك" }); });
+  const late = students.filter((s) => { const d = aanDate(s.createdAt); return s.status === "pending" && d && now - d > 3 * DAY; }).length;
+  if (late) attention.push({ txt: `${late} طلب تسجيل متأخر أكتر من 3 أيام`, tag: "طلبات", o: true });
+  return { total: students.length, approved: approved.length, active7: activeIds.size, teachers: teachers.length, expiring, newRegs: newRegs.length, regWeeks, daily, perTeacher, attention, counts: (extra && extra.counts) || null };
+}
+
+function aanLineSvg(pts) {
+  if (pts.length < 2) return `<p class="muted center" style="font-size:13px;">لسه مفيش بيانات كفاية.</p>`;
+  const mx = Math.max(1, ...pts.map((p) => p.v)), step = 320 / (pts.length - 1);
+  const xy = pts.map((p, i) => [20 + i * step, 100 - (p.v / mx) * 80]);
+  const every = Math.ceil(pts.length / 8);
+  return `<svg viewBox="0 0 360 126" width="100%" style="max-width:640px;display:block;margin:0 auto"><g stroke="#e2e8f0"><line x1="10" y1="20" x2="350" y2="20"/><line x1="10" y1="60" x2="350" y2="60"/><line x1="10" y1="100" x2="350" y2="100"/></g>
+    <polyline fill="none" stroke="#6366f1" stroke-width="3" points="${xy.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ")}"/>
+    ${pts.map((p, i) => i % every === 0 ? `<text x="${xy[i][0].toFixed(1)}" y="120" font-size="10" fill="#64748b" text-anchor="middle">${esc(p.label)}</text>` : "").join("")}
+    <text x="12" y="16" font-size="10" fill="#475569">${mx}</text></svg>`;
+}
+function aanBarsSvg(pts) {
+  const mx = Math.max(1, ...pts.map((p) => p.v)), w = 320 / pts.length;
+  return `<svg viewBox="0 0 360 120" width="100%" style="max-width:640px;display:block;margin:0 auto;direction:ltr">${pts.map((p, i) => { const h = Math.max(2, (p.v / mx) * 75); const x = 20 + i * w; return `<rect x="${(x + w * 0.15).toFixed(1)}" y="${95 - h}" width="${(w * 0.7).toFixed(1)}" height="${h}" rx="4" fill="#0d9488"/><text x="${(x + w / 2).toFixed(1)}" y="${90 - h}" font-size="11" fill="#475569" text-anchor="middle">${p.v}</text><text x="${(x + w / 2).toFixed(1)}" y="112" font-size="10" fill="#64748b" text-anchor="middle">${esc(p.label)}</text>`; }).join("")}</svg>`;
+}
+
+function aanHtml(m) {
+  const kpi = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
+  const empty = (t) => `<p class="muted center" style="font-size:13px;">${t}</p>`;
+  const mxN = Math.max(1, ...m.perTeacher.map((p) => p.n));
+  return `<style>${AN_CSS}</style>
+  <div class="an-k">
+    ${kpi(m.approved.toLocaleString("en"), "طالب مقبول (من " + m.total.toLocaleString("en") + ")")}
+    ${kpi(m.active7.toLocaleString("en") + (m.approved ? ` <small style="font-size:13px">(${Math.round((m.active7 / m.approved) * 100)}%)</small>` : ""), "نشطين آخر 7 أيام")}
+    ${kpi(m.teachers + (m.expiring ? ` <small style="font-size:12px;color:#b45309">${m.expiring} اشتراك قرب ينتهي</small>` : ""), "مدرس")}
+    ${kpi("+" + m.newRegs, "تسجيلات جديدة في الفترة")}
+  </div>
+  <div class="an-grid">
+  <div class="card an-card"><h2>👥 تسجيلات جديدة أسبوعيا</h2>${aanBarsSvg(m.regWeeks)}</div>
+  <div class="card an-card"><h2>⚡ الطلاب النشطين يوميا</h2>${aanLineSvg(m.daily)}</div>
+  </div>
+  <div class="an-grid">
+  <div class="card an-card"><h2>🧑‍🏫 الطلاب لكل مدرس</h2>${m.perTeacher.length ? m.perTeacher.slice(0, 12).map((p) => `<div class="an-bar"><span style="width:90px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(p.t.name || "")}</span><div class="t"><i style="width:${Math.round((p.n / mxN) * 100)}%"></i></div><b>${p.n}</b></div>`).join("") : empty("مفيش مدرسين.")}</div>
+  <div class="card an-card"><h2>🏫 متوسط الدرجات لكل مدرس</h2>${m.perTeacher.some((p) => p.avg !== null) ? m.perTeacher.filter((p) => p.avg !== null).slice(0, 12).map((p) => `<div class="an-bar"><span style="width:90px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(p.t.name || "")}</span><div class="t"><i style="width:${p.avg}%;${p.avg < 60 ? "background:#f59e0b" : ""}"></i></div><b>${p.avg}%</b></div>`).join("") : empty("لسه مفيش نتايج في الفترة دي.")}</div>
+  </div>
+  <div class="card an-card"><h2>⚠️ محتاج انتباه (${m.attention.length})</h2>${m.attention.length ? m.attention.slice(0, 12).map((a) => `<div class="an-row"><span>${esc(a.txt)}</span><span class="an-tag ${a.o ? "o" : ""}">${esc(a.tag)}</span></div>`).join("") : empty("كله تمام ✅")}</div>
+  ${m.counts ? `<div class="card an-card"><h2>📦 المحتوى لكل مرحلة</h2><div style="font-size:13.5px;line-height:1.9">${m.counts.map((c) => `${esc(c.stage)}: ${c.lessons} درس · ${c.quizzes} كويز`).join("<br>")}</div></div>` : ""}`;
+}
+
+function aanExportRows(m) {
+  const r = [["المؤشرات"], ["طلاب مقبولين", m.approved], ["إجمالي الطلاب", m.total], ["نشطين آخر 7 أيام", m.active7], ["المدرسين", m.teachers], ["تسجيلات جديدة", m.newRegs], [],
+    ["مدرس", "عدد الطلاب", "نشطين آخر 7 أيام", "متوسط الدرجات %"]];
+  m.perTeacher.forEach((p) => r.push([p.t.name || "", p.n, p.act, p.avg === null ? "" : p.avg]));
+  r.push([], ["محتاج انتباه", "النوع"]); m.attention.forEach((a) => r.push([a.txt, a.tag]));
+  return r;
+}
+function aanExport(kind, m) {
+  const stamp = new Date().toISOString().slice(0, 10), rows = aanExportRows(m);
+  if (kind === "csv") {
+    downloadBlob(new Blob(["\ufeff" + rows.map((r) => r.map((c) => { let s = String(c == null ? "" : c); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; }).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" }), `تحليل-المنصة-${stamp}.csv`);
+  } else {
+    const escP = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+    downloadBlob(new Blob(["\ufeff" + `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table border="1">${rows.map((r) => `<tr>${r.map((c) => `<td>${escP(c)}</td>`).join("")}</tr>`).join("")}</table></body></html>`], { type: "application/vnd.ms-excel" }), `تحليل-المنصة-${stamp}.xls`);
+  }
+}
+function aanPrint(m) {
+  const w = window.open("", "_blank");
+  if (!w) { alert("المتصفح مانع النافذة المنبثقة. اسمح بيها وجرّب تاني."); return; }
+  w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تحليل المنصة</title><style>
+    body{font-family:"Cairo","Segoe UI",Tahoma,sans-serif;direction:rtl;padding:24px;color:#1e293b}h1{font-size:20px;margin:0 0 4px}.meta{color:#64748b;font-size:12.5px;margin-bottom:14px}
+    .card{border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:12px;break-inside:avoid}.muted{color:#64748b}.center{text-align:center}.foot{margin-top:18px;color:#64748b;font-size:12px;text-align:center}
+    @media print{body{padding:0}}</style></head><body><h1>تحليل المنصة — learnhub-eg</h1><div class="meta">آخر ${aanState.days} يوم · ${new Date().toLocaleString("ar-EG")}</div>
+    ${aanHtml(m)}<div class="foot">فكرة وإعداد: مهندس اسامه حسن عسس</div><script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.close();
+}
+
+async function aanLoadExtra(days) {
+  const DAY = 86400000, now = Date.now();
+  const T = (ms) => firebase.firestore.Timestamp.fromDate(new Date(ms));
+  const out = { days, atts: [], lessons: [], quizzes: [], counts: null };
+  const get = async (col, field, ms) => (await fbDb.collection(col).where(field, ">=", T(ms)).get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+  const [atts, lessons, quizzes] = await Promise.all([
+    get("quizAttempts", "updatedAt", now - days * DAY).catch(() => []),
+    get("lessons", "createdAt", now - 90 * DAY).catch(() => null),
+    get("quizzes", "createdAt", now - 90 * DAY).catch(() => null),
+  ]);
+  out.atts = atts; out.lessons = lessons || []; out.quizzes = quizzes || [];
+  if (!lessons || !quizzes) out.noContentCheck = true;
+  try {
+    const stages = ["ابتدائي", "إعدادي", "ثانوي"];
+    const cnt = (col, st) => fbDb.collection(col).where("stage", "==", st).count().get().then((s) => s.data().count);
+    out.counts = await Promise.all(stages.map(async (st) => ({ stage: st, lessons: await cnt("lessons", st), quizzes: await cnt("quizzes", st) })));
+  } catch (_) { out.counts = null; }
+  return out;
+}
+
+async function adminAnalytics() {
+  if (bailIfSignedOut()) return;
+  adminLayout(`<div class="spin">بنحلل بيانات المنصة...</div>`, "analytics");
+  try { if (!aanExtra || aanExtra.days !== aanState.days) aanExtra = await aanLoadExtra(aanState.days); }
+  catch (e) { adminLayout(`<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`, "analytics"); return; }
+  const m = buildAdminAnalytics(aanState, aanExtra);
+  adminLayout(`
+    <div class="card"><h2 style="font-size:18px;margin-top:0;">📊 تحليل المنصة</h2>
+    <div class="filterrow"><select id="aan-days" class="inp">${[[7, "آخر 7 أيام"], [30, "آخر 30 يوم"], [90, "آخر 90 يوم"]].map(([d, l]) => `<option value="${d}" ${aanState.days === d ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    <div class="btnrow" style="margin-top:8px;"><button type="button" class="btn" id="aan-print">🖨️ PDF / طباعة</button><button type="button" class="btn ghost" id="aan-xls">⬇ Excel</button><button type="button" class="btn ghost" id="aan-csv">CSV</button></div>
+    <p class="muted" style="font-size:12.5px;margin:8px 0 0;">الأرقام محسوبة من بيانات المنصة المحمّلة + استعلامات محدودة بالفترة، من غير أي ملخص مخزن.${aanExtra.noContentCheck ? " (تعذر فحص آخر محتوى للمدرسين.)" : ""}</p></div>
+    ${aanHtml(m)}`, "analytics");
+  document.getElementById("aan-days").onchange = (e) => { aanState.days = Number(e.target.value); adminAnalytics(); };
+  document.getElementById("aan-print").onclick = () => aanPrint(m);
+  document.getElementById("aan-xls").onclick = () => aanExport("xls", m);
+  document.getElementById("aan-csv").onclick = () => aanExport("csv", m);
 }

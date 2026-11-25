@@ -10,6 +10,7 @@ function teacherTabs(active) {
     <button type="button" class="tab ${active === "students" ? "active" : ""}" data-g="#/teacher">طلابي</button>
     <button type="button" class="tab ${active === "lessons" ? "active" : ""}" data-g="#/teacher/lessons">الدروس والكويزات</button>
     <button type="button" class="tab ${active === "ann" ? "active" : ""}" data-g="#/teacher/announcements">الإعلانات</button>
+    <button type="button" class="tab ${active === "analytics" ? "active" : ""}" data-g="#/teacher/analytics">التحليل 📊</button>
     <button type="button" class="tab ${active === "reports" ? "active" : ""}" data-g="#/teacher/reports">التقارير</button>
   </div>`;
 }
@@ -2147,4 +2148,196 @@ function tAvatarSave(file, msg) {
     img.src = reader.result;
   };
   reader.readAsDataURL(file);
+}
+
+/* ======================= داشبورد التحليل للمدرس ======================= */
+let tanState = { grade: "", days: 30, term: 0 };
+// بيحسب كل أرقام الداشبورد من الداتا المحمّلة (من غير قراءات جديدة)
+function buildTeacherAnalytics(opts, acts, now) {
+  now = now || new Date();
+  const DAY = 86400000;
+  const term = opts.term || termCurrent();
+  const students = (teacherCache || []).filter((s) => s.status === "approved" && (!opts.grade || s.grade === opts.grade));
+  const ids = new Set(students.map((s) => s.id));
+  const inTerm = (x) => termOf(x) === term;
+  const quizzes = (teacherQuizzes || []).filter(inTerm), exams = (teacherExams || []).filter(inTerm), lessons = (teacherLessons || []).filter(inTerm);
+  const quizIds = new Set(quizzes.map((q) => q.id)), examIds = new Set(exams.map((q) => q.id));
+  const allAtt = (teacherAttempts || []).filter((a) => ids.has(a.studentId) && ((a.quizId && quizIds.has(a.quizId)) || (a.examId && examIds.has(a.examId))));
+  const from = new Date(now.getTime() - opts.days * DAY), prevFrom = new Date(now.getTime() - 2 * opts.days * DAY);
+  const inRange = (a, f, t) => { const d = anTs(a); return d && d >= f && d < t; };
+  const att = allAtt.filter((a) => inRange(a, from, new Date(now.getTime() + DAY)));
+  const prevAtt = allAtt.filter((a) => inRange(a, prevFrom, from));
+  const avg = anAvg(att.map(anPct)), prevAvg = anAvg(prevAtt.map(anPct));
+  // نشاط الطلاب: activityDays على وثيقة الطالب + تاريخ آخر محاولة
+  const lastActive = {};
+  students.forEach((s) => { const ds = Object.keys(s.activityDays || {}).sort(); if (ds.length) lastActive[s.id] = new Date(ds[ds.length - 1] + "T12:00:00"); });
+  allAtt.forEach((a) => { const d = anTs(a); if (d && (!lastActive[a.studentId] || d > lastActive[a.studentId])) lastActive[a.studentId] = d; });
+  const daysSince = (id) => (lastActive[id] ? Math.floor((now - lastActive[id]) / DAY) : null);
+  const activeNow = students.filter((s) => daysSince(s.id) !== null && daysSince(s.id) < 7).length;
+  // إنجاز الدروس (أول فتح من activityLog)
+  const opened = new Set((acts || []).filter((a) => a.kind === "lesson").map((a) => a.studentId + "|" + a.refId));
+  let possible = 0, done = 0; const perLesson = {};
+  lessons.forEach((l) => {
+    const elig = students.filter((s) => !l.grade || l.grade === s.grade);
+    const dn = elig.filter((s) => opened.has(s.id + "|" + l.id)).length;
+    possible += elig.length; done += dn;
+    perLesson[l.id] = { l, elig: elig.length, done: dn };
+  });
+  const completion = possible ? Math.round((done / possible) * 100) : null;
+  const rts = (teacherRatings || []).filter((r) => ids.has(r.studentId) && lessons.some((l) => l.id === r.lessonId));
+  const rating = anAvg(rts.map((r) => Number(r.stars) || 0));
+  // اتجاه أسبوعي
+  const weeks = Math.max(4, Math.min(12, Math.round(opts.days / 7)));
+  const trend = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const t1 = new Date(now.getTime() - i * 7 * DAY + DAY), t0 = new Date(t1.getTime() - 7 * DAY);
+    const v = anAvg(allAtt.filter((a) => inRange(a, t0, t1)).map(anPct));
+    trend.push({ label: String(weeks - i), v: v === null ? null : Math.round(v) });
+  }
+  // كل كويز/امتحان
+  const items = quizzes.map((q) => ({ id: q.id, title: q.title || "كويز", exam: false, qs: q.questions || [], grade: q.grade || "", at: createdTs(q) }))
+    .concat(exams.map((q) => ({ id: q.id, title: q.title || "امتحان", exam: true, qs: q.questions || [], grade: q.grade || "", at: createdTs(q) })));
+  function createdTs(q) { return q.createdAt && q.createdAt.toDate ? q.createdAt.toDate().getTime() : 0; }
+  const perItem = items.map((it) => {
+    const as = allAtt.filter((a) => (it.exam ? a.examId === it.id : a.quizId === it.id));
+    return { ...it, attempts: as, avg: as.length ? Math.round(anAvg(as.map(anPct))) : null };
+  });
+  const bars = perItem.filter((x) => x.avg !== null).sort((a, b) => b.at - a.at).slice(0, 8);
+  // توزيع الدرجات
+  const bands = [0, 0, 0, 0];
+  att.forEach((a) => { const p = anPct(a); bands[p < 50 ? 0 : p < 70 ? 1 : p < 90 ? 2 : 3]++; });
+  // طلاب محتاجين متابعة
+  const recentItems = perItem.slice().sort((a, b) => b.at - a.at);
+  const risk = [];
+  students.forEach((s) => {
+    const mine = allAtt.filter((a) => a.studentId === s.id).sort((a, b) => (anTs(a) || 0) - (anTs(b) || 0));
+    const ds = daysSince(s.id);
+    if (ds === null) risk.push({ s, sev: 3, tag: "لسه ما بدأش", red: true });
+    else if (ds >= 7) risk.push({ s, sev: 3 + Math.min(ds, 60) / 100, tag: "مفيش نشاط " + ds + " يوم", red: true });
+    else {
+      if (mine.length >= 3) {
+        const last2 = anAvg(mine.slice(-2).map(anPct)), before = anAvg(mine.slice(0, -2).map(anPct));
+        if (before - last2 >= 15) { risk.push({ s, sev: 2, tag: "درجاته نزلت " + Math.round(before - last2) + "%" }); return; }
+      }
+      const myItems = recentItems.filter((it) => !it.grade || it.grade === s.grade).slice(0, 2);
+      if (myItems.length === 2 && myItems.every((it) => !it.attempts.some((a) => a.studentId === s.id))) risk.push({ s, sev: 1, tag: "ما حلش آخر كويزين" });
+    }
+  });
+  risk.sort((a, b) => b.sev - a.sev);
+  // أصعب الأسئلة
+  const hard = [];
+  perItem.forEach((it) => {
+    if (it.attempts.length < 3) return;
+    it.qs.forEach((q, i) => {
+      const got = it.attempts.map((a) => a.answers && a.answers[i]).filter((x) => x);
+      if (got.length < 3) return;
+      const rate = Math.round((got.filter((x) => x.correct).length / got.length) * 100);
+      hard.push({ item: it.title, n: i + 1, q: q.q || "", rate });
+    });
+  });
+  hard.sort((a, b) => a.rate - b.rate);
+  // أفضل 5
+  const top = students.map((s) => { const m = allAtt.filter((a) => a.studentId === s.id); return { s, n: m.length, avg: m.length ? Math.round(anAvg(m.map(anPct))) : null }; })
+    .filter((x) => x.avg !== null && x.n >= 2).sort((a, b) => b.avg - a.avg || b.n - a.n).slice(0, 5);
+  // ملاحظات
+  const notes = [];
+  Object.values(perLesson).filter((x) => x.elig >= 5 && x.done / x.elig < 0.4).sort((a, b) => a.done / a.elig - b.done / b.elig).slice(0, 2)
+    .forEach((x) => notes.push(`درس "${x.l.title || ""}" فتحه ${Math.round((x.done / x.elig) * 100)}% بس من الطلاب`));
+  const low = bars.slice().sort((a, b) => a.avg - b.avg)[0];
+  if (low && low.avg < 60) notes.push(`"${low.title}" أقل متوسط (${low.avg}%) — يستاهل إعادة شرح`);
+  if (students.length >= 5 && students.length - activeNow >= students.length * 0.3) notes.push(`${students.length - activeNow} طالب من ${students.length} ملمسوش المنصة آخر 7 أيام`);
+  return { total: students.length, activeNow, avg: avg === null ? null : Math.round(avg), delta: avg !== null && prevAvg !== null ? Math.round(avg - prevAvg) : null,
+    completion, rating: rating === null ? null : Math.round(rating * 10) / 10, trend, bars, bands, risk, hard: hard.slice(0, 5), top, notes, attemptsCount: att.length, term };
+}
+
+function anDashHtml(m) {
+  const kpi = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
+  const empty = (t) => `<p class="muted center" style="font-size:13px;">${t}</p>`;
+  return `<style>${AN_CSS}</style>
+  <div class="an-k">
+    ${kpi(m.activeNow + "<small style='font-size:14px'> / " + m.total + "</small>", "طالب نشط آخر 7 أيام")}
+    ${kpi(m.avg === null ? "—" : m.avg + "%" + (m.delta ? ` <small style="font-size:12px;color:${m.delta > 0 ? "#15803d" : "#b91c1c"}">${m.delta > 0 ? "▲" : "▼"} ${Math.abs(m.delta)}%</small>` : ""), "متوسط الدرجات")}
+    ${kpi(m.completion === null ? "—" : m.completion + "%", "نسبة فتح الدروس (أول فتح)")}
+    ${kpi(m.rating === null ? "—" : m.rating + " ⭐", "متوسط تقييم الدروس")}
+  </div>
+  <div class="card an-card"><h2>📈 متوسط الدرجات أسبوعيا</h2>${anTrendSvg(m.trend)}</div>
+  <div class="an-grid">
+  <div class="card an-card"><h2>📊 متوسط كل كويز وامتحان</h2>${m.bars.length ? m.bars.map((b) => `<div class="an-bar"><span style="width:96px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(b.title)}</span><div class="t"><i style="width:${b.avg}%;${b.avg < 60 ? "background:#f59e0b" : ""}"></i></div><b>${b.avg}%</b></div>`).join("") : empty("لسه مفيش نتايج.")}</div>
+  <div class="card an-card"><h2>🎯 توزيع الدرجات</h2>${m.attemptsCount ? anBandsSvg(m.bands) : empty("لسه مفيش نتايج في الفترة دي.")}</div>
+  </div>
+  <div class="card an-card"><h2>⚠️ طلاب محتاجين متابعة (${m.risk.length})</h2>${m.risk.length ? m.risk.slice(0, 10).map((r) => `<div class="an-row"><span>${esc(r.s.name || "")} <span class="muted" style="font-size:12px;">${esc((r.s.grade || "").replace("الصف ", ""))}</span></span><span class="an-tag ${r.red ? "" : "o"}">${esc(r.tag)}</span></div>`).join("") : empty("كل الطلاب ماشيين كويس 👏")}</div>
+  <div class="an-grid">
+  <div class="card an-card"><h2>🧠 أصعب الأسئلة</h2>${m.hard.length ? m.hard.map((h) => `<div class="an-row"><span>${esc(h.item)} · س${h.n}: ${esc(String(h.q).slice(0, 60))}</span><b style="color:${h.rate < 50 ? "#b91c1c" : "#b45309"};white-space:nowrap;">${h.rate}% صح</b></div>`).join("") : empty("محتاج 3 محاولات على الأقل للكويز.")}</div>
+  <div class="card an-card"><h2>🏆 أفضل 5 طلاب</h2>${m.top.length ? m.top.map((t, i) => `<div class="an-row"><span>${["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][i]} ${esc(t.s.name || "")}</span><b>${t.avg}%</b></div>`).join("") : empty("لسه مفيش نتايج.")}</div>
+  </div>
+  <div class="card an-card"><h2>💡 ملاحظات</h2>${m.notes.length ? `<div style="font-size:13.5px;line-height:1.9">${m.notes.map((n) => "• " + esc(n)).join("<br>")}</div>` : empty("مفيش ملاحظات دلوقتي.")}</div>`;
+}
+
+// صفوف التصدير (CSV/Excel): أقسام الداشبورد
+function anExportRows(m) {
+  const r = [];
+  r.push(["المؤشرات"], ["طلاب نشطين آخر 7 أيام", m.activeNow + " من " + m.total], ["متوسط الدرجات", m.avg === null ? "" : m.avg + "%"], ["نسبة فتح الدروس", m.completion === null ? "" : m.completion + "%"], ["متوسط التقييم", m.rating === null ? "" : m.rating], []);
+  r.push(["كويز/امتحان", "المتوسط %"]); m.bars.forEach((b) => r.push([b.title, b.avg])); r.push([]);
+  r.push(["نطاق الدرجات", "عدد المحاولات"]); ["0-50", "50-70", "70-90", "90+"].forEach((l, i) => r.push([l, m.bands[i]])); r.push([]);
+  r.push(["طلاب محتاجين متابعة", "الصف", "السبب"]); m.risk.forEach((x) => r.push([x.s.name || "", x.s.grade || "", x.tag])); r.push([]);
+  r.push(["أصعب الأسئلة", "نسبة الصح %"]); m.hard.forEach((h) => r.push([h.item + " - س" + h.n + ": " + h.q, h.rate])); r.push([]);
+  r.push(["أفضل الطلاب", "المتوسط %"]); m.top.forEach((t) => r.push([t.s.name || "", t.avg]));
+  return r;
+}
+function teacherAnalyticsExport(kind, m) {
+  const stamp = new Date().toISOString().slice(0, 10), rows = anExportRows(m);
+  if (kind === "csv") {
+    downloadBlob(new Blob(["\ufeff" + rows.map((r) => r.map((c) => { let s = String(c == null ? "" : c); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; }).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" }), `تحليل-${stamp}.csv`);
+  } else {
+    const escP = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table border="1">${rows.map((r) => `<tr>${r.map((c) => `<td>${escP(c)}</td>`).join("")}</tr>`).join("")}</table></body></html>`;
+    downloadBlob(new Blob(["\ufeff" + html], { type: "application/vnd.ms-excel" }), `تحليل-${stamp}.xls`);
+  }
+}
+function teacherAnalyticsPrint(m) {
+  const w = window.open("", "_blank");
+  if (!w) { alert("المتصفح مانع النافذة المنبثقة. اسمح بيها وجرّب تاني."); return; }
+  const escP = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تحليل المدرس</title><style>
+    body{font-family:"Cairo","Segoe UI",Tahoma,sans-serif;direction:rtl;padding:24px;color:#1e293b}h1{font-size:20px;margin:0 0 4px}.meta{color:#64748b;font-size:12.5px;margin-bottom:14px}
+    .card{border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:12px;break-inside:avoid}.muted{color:#64748b}.center{text-align:center}.foot{margin-top:18px;color:#64748b;font-size:12px;text-align:center}
+    @media print{body{padding:0}}</style></head><body>
+    <h1>داشبورد التحليل — منصة learnhub-eg</h1><div class="meta">المدرس: ${escP((fbProfile && fbProfile.name) || "")} · ${escP(tanState.grade || "كل الصفوف")} · آخر ${tanState.days} يوم · ${escP(new Date().toLocaleString("ar-EG"))}</div>
+    ${anDashHtml(m)}<div class="foot">فكرة وإعداد: مهندس اسامه حسن عسس</div><script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.close();
+}
+
+let tanCache = null;
+async function renderTeacherAnalytics() {
+  if (bailIfSignedOut()) return;
+  if (!fbUser) return renderLogin();
+  app.innerHTML = `<div class="spin">بنحلل بياناتك...</div>`;
+  try {
+    await Promise.all([teacherLoad(), teacherLoadLessons()]);
+    const actSnap = await fbDb.collection("activityLog").where("teacherId", "==", fbUser.uid).get();
+    tanCache = actSnap.docs.map((d) => d.data());
+  } catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
+  drawTeacherAnalytics();
+}
+function drawTeacherAnalytics() {
+  const m = buildTeacherAnalytics(tanState, tanCache || []);
+  const grades = [...new Set(((fbProfile && fbProfile.stages) || []).flatMap((st) => gradesOfStage(st)))];
+  app.innerHTML = `
+    <div class="hdr"><h1>التحليل 📊</h1><div class="fact">${esc((fbProfile && fbProfile.name) || "")}${fbProfile && fbProfile.subject ? " · " + esc(fbProfile.subject) : ""} · ${termName(m.term)}</div></div>
+    ${teacherTabs("analytics")}
+    <div class="filterrow">
+      <select id="an-grade" class="inp"><option value="">كل الصفوف</option>${grades.map((g) => `<option value="${esc(g)}" ${tanState.grade === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>
+      <select id="an-days" class="inp">${[[7, "آخر 7 أيام"], [30, "آخر 30 يوم"], [90, "آخر 90 يوم"]].map(([d, l]) => `<option value="${d}" ${tanState.days === d ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <select id="an-term" class="inp">${[1, 2].map((t) => `<option value="${t}" ${m.term === t ? "selected" : ""}>${termName(t)}</option>`).join("")}</select>
+    </div>
+    <div class="btnrow" style="margin:8px 0 12px;"><button type="button" class="btn" id="an-print">🖨️ PDF / طباعة</button><button type="button" class="btn ghost" id="an-xls">⬇ Excel</button><button type="button" class="btn ghost" id="an-csv">CSV</button></div>
+    ${m.total ? anDashHtml(m) : `<div class="card center"><p class="muted">لسه مفيش طلاب مقبولين${tanState.grade ? " في " + esc(tanState.grade) : ""}.</p></div>`}
+    ${closing()}`;
+  bindTeacherTabs();
+  document.getElementById("an-grade").onchange = (e) => { tanState.grade = e.target.value; drawTeacherAnalytics(); };
+  document.getElementById("an-days").onchange = (e) => { tanState.days = Number(e.target.value); drawTeacherAnalytics(); };
+  document.getElementById("an-term").onchange = (e) => { tanState.term = Number(e.target.value); drawTeacherAnalytics(); };
+  document.getElementById("an-print").onclick = () => teacherAnalyticsPrint(m);
+  document.getElementById("an-xls").onclick = () => teacherAnalyticsExport("xls", m);
+  document.getElementById("an-csv").onclick = () => teacherAnalyticsExport("csv", m);
 }

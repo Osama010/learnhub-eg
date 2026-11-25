@@ -877,11 +877,12 @@ function route() {
   if (h === "#/about") return renderAboutPage();
   if (fbRole === "admin") {
     if (h.startsWith("#/admin")) return renderAdmin(h);
-    return renderAdmin("#/admin");
+    return renderAdmin("#/admin/analytics");
   }
   if (fbRole === "teacher") {
     if (h === "#/teacher/profile") return renderTeacherProfile();
     if (h === "#/teacher/reports") return renderTeacherReports();
+    if (h === "#/teacher/analytics") return renderTeacherAnalytics();
     if (h === "#/teacher/transfer") return renderTeacherTransfer();
     if (h === "#/teacher/announcements") return renderTeacherAnnouncements();
     if (h.startsWith("#/teacher/lesson/")) {
@@ -902,6 +903,7 @@ function route() {
     if (h === "#/student/library") return renderStudentLibrary();
     if (h === "#/student/ann") return renderStudentAnn();
     if (h === "#/student/grades") return renderStudentGrades();
+    if (h === "#/student/analytics") return renderStudentAnalytics();
     if (h === "#/student/profile") return renderStudentProfile();
     if (h.startsWith("#/student/lesson/")) {
       const lid = decodeURIComponent(h.slice("#/student/lesson/".length));
@@ -921,9 +923,9 @@ function route() {
 }
 
 function routeByRole() {
-  if (fbRole === "admin") location.hash = "#/admin";
-  else if (fbRole === "teacher") location.hash = "#/teacher";
-  else if (fbRole === "student") location.hash = "#/student";
+  if (fbRole === "admin") location.hash = "#/admin/analytics";
+  else if (fbRole === "teacher") location.hash = "#/teacher/analytics";
+  else if (fbRole === "student") location.hash = "#/student/analytics";
   else location.hash = "#/login";
 }
 
@@ -1122,3 +1124,36 @@ async function mountLessonMedia(root, l, opts) {
     const a = document.createElement("a"); a.className = "btn ghost"; a.target = "_blank"; a.rel = "noopener"; a.href = media.videoUrl; a.textContent = "فتح الأصل"; vEl.appendChild(a);
   }
 }
+
+/* ======= أدوات مشتركة لداشبوردات التحليل ======= */
+const AN_CSS = `
+.an-k{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+@media(min-width:760px){.an-k{grid-template-columns:repeat(4,1fr)}}
+.an-k div{background:var(--card,#fff);border:1px solid var(--line,#e3e9ee);border-radius:14px;padding:10px;text-align:center}
+.an-k b{display:block;font-size:24px;color:var(--primary-dark,#0f766e)}.an-k span{font-size:12px;color:#64748b}
+.an-bar{display:flex;align-items:center;gap:6px;margin:6px 0;font-size:12.5px}
+.an-bar .t{flex:1;background:#e2e8f0;border-radius:6px;height:12px;overflow:hidden}.an-bar i{display:block;height:12px;border-radius:6px;background:#0d9488}
+.an-row{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line,#e3e9ee);padding:7px 0;font-size:13.5px}
+.an-tag{font-size:11.5px;padding:2px 8px;border-radius:99px;background:#fee2e2;color:#b91c1c;white-space:nowrap}.an-tag.o{background:#fef3c7;color:#b45309}
+.an-grid{display:grid;gap:12px}@media(min-width:760px){.an-grid{grid-template-columns:1fr 1fr}}
+.an-card h2{font-size:16px;margin:0 0 8px}
+`;
+const anPct = (a) => (a.total > 0 ? (a.score / a.total) * 100 : 0);
+const anTs = (a) => { const t = a && (a.updatedAt || a.ts || a.createdAt); return t && t.toDate ? t.toDate() : null; };
+const anAvg = (arr) => (arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : null);
+
+function anTrendSvg(trend) {
+  const pts = trend.map((t, i) => ({ x: 20 + i * (320 / Math.max(1, trend.length - 1)), y: t.v === null ? null : 100 - t.v * 0.8, v: t.v, l: t.label }));
+  const line = pts.filter((p) => p.y !== null);
+  if (line.length < 2) return `<p class="muted center" style="font-size:13px;">محتاج نتايج كتير أكتر عشان يترسم المنحنى.</p>`;
+  return `<svg viewBox="0 0 360 126" width="100%" style="max-width:640px;display:block;margin:0 auto"><g stroke="#e2e8f0"><line x1="10" y1="20" x2="350" y2="20"/><line x1="10" y1="60" x2="350" y2="60"/><line x1="10" y1="100" x2="350" y2="100"/></g>
+    <polyline fill="none" stroke="#0d9488" stroke-width="3" points="${line.map((p) => p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ")}"/>
+    ${line.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#0d9488"/><text x="${p.x.toFixed(1)}" y="${(p.y - 8).toFixed(1)}" font-size="10" fill="#475569" text-anchor="middle">${p.v}</text>`).join("")}
+    ${pts.map((p) => `<text x="${p.x.toFixed(1)}" y="120" font-size="10" fill="#64748b" text-anchor="middle">${esc(p.l)}</text>`).join("")}</svg>`;
+}
+function anBandsSvg(b) {
+  const mx = Math.max(1, ...b), cols = ["#ef4444", "#f59e0b", "#0d9488", "#0d9488"];
+  return `<svg viewBox="0 0 360 110" width="100%" style="direction:ltr">${b.map((v, i) => { const h = Math.max(2, (v / mx) * 75); return `<rect x="${30 + i * 80}" y="${95 - h}" width="60" height="${h}" rx="4" fill="${cols[i]}"/><text x="${60 + i * 80}" y="${90 - h}" font-size="11" fill="#475569" text-anchor="middle">${v}</text>`; }).join("")}</svg>
+    <div class="muted" style="font-size:12px;display:flex;justify-content:space-around;direction:ltr"><span>0-50</span><span>50-70</span><span>70-90</span><span>90+</span></div>`;
+}
+

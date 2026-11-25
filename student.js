@@ -63,7 +63,7 @@ function sAdminSuspendedSet() {
 function studentTabs(active) {
   const t = (id, h, lbl) => `<button type="button" class="tab ${active === id ? "active" : ""}" data-sh="${h}">${lbl}</button>`;
   return platNavHtml((fbProfile && fbProfile.name) || "", (fbProfile && fbProfile.avatar) || "", "#/student/profile")
-    + `<div class="tabs">${t("lessons", "#/student", "دروسي")}${t("quiz", "#/student/quizexams", "الكويزات والامتحانات")}${t("upcoming", "#/student/upcoming", "القادم")}${t("library", "#/student/library", "المكتبة")}${t("ann", "#/student/ann", "الإعلانات")}${t("grades", "#/student/grades", "درجاتي")}</div>`;
+    + `<div class="tabs">${t("lessons", "#/student", "دروسي")}${t("quiz", "#/student/quizexams", "الكويزات والامتحانات")}${t("upcoming", "#/student/upcoming", "القادم")}${t("library", "#/student/library", "المكتبة")}${t("ann", "#/student/ann", "الإعلانات")}${t("grades", "#/student/grades", "درجاتي")}${t("analytics", "#/student/analytics", "تحليلي 📈")}</div>`;
 }
 
 function bindStudentTabs() {
@@ -1419,4 +1419,104 @@ async function sChangePass() {
       ? "لازم تسجل دخول من جديد الأول عشان تغير الباسورد. اخرج وادخل تاني وجرب."
       : "مشكلة: " + (e.message || e);
   }
+}
+
+/* ======================= تحليل أداء الطالب ======================= */
+let sanState = { tid: "", days: 30 };
+let sanRank = null;
+
+function sLongestStreak() {
+  const ds = Object.keys((fbProfile && fbProfile.activityDays) || {}).sort();
+  let best = 0, cur = 0, prev = null;
+  ds.forEach((s) => {
+    const d = new Date(s + "T12:00:00");
+    cur = prev && Math.round((d - prev) / 86400000) === 1 ? cur + 1 : 1;
+    if (cur > best) best = cur;
+    prev = d;
+  });
+  return best;
+}
+
+function buildStudentAnalytics(opts, now) {
+  now = now || new Date();
+  const DAY = 86400000, myGrade = (fbProfile && fbProfile.grade) || "";
+  const contentOf = (a) => a.examId ? (studentData.exams || []).find((e) => e.id === a.examId) : a.quizId ? (studentData.quizzes || []).find((q) => q.id === a.quizId) : null;
+  const all = (studentData.attempts || []).filter((a) => { const c = contentOf(a); return c && (!c.grade || c.grade === myGrade) && (!opts.tid || c.teacherId === opts.tid); });
+  const from = new Date(now.getTime() - opts.days * DAY), prevFrom = new Date(now.getTime() - 2 * opts.days * DAY);
+  const inR = (a, f, t) => { const d = anTs(a); return d && d >= f && d < t; };
+  const cur = all.filter((a) => inR(a, from, new Date(now.getTime() + DAY))), prev = all.filter((a) => inR(a, prevFrom, from));
+  const avg = anAvg(cur.map(anPct)), pavg = anAvg(prev.map(anPct));
+  const lessons = (studentData.lessons || []).filter((l) => sVisible(l) && !sTeacherLocked(l) && sLessonOpen(l) && (!opts.tid || l.teacherId === opts.tid));
+  const done = lessons.filter((l) => sIsWatched(l.id));
+  const perTeacher = {};
+  lessons.forEach((l) => { const p = perTeacher[l.teacherId] || (perTeacher[l.teacherId] = { total: 0, done: 0 }); p.total++; if (sIsWatched(l.id)) p.done++; });
+  const teachers = Object.keys(perTeacher).map((tid) => ({ tid, name: sTeacherName(tid) || "مدرس", ...perTeacher[tid] }));
+  const line = all.slice().filter((a) => anTs(a)).sort((a, b) => anTs(a) - anTs(b)).slice(-8).map((a, i) => ({ label: String(i + 1), v: Math.round(anPct(a)) }));
+  const subj = {};
+  all.forEach((a) => { const c = contentOf(a); const t = (studentData.teachers || []).find((x) => x.id === c.teacherId) || {}; const k = c.subject || t.subject || sTeacherName(c.teacherId) || "عام"; (subj[k] = subj[k] || []).push(anPct(a)); });
+  const subjects = Object.keys(subj).map((k) => ({ name: k, avg: Math.round(anAvg(subj[k])) })).sort((a, b) => b.avg - a.avg);
+  // أضعف كويز (آخر محاولة تحت 70%)
+  const weak = all.filter((a) => a.quizId && anPct(a) < 70).sort((a, b) => anPct(a) - anPct(b))[0];
+  const weakQuiz = weak ? (studentData.quizzes || []).find((q) => q.id === weak.quizId) : null;
+  const week = [];
+  const days = (fbProfile && fbProfile.activityDays) || {};
+  for (let i = 6; i >= 0; i--) { const d = new Date(now.getTime() - i * DAY); week.push({ on: !!days[subDateStr(d)], l: d.toLocaleDateString("ar-EG", { weekday: "short" }) }); }
+  const todayOn = !!days[subDateStr(now)], streak = sStreak();
+  const recos = [];
+  if (weakQuiz) recos.push({ t: `أضعف نقطة عندك: "${weakQuiz.title || "كويز"}" (${Math.round(anPct(weak))}%) — أعده`, act: { label: "إعادة الكويز", hash: "#/student/quiz/" + weakQuiz.id } });
+  const left = lessons.length - done.length;
+  if (left > 0) recos.push({ t: `فاضلك ${left} ${left === 1 ? "درس" : "دروس"} متشافوش`, act: { label: "دروسي", hash: "#/student" } });
+  if (!todayOn && streak > 0) recos.push({ t: `افتح درس أو حل كويز النهاردة عشان تكمل سلسلة ${streak + 1} أيام 🔥` });
+  if (!all.length) recos.push({ t: "ابدأ بأول كويز عشان يظهر تحليل أدائك" });
+  return { avg: avg === null ? null : Math.round(avg), delta: avg !== null && pavg !== null ? Math.round(avg - pavg) : null, done: done.length, total: lessons.length, teachers, line, subjects, week, streak, longest: sLongestStreak(), recos, attempts: cur.length };
+}
+
+function sanHtml(m, rank) {
+  const empty = (t) => `<p class="muted center" style="font-size:13px;">${t}</p>`;
+  const kpi = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
+  return `<style>${AN_CSS}</style>
+  <div class="an-k">
+    ${kpi(m.avg === null ? "—" : m.avg + "%" + (m.delta ? ` <small style="font-size:12px;color:${m.delta > 0 ? "#15803d" : "#b91c1c"}">${m.delta > 0 ? "▲" : "▼"} ${Math.abs(m.delta)}%</small>` : ""), "متوسط درجاتي")}
+    ${kpi(m.done + " / " + m.total, "دروس خلصتها")}
+    ${kpi(rank ? rank.mine : "—", "نقاط الأسبوع")}
+    ${kpi(rank ? "#" + rank.rank : "—", rank ? "ترتيبي في صفي (من " + rank.rivals + ")" : "ترتيبي في صفي")}
+  </div>
+  <div class="card an-card"><h2>🔥 سلسلة المذاكرة</h2>
+    <div style="display:flex;gap:6px;justify-content:center;">${m.week.map((d) => `<span class="an-tag" style="background:${d.on ? "#ccfbf1;color:#0f766e" : "#e2e8f0;color:#64748b"};padding:8px 8px;font-size:12px">${esc(d.l)}</span>`).join("")}</div>
+    <p class="muted center" style="font-size:13px;margin:8px 0 0">${m.streak} ${m.streak === 1 ? "يوم" : "أيام"} ورا بعض · أطول سلسلة ${m.longest}</p></div>
+  <div class="card an-card"><h2>📈 درجاتي مع الوقت</h2>${anTrendSvg(m.line)}</div>
+  <div class="an-grid">
+  <div class="card an-card"><h2>🎯 أقوى وأضعف المواد</h2>${m.subjects.length ? m.subjects.map((s) => `<div class="an-bar"><span style="width:84px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(s.name)}</span><div class="t"><i style="width:${s.avg}%;${s.avg < 60 ? "background:#f59e0b" : ""}"></i></div><b>${s.avg}%</b></div>`).join("") : empty("لسه مفيش نتايج.")}</div>
+  <div class="card an-card"><h2>📚 تقدمي مع كل مدرس</h2>${m.teachers.length ? m.teachers.map((t) => `<div class="an-bar"><span style="width:84px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(t.name)}</span><div class="t"><i style="width:${t.total ? Math.round((t.done / t.total) * 100) : 0}%"></i></div><b>${t.done}/${t.total}</b></div>`).join("") : empty("مفيش دروس لسه.")}</div>
+  </div>
+  <div class="card an-card" style="border-right:4px solid #f59e0b;"><h2>💡 توصيات ليك</h2>
+    ${m.recos.map((r) => `<div class="an-row"><span>${esc(r.t)}</span>${r.act ? `<button type="button" class="btn sm ghost" data-san-go="${esc(r.act.hash)}">${esc(r.act.label)}</button>` : ""}</div>`).join("")}
+    <div class="btnrow" style="margin-top:8px;"><a class="btn sm ghost" href="#/student/mistakes">راجع أخطائي</a></div></div>`;
+}
+
+async function renderStudentAnalytics() {
+  if (bailIfSignedOut()) return;
+  if (!fbUser) return renderLogin();
+  app.innerHTML = `<div class="spin">بنحلل أداءك...</div>`;
+  try { await studentLoadAll(); }
+  catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
+  sanRank = await sMyWeeklyRank();
+  drawStudentAnalytics();
+}
+function drawStudentAnalytics() {
+  const m = buildStudentAnalytics(sanState);
+  const tchs = (studentData.teachers || []);
+  app.innerHTML = `
+    <div class="hdr"><h1>تحليل أدائي 📈</h1><div class="fact">${esc((fbProfile && fbProfile.name) || "")}${fbProfile && fbProfile.grade ? " · " + esc(fbProfile.grade) : ""}</div></div>
+    ${studentTabs("analytics")}
+    <div class="filterrow">
+      <select id="san-t" class="inp"><option value="">كل المدرسين</option>${tchs.map((t) => `<option value="${esc(t.id)}" ${sanState.tid === t.id ? "selected" : ""}>${esc(t.name || "")}</option>`).join("")}</select>
+      <select id="san-d" class="inp">${[[7, "آخر 7 أيام"], [30, "آخر 30 يوم"], [90, "آخر 90 يوم"]].map(([d, l]) => `<option value="${d}" ${sanState.days === d ? "selected" : ""}>${l}</option>`).join("")}</select>
+    </div>
+    ${sanHtml(m, sanRank)}
+    ${closing()}`;
+  bindStudentTabs();
+  document.getElementById("san-t").onchange = (e) => { sanState.tid = e.target.value; drawStudentAnalytics(); };
+  document.getElementById("san-d").onchange = (e) => { sanState.days = Number(e.target.value); drawStudentAnalytics(); };
+  document.querySelectorAll("[data-san-go]").forEach((b) => b.onclick = () => { location.hash = b.dataset.sanGo; });
 }
