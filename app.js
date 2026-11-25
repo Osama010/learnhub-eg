@@ -15,6 +15,16 @@ function statusChip(st) {
   return `<span class="chip amber">تحت المراجعة</span>`;
 }
 
+// توحيد رقم موبايل مصري: يقبل 01xxxxxxxxx أو 1xxxxxxxxx أو بكود الدولة 20/0020/+20
+// ويرجع الصيغة القياسية 01xxxxxxxxx، أو null لو الرقم مش مصري صح
+function normalizeEgPhone(p) {
+  let d = String(p || "").replace(/[^\d]/g, "");
+  if (d.startsWith("0020")) d = d.slice(4);
+  else if (d.startsWith("20") && d.length >= 12) d = d.slice(2);
+  if (d.length === 10 && d.startsWith("1")) d = "0" + d;
+  return /^01[0-9]{9}$/.test(d) ? d : null;
+}
+
 function waLink(phone, text) {
   let p = String(phone || "").replace(/[^\d]/g, "");
   // توحيد الرقم المصري: 00201... → 201... و 01xxxxxxxxx → 201xxxxxxxxx (كود البلد من غير + ولا صفر)
@@ -29,6 +39,20 @@ function waLink(phone, text) {
     : `https://web.whatsapp.com/send?phone=${p}&text=${t}`;
 }
 
+// توحيد إجابة نصية للتصحيح الآلي: بيتجاهل الهمزات والتشكيل والمسافات والحالة
+function normalizeAnswer(s) {
+  return String(s || "").trim().toLowerCase()
+    .replace(/[\u064B-\u0652]/g, "")
+    .replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه")
+    .replace(/\s+/g, " ");
+}
+
+// رابط تضمين يوتيوب من أي صيغة رابط (watch / youtu.be / shorts / embed)
+function ytEmbed(url) {
+  const m = String(url || "").match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/);
+  return m ? "https://www.youtube.com/embed/" + m[1] : null;
+}
+
 /* ---------- الراوتر ---------- */
 function route() {
   const h = location.hash || "#/login";
@@ -41,7 +65,11 @@ function route() {
     return renderAdmin("#/admin");
   }
   if (fbRole === "teacher") {
-    if (h === "#/teacher") return renderTeacherDash();
+    if (h === "#/teacher/reports") return renderTeacherReports();
+    if (h.startsWith("#/teacher/lessons")) {
+      const st = decodeURIComponent(h.slice("#/teacher/lessons".length).replace(/^\//, "") || "");
+      return renderTeacherLessons(st || null);
+    }
     return renderTeacherDash();
   }
   if (fbRole === "student") {

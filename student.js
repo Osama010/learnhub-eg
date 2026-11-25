@@ -28,6 +28,8 @@ async function renderStudentHome() {
     return;
   }
   const s = fbProfile || {};
+  // طالب قديم من غير رقم ولي أمر؟ شاشة إلزامية قبل أي صفحة تانية لحد ما يسجله
+  if (!s.parentPhone) return renderParentPhoneGate();
   app.innerHTML = `
     <div class="hdr">
       <h1>أهلاً ${esc(s.name || "")} 🎓</h1>
@@ -36,9 +38,43 @@ async function renderStudentHome() {
     <div class="card center" style="max-width:560px; margin:20px auto;">
       <div style="font-size:44px;">📚</div>
       <h2 style="font-size:20px; margin:8px 0;">موادك ودروسك</h2>
-      <p class="muted">صفحة دروس الطالب واختباراته هتتبنى في المرحلة الجاية، وهتبقى فيها دروس المدرسين اللي مسجل معاهم.</p>
+      <p class="muted">صفحة دروس الطالب هتتفعل قريب، وهتبقى فيها دروس المدرسين اللي مسجل معاهم.</p>
     </div>
     ${closing()}`;
+  window.scrollTo(0, 0);
+}
+
+/* شاشة إلزامية: تسجيل رقم ولي الأمر للطلبة المسجلين قبل إضافة الحقل.
+   بتظهر عند كل دخول لحد ما الرقم يتحفظ — مفيش تخطي. */
+function renderParentPhoneGate() {
+  app.innerHTML = `
+    <div class="hdr" style="margin-top:32px;">
+      <h1>رقم ولي الأمر مطلوب 👨‍👩‍👦</h1>
+      <div class="fact">خطوة واحدة وتكمل — لازم نسجل رقم ولي أمرك قبل استخدام المنصة</div>
+    </div>
+    <div class="card" style="max-width:520px; margin:0 auto;">
+      <p class="muted" style="font-size:14px;">عشان نقدر نوصّل لولي أمرك أي تحديث مهم عن حسابك، اكتب رقم موبايله (واتساب). مش هتقدر تكمل من غيره.</p>
+      <label class="flabel">رقم موبايل ولي الأمر (واتساب)</label>
+      <input id="pp-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx">
+      <button type="button" class="btn" id="pp-save" style="width:100%;">حفظ ودخول</button>
+      <p class="msg bad" id="pp-msg"></p>
+    </div>
+    ${closing()}`;
+  document.getElementById("pp-save").onclick = async () => {
+    const v = normalizeEgPhone(document.getElementById("pp-phone").value);
+    const m = document.getElementById("pp-msg");
+    if (!v) { m.textContent = "اكتب رقم موبايل مصري صح (11 رقم يبدأ بـ 01)."; return; }
+    const btn = document.getElementById("pp-save");
+    btn.disabled = true;
+    try {
+      await fbDb.collection("students").doc(fbUser.uid).update({ parentPhone: v });
+      if (fbProfile) fbProfile.parentPhone = v;
+      renderStudentHome();
+    } catch (e) {
+      btn.disabled = false;
+      m.textContent = "حصلت مشكلة: " + (e.message || e);
+    }
+  };
   window.scrollTo(0, 0);
 }
 

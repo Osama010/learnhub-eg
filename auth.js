@@ -252,6 +252,8 @@ async function renderRegister() {
       </select>
       <label class="flabel">رقم الموبايل (واتساب)</label>
       <input id="rg-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx">
+      <label class="flabel">رقم موبايل ولي الأمر (واتساب) — إجباري</label>
+      <input id="rg-parent-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx">
       <label class="flabel">رقم سري (4 أرقام) — هتحتاجه أول مرة تدخل</label>
       <input id="rg-pin" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="مثال: 2580">
       <label class="flabel">اختار مدرس واحد على الأقل</label>
@@ -307,7 +309,8 @@ async function doRegister() {
   const name = document.getElementById("rg-name").value.trim();
   const email = document.getElementById("rg-email").value.trim().toLowerCase();
   const grade = document.getElementById("rg-grade").value;
-  const phone = document.getElementById("rg-phone").value.trim();
+  const phone = normalizeEgPhone(document.getElementById("rg-phone").value) || "";
+  const parentPhone = normalizeEgPhone(document.getElementById("rg-parent-phone").value) || "";
   const pin = document.getElementById("rg-pin").value.trim();
   const teacherIds = Array.from(document.querySelectorAll(".rg-t:checked"))
     .filter((c) => { const row = c.closest(".rg-t-row"); return !row || row.style.display !== "none"; })
@@ -315,7 +318,9 @@ async function doRegister() {
   if (!name) return regMsg("اكتب اسمك.");
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return regMsg("اكتب إيميل صح.");
   if (!grade) return regMsg("اختار السنة الدراسية.");
-  if (!/^01[0-9]{9}$/.test(phone)) return regMsg("اكتب رقم موبايل مصري صح (11 رقم يبدأ بـ 01).");
+  if (!phone) return regMsg("اكتب رقم موبايل مصري صح (11 رقم يبدأ بـ 01).");
+  if (!parentPhone) return regMsg("اكتب رقم موبايل ولي الأمر مصري صح (11 رقم يبدأ بـ 01).");
+  if (parentPhone === phone) return regMsg("رقم ولي الأمر لازم يكون مختلف عن رقم الطالب.");
   if (!/^[0-9]{4,6}$/.test(pin)) return regMsg("الرقم السري من 4 لـ 6 أرقام.");
   if (!teacherIds.length) return regMsg("اختار مدرس واحد على الأقل.");
   regMsg("");
@@ -325,7 +330,7 @@ async function doRegister() {
     if (dup.exists) return regMsg("الإيميل ده مسجل قبل كده. لو نسيت بياناتك كلّم مدرسك.");
     const pinHash = await sha256Hex(email + ":" + pin);
     const ref = await fbDb.collection("students").add({
-      name, email, grade, phone,
+      name, email, grade, phone, parentPhone,
       pinHash,
       teacherIds,
       status: "pending",

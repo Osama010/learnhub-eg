@@ -98,7 +98,7 @@ function adminStats() {
             const tnames = (s.teacherIds || []).map((id) => (adminCache.teachers.find((t) => t.id === id) || {}).name || "—").join("، ");
             const prog = (s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0;
             return `<tr data-rv-s="${s.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
-              <td>${esc(s.name)}</td><td class="ltr">${esc(s.email || "—")}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td>
+              <td>${esc(s.name)}</td><td class="ltr">${esc(s.email || "—")}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td>
               <td>${statusChip(s.status)}</td><td>${prog}%</td>
             </tr>`;
           }).join("") : `<tr><td colspan="6" class="center muted">لسه مفيش طلاب</td></tr>`}
@@ -365,6 +365,7 @@ function adminShowStudent(id) {
     ["الاسم", esc(s.name)],
     ["الإيميل", `<span class="ltr">${esc(s.email || "—")}</span>`],
     ["الموبايل (واتساب)", `<span class="ltr">${esc(s.phone || "—")}</span>`],
+    ["موبايل ولي الأمر", s.parentPhone ? `<span class="ltr">${esc(s.parentPhone)}</span> <a class="btn sm green" target="_blank" href="${waLink(s.parentPhone, "أهلاً بحضرتك، معاك الأدمن من منصة الدروس بخصوص " + s.name + ".")}">واتساب</a>` : "غير مسجل"],
     ["السنة الدراسية", esc(s.grade || "—")],
     ["المدرسين", esc(tnames || "—")],
     ["الحالة", s.status === "approved" ? "مقبول" : s.status === "rejected" ? "مرفوض" : "تحت المراجعة"],
@@ -626,13 +627,13 @@ function adminStudents() {
         <input id="af-q" type="text" class="inp" placeholder="بحث بالاسم..." value="${esc(adminFilter.q)}">
       </div>
       <table class="ttable">
-        <thead><tr><th>الطالب</th><th>الإيميل</th><th>المدرس</th><th>السنة</th><th>الحالة</th><th>البرمجة</th><th>إجراءات</th></tr></thead>
+        <thead><tr><th>الطالب</th><th>الإيميل</th><th>المدرس</th><th>السنة</th><th>ولي الأمر</th><th>الحالة</th><th>البرمجة</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${students.length ? students.map((s) => {
             const tnames = (s.teacherIds || []).map((id) => (teachers.find((t) => t.id === id) || {}).name || "—").join("، ");
             const prog = (s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0;
             return `<tr data-rv-s="${s.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
-              <td>${esc(s.name)}</td><td class="ltr">${esc(s.email || "—")}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td>
+              <td>${esc(s.name)}</td><td class="ltr">${esc(s.email || "—")}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td>
               <td>${statusChip(s.status)}</td><td>${prog}%</td>
               <td>
                 <div class="btnrow">
@@ -644,7 +645,7 @@ function adminStudents() {
                 </div>
               </td>
             </tr>`;
-          }).join("") : `<tr><td colspan="7" class="center muted">مفيش نتايج</td></tr>`}
+          }).join("") : `<tr><td colspan="8" class="center muted">مفيش نتايج</td></tr>`}
         </tbody>
       </table>
     </div>`;
@@ -683,6 +684,8 @@ function adminEditStudent(id) {
     </select>
     <label class="flabel">الموبايل (واتساب)</label>
     <input id="es-phone" type="tel" class="inp ltr" value="${esc(s.phone || "")}">
+    <label class="flabel">موبايل ولي الأمر (واتساب)</label>
+    <input id="es-parent-phone" type="tel" class="inp ltr" value="${esc(s.parentPhone || "")}" placeholder="01xxxxxxxxx">
     <div class="btnrow" style="justify-content:center; margin-top:14px;">
       <button type="button" class="btn" id="es-save">حفظ</button>
       <button type="button" class="btn ghost" id="es-cancel">إلغاء</button>
@@ -696,15 +699,17 @@ function adminEditStudent(id) {
     const name = ov.querySelector("#es-name").value.trim();
     const email = ov.querySelector("#es-email").value.trim().toLowerCase();
     const grade = ov.querySelector("#es-grade").value;
-    const phone = ov.querySelector("#es-phone").value.trim();
+    const phone = normalizeEgPhone(ov.querySelector("#es-phone").value) || "";
+    const parentPhone = normalizeEgPhone(ov.querySelector("#es-parent-phone").value) || "";
     const m = ov.querySelector("#es-msg");
     m.textContent = "";
     if (!name) return m.textContent = "اكتب اسم الطالب.", m.className = "msg bad";
     if (!linked && (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return m.textContent = "اكتب إيميل صح.", m.className = "msg bad";
-    if (!/^01[0-9]{9}$/.test(phone)) return m.textContent = "اكتب رقم موبايل مصري صح (11 رقم يبدأ بـ 01).", m.className = "msg bad";
+    if (!phone) return m.textContent = "اكتب رقم موبايل مصري صح (11 رقم يبدأ بـ 01).", m.className = "msg bad";
+    if (ov.querySelector("#es-parent-phone").value.trim() && !parentPhone) return m.textContent = "رقم ولي الأمر مش صح (11 رقم يبدأ بـ 01)، أو سيبه فاضي.", m.className = "msg bad";
     try {
       const oldEmail = String(s.email || "").toLowerCase();
-      const newData = { name, grade, phone };
+      const newData = { name, grade, phone, parentPhone };
       if (!linked) newData.email = email;
       await fbDb.collection("students").doc(id).update(newData);
       if (!linked && email !== oldEmail) {
@@ -823,9 +828,9 @@ function buildReport() {
   const rows = list.map((s) => {
     const tnames = (s.teacherIds || []).map(tName).join("، ");
     const avg = studentProgressAvg(s);
-    return [s.name || "", s.email || "", s.phone || "", s.grade || "—", tnames || "—", statusText(s.status), avg !== null ? avg + "%" : "—", fmtTs(s.createdAt)];
+    return [s.name || "", s.email || "", s.phone || "", s.parentPhone || "غير مسجل", s.grade || "—", tnames || "—", statusText(s.status), avg !== null ? avg + "%" : "—", fmtTs(s.createdAt)];
   });
-  return { title: "تقرير الطلاب", columns: ["الاسم", "الإيميل", "الموبايل", "السنة الدراسية", "المدرسين", "الحالة", "التقدم", "تاريخ التسجيل"], rows, filtersDesc: desc };
+  return { title: "تقرير الطلاب", columns: ["الاسم", "الإيميل", "الموبايل", "ولي الأمر", "السنة الدراسية", "المدرسين", "الحالة", "التقدم", "تاريخ التسجيل"], rows, filtersDesc: desc };
 }
 
 function adminReports() {

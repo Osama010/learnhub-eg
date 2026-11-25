@@ -52,6 +52,8 @@ body {
   border: 1.5px solid var(--primary);
 }
 .btn.ghost:hover { background: var(--primary-soft); }
+.btn.red { background: var(--red); }
+.btn.red:hover { background: #b91c1c; }
 .btn.ghost.red { color: var(--red); border-color: #f3c2c2; }
 .btn.ghost.red:hover { background: var(--red-soft); }
 .btn.small { padding: 7px 14px; font-size: 13.5px; border-radius: 10px; }
