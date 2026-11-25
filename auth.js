@@ -175,6 +175,35 @@ async function doAdminForgot() {
 
 function loginMsg(t) { const m = document.getElementById("login-msg"); if (m) m.textContent = t || ""; }
 
+/* ربط ذاتي لحساب طالب موجود في Auth لكن ملفه مش بنفس الـ uid:
+   بيحصل لما الطالب يربط حسابه (أول دخول) وبعدين ملفه يتمسح ويتسجل من جديد —
+   حساب الـ Auth بيفضل موجود بيتيم. الفهرس العام + الملف القديم (المقروء بمطابقة
+   الإيميل قبل الربط) بيكفوا لنقل البيانات لمستند بنفس الـ uid من غير تدخل يدوي. */
+async function tryRelinkStudent(email, user) {
+  try {
+    const em = String(email || "").toLowerCase();
+    if (!em || !user || !user.uid) return false;
+    const lk = await fbDb.collection("registrationLookup").doc(em).get();
+    if (!lk.exists) return false;
+    const l = lk.data();
+    if (l.status !== "approved" || !l.studentId || l.studentId === user.uid) return false;
+    const old = await fbDb.collection("students").doc(l.studentId).get();
+    if (!old.exists) return false;
+    const d = old.data();
+    if (String(d.email || "").toLowerCase() !== em) return false;
+    await fbDb.collection("students").doc(user.uid).set({
+      ...d,
+      email: em,
+      status: "approved",
+      teacherIds: d.teacherIds || [],
+      pinHash: "",
+      authLinked: true,
+    });
+    await fbDb.collection("students").doc(l.studentId).delete();
+    return true;
+  } catch (_) { return false; }
+}
+
 async function doLogin(expectedRole) {
   const email = document.getElementById("li-email").value.trim();
   const pass = document.getElementById("li-pass").value;
@@ -183,10 +212,20 @@ async function doLogin(expectedRole) {
   try {
     const cred = await fbAuth.signInWithEmailAndPassword(email, pass);
     await resolveRole(cred.user);
+    // طالب بحساب Auth موجود لكن ملفه مش بنفس الـ uid (حساب قديم أو أول دخول اتقطع في النص):
+    // نحاول نربط ملفه بحسابه تلقائياً من الفهرس العام، قبل ما نقول إنه "مش طالب"
+    if (expectedRole === "student" && fbRole === "unknown") {
+      if (await tryRelinkStudent(email, cred.user)) await resolveRole(cred.user);
+    }
     if (fbRole !== expectedRole) {
+      const blockedSt = fbRole === "blocked" && fbProfile ? fbProfile.status : "";
       await fbAuth.signOut();
       return loginMsg(expectedRole === "student"
-        ? "الحساب ده مش حساب طالب. لو انت مدرس اختار كارت مدرس."
+        ? (fbRole === "blocked"
+          ? (blockedSt === "rejected" ? "طلبك اترفض، كلّم مدرسك." : "طلبك لسه تحت المراجعة، استنى موافقة مدرسك.")
+          : fbRole === "unknown"
+          ? "حسابك موجود بس ملف الطالب مش متربط بيه. جرّب تاني بعد شوية، ولو المشكلة فضلت كلّم مدرسك يعملك إعادة ضبط."
+          : "الحساب ده مش حساب طالب. لو انت مدرس اختار كارت مدرس.")
         : expectedRole === "teacher"
         ? "الحساب ده مش حساب مدرس."
         : "الحساب ده مش مسجل كمشرف. لو انت أدمن جديد، ادخل الأول بجوجل واربط باسورد من تاب المشرفين.");

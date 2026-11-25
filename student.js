@@ -215,6 +215,15 @@ function renderFirstLogin(email) {
       await resolveRole(fbAuth.currentUser);
       route();
     } catch (e) {
+      // عندها حساب Auth قديم بنفس الإيميل (من ربط سابق اتمسح ملفه): نبعت لينك إعادة ضبط
+      // وبعد ما تدخل بالباسورد الجديد، صفحة الدخول بتربط ملفها بحسابها تلقائياً
+      if (e && e.code === "auth/email-already-in-use") {
+        try {
+          await fbAuth.sendPasswordResetEmail(email.toLowerCase());
+          m.textContent = "عندك حساب قديم بنفس الإيميل. بعتلنك لينك على إيميلك تعمل بيه باسورد جديد، وبعدين ادخل عادي من صفحة الدخول.";
+        } catch (_) { m.textContent = authErrAr(e); }
+        return;
+      }
       m.textContent = e.code ? authErrAr(e) : (e.message || "حصلت مشكلة.");
     }
   };
