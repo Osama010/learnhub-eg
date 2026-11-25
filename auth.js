@@ -180,17 +180,26 @@ function loginMsg(t) { const m = document.getElementById("login-msg"); if (m) m.
    حساب الـ Auth بيفضل موجود بيتيم. الفهرس العام + الملف القديم (المقروء بمطابقة
    الإيميل قبل الربط) بيكفوا لنقل البيانات لمستند بنفس الـ uid من غير تدخل يدوي. */
 async function tryRelinkStudent(email, user) {
+  // بيرجع {ok:true} أو {ok:false, stage:"R1..R6"} — الكود بينزل في رسالة الخطأ
+  // عشان نعرف بالظبط أنهي خطوة وقفت من غير ما نطلب اسكرينات كونسول
+  const fail = (stage) => ({ ok: false, stage });
   try {
     const em = String(email || "").toLowerCase();
-    if (!em || !user || !user.uid) return false;
+    if (!em || !user || !user.uid) return fail("R0");
     const lk = await fbDb.collection("registrationLookup").doc(em).get();
-    if (!lk.exists) return false;
+    if (!lk.exists) return fail("R1");
     const l = lk.data();
-    if (l.status !== "approved" || !l.studentId || l.studentId === user.uid) return false;
-    const old = await fbDb.collection("students").doc(l.studentId).get();
-    if (!old.exists) return false;
+    if (l.status !== "approved" || !l.studentId || l.studentId === user.uid) return fail("R2");
+    let old;
+    try { old = await fbDb.collection("students").doc(l.studentId).get(); }
+    catch (_) { return fail("R3"); }
+    if (!old.exists) return fail("R3");
     const d = old.data();
-    if (String(d.email || "").toLowerCase() !== em) return false;
+    if (String(d.email || "").toLowerCase() !== em) return fail("R4");
+    // القواعد بتشترط إن المدرسين في المستند الجديد يطابقوا الفهرس بالظبط
+    const dT = (d.teacherIds || []).slice().sort().join("\u0001");
+    const lT = (l.teacherIds || []).slice().sort().join("\u0001");
+    if (dT !== lT) return fail("R6");
     await fbDb.collection("students").doc(user.uid).set({
       ...d,
       email: em,
@@ -200,8 +209,8 @@ async function tryRelinkStudent(email, user) {
       authLinked: true,
     });
     await fbDb.collection("students").doc(l.studentId).delete();
-    return true;
-  } catch (_) { return false; }
+    return { ok: true };
+  } catch (e) { return { ok: false, stage: "R5", code: (e && e.code) || "" }; }
 }
 
 async function doLogin(expectedRole) {
@@ -214,8 +223,11 @@ async function doLogin(expectedRole) {
     await resolveRole(cred.user);
     // طالب بحساب Auth موجود لكن ملفه مش بنفس الـ uid (حساب قديم أو أول دخول اتقطع في النص):
     // نحاول نربط ملفه بحسابه تلقائياً من الفهرس العام، قبل ما نقول إنه "مش طالب"
+    let relinkStage = "";
     if (expectedRole === "student" && fbRole === "unknown") {
-      if (await tryRelinkStudent(email, cred.user)) await resolveRole(cred.user);
+      const rel = await tryRelinkStudent(email, cred.user);
+      if (rel.ok) await resolveRole(cred.user);
+      else relinkStage = rel.stage || "R?";
     }
     if (fbRole !== expectedRole) {
       const blockedSt = fbRole === "blocked" && fbProfile ? fbProfile.status : "";
@@ -224,7 +236,7 @@ async function doLogin(expectedRole) {
         ? (fbRole === "blocked"
           ? (blockedSt === "rejected" ? "طلبك اترفض، كلّم مدرسك." : "طلبك لسه تحت المراجعة، استنى موافقة مدرسك.")
           : fbRole === "unknown"
-          ? "حسابك موجود بس ملف الطالب مش متربط بيه. جرّب تاني بعد شوية، ولو المشكلة فضلت كلّم مدرسك يعملك إعادة ضبط."
+          ? "حسابك موجود بس ملف الطالب مش متربط بيه. جرّب تاني بعد شوية، ولو المشكلة فضلت ابعتلنا الكود ده: " + (relinkStage || "R?")
           : "الحساب ده مش حساب طالب. لو انت مدرس اختار كارت مدرس.")
         : expectedRole === "teacher"
         ? "الحساب ده مش حساب مدرس."
