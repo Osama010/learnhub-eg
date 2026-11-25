@@ -71,6 +71,14 @@ async function teacherLoadLessons() {
     .sort((a, b) => (b.createdAt && a.createdAt ? b.createdAt.seconds - a.createdAt.seconds : 0));
 }
 
+// صورة الطالب الصغيرة في قوائم المدرس (أو أول حرف من اسمه لو مفيش صورة)
+function tAvatarHtml(s) {
+  const size = 30;
+  if (s.avatar) return `<img src="${s.avatar}" alt="" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; display:inline-block; vertical-align:middle; margin-left:6px; border:2px solid var(--primary-soft);">`;
+  const nm = (s.name || "").trim();
+  return `<span style="width:${size}px; height:${size}px; border-radius:50%; background:var(--primary); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; vertical-align:middle; margin-left:6px;">${esc(nm ? nm[0] : "؟")}</span>`;
+}
+
 async function renderTeacherDash() {
   app.innerHTML = `<div class="spin">بنحمل طلابك...</div>`;
   try { await teacherLoad(); }
@@ -115,7 +123,7 @@ async function renderTeacherDash() {
         <thead><tr><th>الاسم</th><th>السنة</th><th>الموبايل</th><th>ولي الأمر</th><th>الإيميل</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${pending.map((s) => `<tr>
-            <td><a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a></td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.phone)}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td><td class="ltr">${esc(s.email)}</td>
+            <td>${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a></td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.phone)}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td><td class="ltr">${esc(s.email)}</td>
             <td>
               <div class="btnrow">
                 <button type="button" class="btn sm" data-ok="${s.id}">قبول</button>
@@ -139,7 +147,7 @@ async function renderTeacherDash() {
             const avg = studentQuizAvg(s.id);
             const prog = avg !== null ? avg + "%" : ((s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0) + "%";
             return `<tr>
-              <td><a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a></td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td><td>${prog}</td>
+              <td>${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a></td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td><td>${prog}</td>
               <td>
                 <div class="btnrow">
                   <a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك مدرسك من منصة الدروس.")}">واتساب</a>

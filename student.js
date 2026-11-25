@@ -40,7 +40,7 @@ let studentData = { teachers: [], lessons: [], quizzes: [], exams: [], ann: [], 
 
 function studentTabs(active) {
   const t = (id, h, lbl) => `<button type="button" class="tab ${active === id ? "active" : ""}" data-sh="${h}">${lbl}</button>`;
-  return `<div class="tabs">${t("lessons", "#/student", "دروسي")}${t("quiz", "#/student/quizexams", "الكويزات والامتحانات")}${t("ann", "#/student/ann", "الإعلانات")}${t("grades", "#/student/grades", "درجاتي")}</div>`;
+  return `<div class="tabs">${t("lessons", "#/student", "دروسي")}${t("quiz", "#/student/quizexams", "الكويزات والامتحانات")}${t("ann", "#/student/ann", "الإعلانات")}${t("grades", "#/student/grades", "درجاتي")}${t("profile", "#/student/profile", "حسابي")}</div>`;
 }
 
 function bindStudentTabs() {
@@ -239,7 +239,7 @@ async function renderStudentDash() {
   const gkeys = Object.keys(groups);
   app.innerHTML = `
     <div class="hdr">
-      <h1>أهلاً ${esc(s.name || "")} 🎓</h1>
+      <h1 style="display:flex; align-items:center; gap:10px;">${sAvatarHtml(44)} أهلاً ${esc(s.name || "")} 🎓</h1>
       <div class="fact">${esc(s.grade || "")} · ${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
     </div>
     ${studentTabs("lessons")}
@@ -622,4 +622,142 @@ async function renderStudentGrades() {
     ${closing()}`;
   bindStudentTabs();
   window.scrollTo(0, 0);
+}
+
+/* ---------- تاب حسابي: الصورة والبروفايل ----------
+   الصورة بتتصغّر في المتصفح لـ 256×256 JPEG وتتحفظ كنص في حقل avatar في مستند الطالب.
+   مفيش Firebase Storage (الخطة المجانية)، ومفيش تغيير في القواعد:
+   الطالب مسموح له يعدل مستنده طالما status/email/teacherIds زي ما هما. */
+function sAvatarHtml(size) {
+  const av = (fbProfile && fbProfile.avatar) || "";
+  const nm = ((fbProfile && fbProfile.name) || "").trim();
+  if (av) return `<img src="${av}" alt="" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; display:inline-block; vertical-align:middle; border:2px solid var(--primary-soft);">`;
+  return `<span style="width:${size}px; height:${size}px; border-radius:50%; background:var(--primary); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:${Math.round(size * 0.45)}px; font-weight:800; vertical-align:middle;">${esc(nm ? nm[0] : "؟")}</span>`;
+}
+
+async function renderStudentProfile() {
+  app.innerHTML = `<div class="spin">بنحمل حسابك...</div>`;
+  try { await studentLoadAll(); }
+  catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
+  const s = fbProfile || {};
+  const atts = studentData.attempts || [];
+  const pcts = atts.map((a) => (a.total > 0 ? Math.round((a.score / a.total) * 100) : 0));
+  const avg = pcts.length ? Math.round(pcts.reduce((x, y) => x + y, 0) / pcts.length) : null;
+  const best = pcts.length ? Math.max(...pcts) : null;
+  const row = (lbl, val, ltr) => `<div class="btnrow" style="justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:8px;"><span class="muted">${lbl}</span><b ${ltr ? 'class="ltr"' : ""}>${esc(val)}</b></div>`;
+  app.innerHTML = `
+    <div class="hdr">
+      <h1 style="display:flex; align-items:center; gap:10px;">${sAvatarHtml(44)} حسابي</h1>
+      <div class="fact">${esc(s.grade || "")} · ${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
+    </div>
+    ${studentTabs("profile")}
+    <div class="card center" style="padding:28px;">
+      ${sAvatarHtml(120)}
+      <h2 style="margin:10px 0 2px; font-size:20px;">${esc(s.name || "")}</h2>
+      <div class="muted">${esc(s.grade || "")}</div>
+      <div class="btnrow" style="justify-content:center; margin-top:12px;">
+        <button type="button" class="btn sm" id="sp-pick">📷 ${s.avatar ? "تغيير الصورة" : "إضافة صورة"}</button>
+        ${s.avatar ? `<button type="button" class="btn sm ghost" id="sp-del">حذف الصورة</button>` : ""}
+      </div>
+      <input type="file" id="sp-file" accept="image/*" style="display:none;">
+      <div class="muted" style="font-size:12px; margin-top:6px;">الصورة بتتصغّر لوحدها قبل الحفظ — أي صورة من موبايلك تنفع.</div>
+      <p class="msg" id="sp-msg"></p>
+    </div>
+    <div class="statcards">
+      <div class="statcard"><div class="num">${atts.length}</div><div class="lbl">اختبار حليته</div></div>
+      <div class="statcard"><div class="num">${avg !== null ? avg + "%" : "—"}</div><div class="lbl">متوسط درجاتك</div></div>
+      <div class="statcard"><div class="num">${best !== null ? best + "%" : "—"}</div><div class="lbl">أعلى نتيجة ليك</div></div>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">بياناتك</h2>
+      <div style="display:grid; gap:10px; margin-top:10px;">
+        ${row("الاسم", s.name || "—")}
+        ${row("الصف", s.grade || "—")}
+        ${row("الإيميل", fbUser.email || "—", true)}
+        <div class="btnrow" style="justify-content:space-between;"><span class="muted">رقم ولي الأمر</span><b class="ltr">${esc(s.parentPhone || "—")}</b></div>
+      </div>
+      <p class="muted" style="font-size:12.5px; margin-top:12px;">الاسم والصف ورقم ولي الأمر بيتحدثوا من مدرسك أو الأدمن — لو في حاجة غلط كلّم مدرسك.</p>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">🔒 الباسورد</h2>
+      <div id="sp-pass-form" style="display:none; margin-top:10px;">
+        <div style="display:grid; gap:10px; max-width:340px;">
+          <input type="password" class="inp ltr" id="sp-p1" placeholder="الباسورد الجديد (٦ حروف على الأقل)">
+          <input type="password" class="inp ltr" id="sp-p2" placeholder="تأكيد الباسورد الجديد">
+          <div class="btnrow"><button type="button" class="btn sm" id="sp-pass-save">حفظ الباسورد</button></div>
+        </div>
+      </div>
+      <div class="btnrow" id="sp-pass-open-row"><button type="button" class="btn ghost sm" id="sp-pass-open">تغيير الباسورد</button></div>
+      <p class="msg" id="sp-pass-msg"></p>
+    </div>
+    ${closing()}`;
+  bindStudentTabs();
+  const msg = document.getElementById("sp-msg");
+  document.getElementById("sp-pick").onclick = () => document.getElementById("sp-file").click();
+  document.getElementById("sp-file").onchange = (e) => sAvatarSave(e.target.files && e.target.files[0], msg);
+  const del = document.getElementById("sp-del");
+  if (del) del.onclick = async () => {
+    if (!confirm("متأكد إنك عايز تحذف صورتك؟")) return;
+    try {
+      await fbDb.collection("students").doc(fbUser.uid).update({ avatar: firebase.firestore.FieldValue.delete() });
+      fbProfile.avatar = null;
+      renderStudentProfile();
+    } catch (e) { msg.className = "msg bad"; msg.textContent = "مشكلة في الحذف: " + (e.message || e); }
+  };
+  document.getElementById("sp-pass-open").onclick = () => {
+    document.getElementById("sp-pass-form").style.display = "block";
+    document.getElementById("sp-pass-open-row").style.display = "none";
+  };
+  document.getElementById("sp-pass-save").onclick = () => sChangePass();
+  window.scrollTo(0, 0);
+}
+
+// تصغير الصورة في المتصفح وحفظها كنص في مستند الطالب
+function sAvatarSave(file, msg) {
+  if (!file) return;
+  if (!file.type || !file.type.startsWith("image/")) {
+    msg.className = "msg bad"; msg.textContent = "اختار ملف صورة.";
+    return;
+  }
+  msg.className = "msg"; msg.textContent = "بنصغّر الصورة ونحفظها...";
+  const reader = new FileReader();
+  reader.onerror = () => { msg.className = "msg bad"; msg.textContent = "مشكلة في قراءة الصورة."; };
+  reader.onload = () => {
+    const img = new Image();
+    img.onerror = () => { msg.className = "msg bad"; msg.textContent = "الملف ده مش صورة صالحة."; };
+    img.onload = async () => {
+      try {
+        const size = 256;
+        const c = document.createElement("canvas");
+        c.width = size; c.height = size;
+        const ctx = c.getContext("2d");
+        const min = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, size, size);
+        const dataUrl = c.toDataURL("image/jpeg", 0.82);
+        await fbDb.collection("students").doc(fbUser.uid).update({ avatar: dataUrl });
+        fbProfile.avatar = dataUrl;
+        renderStudentProfile();
+      } catch (e) { msg.className = "msg bad"; msg.textContent = "مشكلة في الحفظ: " + (e.message || e); }
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function sChangePass() {
+  const m = document.getElementById("sp-pass-msg");
+  const p1 = document.getElementById("sp-p1").value;
+  const p2 = document.getElementById("sp-p2").value;
+  if (p1.length < 6) { m.className = "msg bad"; m.textContent = "الباسورد لازم يكون ٦ حروف على الأقل."; return; }
+  if (p1 !== p2) { m.className = "msg bad"; m.textContent = "الباسوردين مش متطابقين."; return; }
+  m.className = "msg"; m.textContent = "بنحفظ...";
+  try {
+    await fbAuth.currentUser.updatePassword(p1);
+    m.className = "msg good"; m.textContent = "تمام، الباسورد اتغير ✅";
+  } catch (e) {
+    m.className = "msg bad";
+    m.textContent = (e && e.code === "auth/requires-recent-login")
+      ? "لازم تسجل دخول من جديد الأول عشان تغير الباسورد. اخرج وادخل تاني وجرب."
+      : "مشكلة: " + (e.message || e);
+  }
 }

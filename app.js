@@ -92,6 +92,7 @@ function route() {
     if (h === "#/student/quizexams") return renderStudentQuizExams();
     if (h === "#/student/ann") return renderStudentAnn();
     if (h === "#/student/grades") return renderStudentGrades();
+    if (h === "#/student/profile") return renderStudentProfile();
     if (h.startsWith("#/student/lesson/")) {
       const lid = decodeURIComponent(h.slice("#/student/lesson/".length));
       return renderStudentLesson(lid);
