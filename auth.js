@@ -43,8 +43,9 @@ async function resolveRole(u) {
     } catch (_) {}
     const t = await fbDb.collection("teachers").doc(u.uid).get();
     if (t.exists && t.data().active !== false) {
-      fbRole = "teacher";
       fbProfile = { id: u.uid, ...t.data() };
+      // مدرس اشتراكه انتهى: دور مميز يوريه رسالة التجديد، والقواعد بتقفل محتواه على طلابه
+      fbRole = subInfo(fbProfile).status === "expired" ? "teacherSubExpired" : "teacher";
       return;
     }
     // مدرس موقوف من الأدمن: دور مميز عشان تظهر له رسالة واضحة بدل "مش حساب مدرس"
@@ -99,6 +100,11 @@ function authErrAr(e) {
 let loginRole = "student";
 
 function renderLogin() {
+  // جملة أسفل الصفحة قراءتها عامة: بتتقري async وبتتحدث في مكانها أول ما توصل
+  loadFooterSettings().then(() => {
+    const c = document.querySelector(".loginwrap .closing");
+    if (c) c.textContent = footerText;
+  });
   const roles = [
     { id: "student", icon: "🎓", name: "طالب", desc: "دروسك واختباراتك", cls: "" },
     { id: "teacher", icon: "📚", name: "مدرس", desc: "طلابك وتقاريرك", cls: "b" },
@@ -123,6 +129,7 @@ function renderLogin() {
       <div id="login-form"></div>
       <p class="msg bad" id="login-msg"></p>
     </div>
+    ${pwaInstallCard()}
     ${closing()}</div>`;
   document.querySelectorAll(".rolecard").forEach((b) => {
     b.onclick = () => {
@@ -133,6 +140,7 @@ function renderLogin() {
   });
   document.querySelectorAll("[data-themebtn]").forEach((b) => b.onclick = () => themeCycle());
   renderLoginForm();
+  bindPwaCard();
   window.scrollTo(0, 0);
 }
 
@@ -274,6 +282,8 @@ async function doLogin(expectedRole) {
         : expectedRole === "teacher"
         ? (fbRole === "teacherSuspended"
           ? "حسابك متوقف مؤقتًا من إدارة المنصة. كلّم إدارة المنصة."
+          : fbRole === "teacherSubExpired"
+          ? "اشتراكك في المنصة انتهى، كلّم إدارة المنصة للتجديد."
           : "الحساب ده مش حساب مدرس.")
         : "الحساب ده مش مسجل كمشرف. لو انت أدمن جديد، ادخل الأول بجوجل واربط باسورد من تاب المشرفين.");
     }

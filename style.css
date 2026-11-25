@@ -64,7 +64,7 @@ body {
 .rolecard {
   background: var(--card); border: 2px solid var(--line); border-radius: 16px;
   padding: 18px 10px; text-align: center; cursor: pointer; transition: all .15s;
-  font-family: inherit;
+  font-family: inherit; color: var(--text);
 }
 .rolecard:hover { border-color: var(--primary); }
 .rolecard.active { border-color: var(--primary); background: var(--primary-soft); }
@@ -78,6 +78,7 @@ body {
   font-family: inherit; font-size: 15px; margin-bottom: 10px;
 }
 .inp:focus { outline: none; border-color: var(--primary); }
+.inp::placeholder { color: var(--muted); opacity: .9; }
 .inp.ltr { direction: ltr; text-align: left; }
 label.flabel { display: block; font-weight: 700; font-size: 13.5px; color: var(--muted); margin: 6px 0 4px; }
 .msg { min-height: 1.4em; font-size: 14px; font-weight: 700; }
@@ -99,6 +100,9 @@ label.flabel { display: block; font-weight: 700; font-size: 13.5px; color: var(-
 }
 .statcard .num { font-size: 28px; font-weight: 800; color: var(--primary-dark); }
 .statcard .lbl { color: var(--muted); font-size: 13.5px; }
+/* كروت عدادات ملونة (كارت اشتراكات المدرسين في لوحة الأدمن) */
+.statcard.amber .num { color: var(--amber); }
+.statcard.red .num { color: var(--red); }
 @media (max-width: 560px) { .statcards { grid-template-columns: 1fr 1fr; } }
 .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .tab {
@@ -122,7 +126,7 @@ label.flabel { display: block; font-weight: 700; font-size: 13.5px; color: var(-
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .filters select {
   padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line);
-  font-family: inherit; font-size: 13.5px; background: #fbfcfd; color: var(--text);
+  font-family: inherit; font-size: 13.5px; background: var(--inpbg); color: var(--text);
 }
 .center { text-align: center; }
 .muted { color: var(--muted); font-size: 14px; }
@@ -130,7 +134,7 @@ label.flabel { display: block; font-weight: 700; font-size: 13.5px; color: var(-
 .teachercheck { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .teachercheck label {
   border: 1.5px solid var(--line); border-radius: 999px; padding: 7px 14px;
-  font-size: 13.5px; font-weight: 700; cursor: pointer; background: #fbfcfd;
+  font-size: 13.5px; font-weight: 700; cursor: pointer; background: var(--inpbg); color: var(--text);
 }
 .teachercheck input { accent-color: var(--primary); margin-left: 5px; }
 
@@ -287,6 +291,15 @@ body { padding-top: 52px; }
 [data-theme="dark"] .card-sub { background: #243349; }
 [data-theme="dark"] .card { box-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
 [data-theme="dark"] .btn.ghost.red { border-color: #7f1d1d; }
+/* تدريس ليلي لعناصر كانت بألوان فاتحة ثابتة */
+[data-theme="dark"] { --redbg: #4c1d1d; }
+[data-theme="dark"] .chip.gray { background: #243349; }
+[data-theme="dark"] .loginwrap { background: linear-gradient(180deg, rgba(20, 184, 166, .10) 0%, var(--bg) 45%); }
+[data-theme="dark"] .sec-h { background: color-mix(in srgb, var(--sc, #14b8a6) 16%, var(--card)); }
+[data-theme="dark"] .sec-h .st .tt { color: var(--muted); }
+[data-theme="dark"] .sec-h .arr { color: var(--muted); }
+[data-theme="dark"] .sprog { color: var(--muted); }
+[data-theme="dark"] .sprog-track { background: #334155; }
 
 /* زرار تبديل الوضع في الشريط العلوي */
 .themebtn {

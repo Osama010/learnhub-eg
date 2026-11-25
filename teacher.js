@@ -32,6 +32,37 @@ async function teacherLoad() {
   teacherRatings = rt.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/* لوحة الشرف الأسبوعية: أوائل كل صف من طلاب المدرس حسب نقاط الأسبوع (بتتصفر كل جمعة).
+   الترتيب بين طلاب نفس المدرس ونفس الصف بس — زي ما اتفقنا. */
+function honorBoardCard(students, weekActs) {
+  const pts = {}; const seen = new Set(); // إلغاء التكرار: نفس الدرس/الكويز ميتحسبش مرتين لنفس الطالب
+  (weekActs || []).forEach((a) => {
+    if (!a || !a.studentId) return;
+    const key = a.studentId + "|" + (a.kind || "") + "|" + (a.refId || "");
+    if (seen.has(key)) return;
+    seen.add(key);
+    pts[a.studentId] = (pts[a.studentId] || 0) + (Number(a.points) || 0);
+  });
+  const withPts = (students || []).filter((s) => s.status === "approved" && (pts[s.id] || 0) > 0);
+  if (!withPts.length) return "";
+  const grades = [...new Set(withPts.map((s) => s.grade || "—"))];
+  grades.sort((a, b) => GRADES.indexOf(a) - GRADES.indexOf(b));
+  const medalStyle = (i) => i === 0 ? "background:#f59e0b;color:#fff;" : i === 1 ? "background:#94a3b8;color:#fff;" : i === 2 ? "background:#b45309;color:#fff;" : "background:var(--border, #d8dee9);";
+  const sections = grades.map((g) => {
+    const top = withPts.filter((s) => (s.grade || "—") === g).sort((a, b) => (pts[b.id] || 0) - (pts[a.id] || 0)).slice(0, 5);
+    return `<h3 style="font-size:15px; margin:12px 0 4px;">${esc(g)}</h3>
+      ${top.map((s, i) => `<div class="btnrow" style="justify-content:space-between; padding:6px 4px; border-bottom:1px solid var(--border, #e2e8f0);">
+        <span style="font-size:14px;"><span style="display:inline-block; min-width:24px; height:24px; line-height:24px; border-radius:50%; text-align:center; font-size:13px; font-weight:700; margin-left:6px; ${medalStyle(i)}">${i + 1}</span>${tAvatarHtml(s)} ${esc(s.name)}</span>
+        <b style="font-size:14px; color:var(--primary-dark);">${pts[s.id]} نقطة</b>
+      </div>`).join("")}`;
+  }).join("");
+  return `<div class="card" style="border-right:4px solid var(--amber, #f59e0b);">
+    <h2 style="font-size:18px; margin-top:0;">🏆 لوحة الشرف — أوائل الأسبوع</h2>
+    <p class="muted" style="font-size:12.5px; margin-top:0;">النقاط بتتجمع من مشاهدة الدروس (10) ونجاح الكويزات (20)، وبتتصفر كل جمعة. الترتيب بين طلاب نفس الصف بس.</p>
+    ${sections}
+  </div>`;
+}
+
 /* متوسط تقييم درس بالنجوم وعدد المقيّمين — بيرجع null لو مفيش تقييمات لسه */
 function tLessonRating(lid) {
   const rs = teacherRatings.filter((r) => r.lessonId === lid);
@@ -103,10 +134,32 @@ async function renderTeacherDash() {
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
   const pending = teacherCache.filter((s) => s.status === "pending");
   const approved = teacherCache.filter((s) => s.status === "approved");
+  // إعلان المنصة + نشاط الأسبوع (لوحة الشرف) — فشلهم ميوقفش اللوحة
+  let bcData = null, weekActs = [];
+  try {
+    const bcSnap = await fbDb.collection("broadcasts").doc("current").get();
+    bcData = bcSnap.exists ? bcSnap.data() : null;
+  } catch (_) {}
+  try { await loadAboutSettings(); } catch (_) {} // تيذر «عن المهندس» في آخر اللوحة
+  try {
+    const ws = weekStartFriday();
+    const actSnap = await fbDb.collection("activityLog").where("teacherId", "==", fbUser.uid).get();
+    weekActs = actSnap.docs.map((d) => d.data()).filter((a) => { const t = a && a.ts && a.ts.toDate ? a.ts.toDate() : null; return t && t >= ws; });
+  } catch (_) {}
   app.innerHTML = `
     <div class="hdr">
       <h1>أهلاً ${esc(fbProfile ? fbProfile.name : "بيك")} 👋</h1>
     </div>
+    ${broadcastBannerHtml(bcData, "teacher")}
+    ${(() => {
+      // تنبيه قرب انتهاء الاشتراك (آخر 15 يوم) — التجديد بيتم من الأدمن
+      const si = subInfo(fbProfile || {});
+      if (si.status !== "expiring") return "";
+      return `<div class="card tint-amber" style="border-right:4px solid var(--amber);">
+        <b>⏳ اشتراكك قرب ينتهي</b>
+        <div style="font-size:14px; margin-top:4px;">اشتراكك (${si.label}) بينتهي في <b class="ltr">${subFmtDate(si.end)}</b> — فاضل <b>${si.daysLeft} يوم</b>. جدّد مع الأدمن قبل الانتهاء عشان حسابك ومحتواك ميفصلش.</div>
+      </div>`;
+    })()}
     ${teacherTabs("students")}
     ${(fbProfile && (fbProfile.stages || []).length) ? `
     <div class="statcards">
@@ -125,6 +178,7 @@ async function renderTeacherDash() {
       <div class="statcard"><div class="num">${approved.length}</div><div class="lbl">طلابك</div></div>
       <div class="statcard"><div class="num">${pending.length}</div><div class="lbl">طلبات جديدة</div></div>
     </div>
+    ${honorBoardCard(approved, weekActs)}
     ${pending.length ? `
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">طلبات تسجيل جديدة (${pending.length})</h2>
@@ -175,8 +229,10 @@ async function renderTeacherDash() {
         </tbody>
       </table>
     </div>
+    ${aboutTeaserHtml()}
     ${closing()}`;
   bindTeacherTabs();
+  bindAboutTeaser();
   document.querySelectorAll("[data-glink]").forEach((el) => el.onclick = () => location.hash = el.dataset.glink);
   document.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => teacherSetStatus(b.dataset.ok, "approved"));
   document.querySelectorAll("[data-no]").forEach((b) => b.onclick = () => teacherSetStatus(b.dataset.no, "rejected"));

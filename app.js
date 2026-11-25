@@ -5,8 +5,112 @@ function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+/* ---------- نبذة عن المهندس وجملة أسفل الصفحات ----------
+   بيتخزنوا في مستندين منفصلين تمامًا: settings/about للنبذة و settings/footer للجملة —
+   تعديل أي واحد مبيلمسش التاني. القيم الافتراضية مأخوذة حرفيًا من سايت دروس البرمجة.
+   settings/footer قراءته عامة عشان الجملة تظهر في صفحة الدخول قبل تسجيل الدخول. */
+var footerText = "فكرة وإعداد: مهندس اسامه حسن عسس"; // الافتراضي لحد ما settings/footer يتقري
+
+const ABOUT_DEFAULT_PHOTO = "photos/osama.jpg"; // صورته من سايت الدروس — افتراضي لو مفيش صورة مخصصة
+const ABOUT_DEFAULTS = {
+  name: "مهندس : اسامه حسن عسس",
+  title: "معيد وباحث أكاديمي في علوم الحاسب والذكاء الاصطناعي — جامعة MTI",
+  shortBio: "صاحب قناة Tech for Kids. بشرح البرمجة والذكاء الاصطناعي بأسلوب مبسط، وبشتغل على حلول تقنية بتحل مشاكل حقيقية، وعندي بحث علمي منشور في تصنيف صور تخطيط القلب بالذكاء الاصطناعي.",
+  skills: "الذكاء الاصطناعي، تعلم الآلة، التعلم العميق، الرؤية الحاسوبية، تحليل الصور الطبية، البرمجة، Excel، التدريس الجامعي",
+  longBio: "أسامة حسن عسس، معيد وباحث أكاديمي في مجال علوم الحاسب والذكاء الاصطناعي، أهتم بالبحث العلمي وتطوير الحلول التقنية التي تسهم في معالجة المشكلات الواقعية باستخدام التقنيات الحديثة.\nتتركز اهتماماتي البحثية في مجالات الذكاء الاصطناعي، وتعلم الآلة، والتعلم العميق، والرؤية الحاسوبية، وتحليل الصور الطبية، مع اهتمام خاص بتوظيف هذه التقنيات في التطبيقات الطبية وتحسين دقة الأنظمة الذكية.\nشاركت في إعداد ونشر بحث علمي بعنوان [ECG Image Classification Using Hybrid Machine Learning and Deep Learning Techniques](https://iapress.org/index.php/soic/article/view/4003/2032) في مجلة Statistics, Optimization & Information Computing (SOIC)، والذي تناول استخدام تقنيات تعلم الآلة والتعلم العميق في تصنيف صور تخطيط القلب الكهربائي.\nوعلى الصعيد الأكاديمي، أهتم بالتدريس الجامعي ونقل المعرفة، ومساعدة الطلاب على تطوير مهاراتهم العلمية والعملية في مجالات البرمجة وتكنولوجيا المعلومات.",
+  whatsapp: "201556655614",
+  facebook: "https://www.facebook.com/OsamaAsass",
+  youtube: "https://www.youtube.com/@TechForKidsArabic",
+  telegram: "",
+  linkedin: "",
+  photo: "", // فاضي = الصورة الافتراضية photos/osama.jpg
+};
+var aboutCfg = null; // بيتملى من settings/about (null = لسه ما اتقريش)
+
+// دمج المحفوظ فوق الافتراضي — أي حقل فاضي محفوظ بياخد قيمته (مسح مقصود)
+function aboutGet() { return Object.assign({}, ABOUT_DEFAULTS, aboutCfg || {}); }
+
+async function loadAboutSettings() {
+  try {
+    if (!fbDb) return;
+    const d = await fbDb.collection("settings").doc("about").get();
+    aboutCfg = d.exists ? (d.data() || {}) : (aboutCfg || {});
+  } catch (_) { aboutCfg = aboutCfg || {}; }
+}
+
+async function loadFooterSettings() {
+  try {
+    if (!fbDb) return;
+    const d = await fbDb.collection("settings").doc("footer").get();
+    if (d.exists && typeof d.data().text === "string" && d.data().text.trim()) footerText = d.data().text.trim();
+  } catch (_) {}
+}
+
+/* صورة المهندس: المخصصة (dataURL) أو الافتراضية، ووراها دايرة بأول حرف من الاسم
+   لو الصورة فشلت في التحميل (onerror بيشيلها فيظهر الحرف) */
+function aboutPhotoHtml(a, size) {
+  const src = a.photo || ABOUT_DEFAULT_PHOTO;
+  const init = esc(String(a.name || "م").replace(/^مهندس\s*:?\s*/, "").trim()[0] || "م");
+  return `<span style="position:relative; display:inline-block; flex:none; width:${size}px; height:${size}px;">
+    <span class="pavinit" style="width:${size}px; height:${size}px; font-size:${Math.round(size / 2.6)}px; border:3px solid #f59e0b;">${init}</span>
+    <img src="${esc(src)}" alt="${esc(a.name)}" onerror="this.remove()" style="position:absolute; inset:0; width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; border:3px solid #f59e0b; background:var(--card, #fff);">
+  </span>`;
+}
+
+/* نص النبذة: [النص](الرابط) بيتحوّل للينك يفتح في تاب جديد، والباقي نص مُهربى */
+function aboutRich(text) {
+  return String(text || "").split(/(\[[^\]]+\]\([^)]+\))/g).map((p) => {
+    const m = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (m) return `<a href="${esc(m[2])}" target="_blank" rel="noopener" style="color:var(--primary-dark); font-weight:700;">${esc(m[1])}</a>`;
+    return esc(p);
+  }).join("");
+}
+
+/* صفحة «نبذة عن المهندس» الكاملة — نفس ترتيب سايت الدروس:
+   صورة + اسم + لقب، مقدمة، شرائح المهارات، النبذة الطويلة (كل سطر فقرة)، أزرار التواصل */
+function aboutPageHtml() {
+  const a = aboutGet();
+  const skills = String(a.skills || "").split(/[،,]/).map((x) => x.trim()).filter(Boolean);
+  const paras = String(a.longBio || "").split(/\n+/).map((p) => p.trim()).filter(Boolean);
+  const btns = [];
+  if (a.whatsapp) btns.push(`<a class="btn sm" style="background:#16a34a; color:#fff;" target="_blank" rel="noopener" href="${waLink(a.whatsapp, "أهلاً مهندس أسامة، معاك من منصة المستر.")}">تواصل واتساب</a>`);
+  if (a.facebook) btns.push(`<a class="btn sm" style="background:#2563eb; color:#fff;" target="_blank" rel="noopener" href="${esc(a.facebook)}">صفحة الفيسبوك</a>`);
+  if (a.youtube) btns.push(`<a class="btn sm" style="background:#dc2626; color:#fff;" target="_blank" rel="noopener" href="${esc(a.youtube)}">قناة Tech for Kids على يوتيوب</a>`);
+  if (a.telegram) btns.push(`<a class="btn sm" style="background:#0284c7; color:#fff;" target="_blank" rel="noopener" href="${esc(a.telegram)}">تيليجرام</a>`);
+  if (a.linkedin) btns.push(`<a class="btn sm" style="background:#0a66c2; color:#fff;" target="_blank" rel="noopener" href="${esc(a.linkedin)}">لينكدإن</a>`);
+  return `<div class="card" style="max-width:760px; margin:0 auto 14px;">
+    <div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
+      ${aboutPhotoHtml(a, 104)}
+      <div style="flex:1; min-width:220px;">
+        <h1 style="margin:0; font-size:23px; color:var(--primary-dark);">${esc(a.name)}</h1>
+        <div style="color:#b45309; font-weight:700; font-size:13.5px; margin-top:4px;">${esc(a.title)}</div>
+      </div>
+    </div>
+    ${a.shortBio ? `<p style="font-size:15px; line-height:2; margin:16px 0 0;">${aboutRich(a.shortBio)}</p>` : ""}
+    ${skills.length ? `<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;">${skills.map((x) => `<span class="chip gray">${esc(x)}</span>`).join("")}</div>` : ""}
+    ${paras.length ? `<hr style="border:none; border-top:1px dashed var(--line, #cbd5e1); margin:18px 0;">${paras.map((p) => `<p style="font-size:14.5px; line-height:2; margin:0 0 12px;">${aboutRich(p)}</p>`).join("")}` : ""}
+    ${btns.length ? `<div class="btnrow" style="margin-top:16px; flex-wrap:wrap;">${btns.join("")}</div>` : ""}
+  </div>`;
+}
+
+/* الكارت الصغير (تيذر) في آخر لوحات الأدوار: صورة + اسم + لقب + زرار يفتح صفحة النبذة */
+function aboutTeaserHtml() {
+  const a = aboutGet();
+  return `<div class="card lcard" style="border-right:4px solid #f59e0b; display:flex; gap:12px; align-items:center;">
+    ${aboutPhotoHtml(a, 52)}
+    <div style="flex:1; min-width:150px;">
+      <b style="font-size:14.5px;">${esc(a.name)}</b>
+      <div class="muted" style="font-size:12.5px; margin-top:2px;">${esc(a.title)}</div>
+    </div>
+    <button type="button" class="btn sm ghost" data-aboutmore>اقرأ المزيد</button>
+  </div>`;
+}
+function bindAboutTeaser() {
+  document.querySelectorAll("[data-aboutmore]").forEach((b) => b.onclick = () => { location.hash = "#/about"; });
+}
+
 function closing() {
-  return `<div class="closing">فكرة وإعداد: مهندس اسامه حسن عسس</div>`;
+  return `<div class="closing">${esc(footerText)}</div>`;
 }
 
 function statusChip(st) {
@@ -145,6 +249,7 @@ function renderTransferPage(cfg) {
         transferState.picked = {};
         ov.remove();
         showToast(`اتنقل ${chosen.length} طالب لـ«${to}» ✅`, "good");
+        if (cfg.onTransfer) cfg.onTransfer(chosen.length, transferState.from, to);
         await cfg.onDone();
       } catch (e) { btn.disabled = false; m.className = "msg bad"; m.textContent = "مشكلة: " + (e.message || e); }
     };
@@ -371,7 +476,7 @@ function platNavHtml(name, avatarUrl, profileHash) {
     ? `<img class="av" src="${avatarUrl}" alt="">`
     : `<span class="avinit">${esc(nm ? nm[0] : "؟")}</span>`;
   return `<div class="pnav"><div class="pnav-in">
-    <a class="brand" href="#/login" style="display:flex; align-items:center; gap:7px;">${LOGO_ICON_SVG}<span style="font-weight:900; font-size:19px; color:#0f766e;">المستر</span></a>
+    <a class="brand" href="#/login" style="display:flex; align-items:center; gap:7px;">${LOGO_ICON_SVG}<span style="font-weight:900; font-size:19px; color:var(--primary-dark);">المستر</span></a>
     <span class="mezone">
       <span class="mewrap">
         <button type="button" class="me" data-medrop><span class="nm">${esc(nm)}</span>${av}<span class="mechev">▾</span></button>
@@ -408,6 +513,129 @@ function bindPlatNav() {
   }
 }
 
+/* ---------- اشتراكات المدرسين ----------
+   الأدمن بيحدد لكل مدرس نوع اشتراك (مجاني/شهري/بالترم/سنوي) ومبلغ وتاريخ بداية ونهاية.
+   المدرسين القدامى (من غير subType) معتبرين مجانيين. المدرس المجاني أو اللي ميعملش
+   subType تاريخ نهاية مالوش انتهاء. الانتهاء بيقفل حساب المدرس ومحتواه على طلابه. */
+const SUB_TYPES = { free: "مجاني", monthly: "شهري", term: "بالترم", year: "سنوي" };
+const SUB_WARN_DAYS = 15; // تحذير "قرب ينتهي" قبل الانتهاء بالأيام دي
+
+// تاريخ نهاية الاشتراك من مستند المدرس (Timestamp أو نص تاريخ أو null)
+function subEndOf(t) {
+  const v = t && t.subEnd;
+  if (!v) return null;
+  if (v.toDate) return v.toDate();
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// حالة اشتراك مدرس: free (مجاني) / active (نشط) / expiring (قرب ينتهي) / expired (منتهي)
+function subInfo(t) {
+  const type = SUB_TYPES[t && t.subType] ? t.subType : "free";
+  if (type === "free") return { type, status: "free", label: SUB_TYPES.free, daysLeft: null, end: null };
+  const end = subEndOf(t);
+  if (!end) return { type, status: "active", label: SUB_TYPES[type], daysLeft: null, end: null }; // نوع بس من غير تاريخ = من غير انتهاء
+  const daysLeft = Math.ceil((end.getTime() - Date.now()) / 86400000);
+  const status = daysLeft < 0 ? "expired" : daysLeft <= SUB_WARN_DAYS ? "expiring" : "active";
+  return { type, status, label: SUB_TYPES[type], daysLeft, end, amount: Number((t && t.subAmount) || 0) };
+}
+
+// شرائح عرض حالة الاشتراك في الجداول والتقارير
+function subChip(si) {
+  if (si.status === "free") return '<span class="chip gray">مجاني</span>';
+  if (si.status === "expired") return '<span class="chip red">منتهي</span>';
+  if (si.status === "expiring") return `<span class="chip amber">فاضل ${si.daysLeft} يوم</span>`;
+  return '<span class="chip green">نشط</span>';
+}
+
+// تاريخ بصيغة yyyy-mm-dd لمدخلات التاريخ، و dd/mm/yyyy للعرض
+function subDateStr(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function subFmtDate(d) {
+  if (!d) return "—";
+  return d.getDate() + "/" + (d.getMonth() + 1) + "/" + d.getFullYear();
+}
+
+// تاريخ النهاية الافتراضي حسب نوع الاشتراك من تاريخ بداية معين (شهري +شهر، ترم +4 شهور، سنوي +سنة)
+function subEndDefault(type, startStr) {
+  const d = startStr ? new Date(startStr + "T00:00:00") : new Date();
+  if (type === "monthly") d.setMonth(d.getMonth() + 1);
+  else if (type === "term") d.setMonth(d.getMonth() + 4);
+  else if (type === "year") d.setFullYear(d.getFullYear() + 1);
+  return subDateStr(d);
+}
+
+/* بداية أسبوع النشاط: الجمعة بتبدأ أسبوع لوحة الشرف والنقاط الأسبوعية */
+function weekStartFriday() {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  const diff = (d.getDay() - 5 + 7) % 7; // 5 = الجمعة
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+
+/* الإعلان العام (broadcast): بيرجع نص الإعلان لو ساري للدور ده، أو null.
+   المستند الحالي بيتخزن في broadcasts/current وبيحمل نص + جمهور + تاريخ انتهاء. */
+function activeBroadcastText(bc, role) {
+  try {
+    if (!bc || !bc.text) return null;
+    const until = bc.until && bc.until.toDate ? bc.until.toDate() : null;
+    if (until && until <= new Date()) return null;
+    if (bc.audience === "teachers" && role !== "teacher" && role !== "admin") return null;
+    if (bc.audience === "students" && role !== "student" && role !== "admin") return null;
+    return String(bc.text);
+  } catch (_) { return null; }
+}
+/* بانر الإعلان — نفس الشكل في لوحة المدرس والطالب */
+function broadcastBannerHtml(bc, role) {
+  const txt = activeBroadcastText(bc, role);
+  if (!txt) return "";
+  return `<div class="card" style="border-right:4px solid var(--amber, #f59e0b); background:linear-gradient(135deg, rgba(245,158,11,.12), transparent 60%);">
+    <b style="font-size:15px;">📢 إعلان من إدارة المنصة</b>
+    <p style="font-size:14px; margin:6px 0 0; white-space:pre-wrap;">${esc(txt)}</p>
+  </div>`;
+}
+
+/* ---------- تثبيت المنصة كتطبيق (PWA) ----------
+   بنلقط حدث التثبيت ونحفظه، وبنظهر كارت «ثبّت التطبيق» في صفحة الدخول.
+   على الآيفون مفيش حدث تثبيت — بنظهر تعليمات الإضافة من قائمة المشاركة بداله. */
+var deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredInstallPrompt = e; });
+function isIOS() { return /iphone|ipad|ipod/i.test((typeof navigator !== "undefined" && navigator.userAgent) || ""); }
+function isStandalone() { return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || ((window.navigator || {}).standalone === true); }
+function pwaInstallCard() {
+  if (isStandalone() || localStorage.getItem("pwaDismissed") === "1") return "";
+  if (deferredInstallPrompt) {
+    return `<div class="card" style="max-width:520px; margin:14px auto 0; border:2px solid var(--amber);">
+      <b style="font-size:15px;">ثبّت «المستر» على موبايلك</b>
+      <p class="muted" style="font-size:12.5px; margin:6px 0 10px;">أيقونة على الشاشة الرئيسية تفتح المنصة بضغطة واحدة — من غير متجر ومن غير تحميل.</p>
+      <div class="btnrow"><button type="button" class="btn sm" id="pwa-install">تثبيت التطبيق</button>
+      <button type="button" class="btn sm ghost" id="pwa-dismiss">ليس الآن</button></div>
+    </div>`;
+  }
+  if (isIOS()) {
+    return `<div class="card" style="max-width:520px; margin:14px auto 0; border:2px solid var(--amber);">
+      <b style="font-size:15px;">ثبّت «المستر» على موبايلك</b>
+      <p class="muted" style="font-size:12.5px; margin:6px 0 10px;">من متصفح سفاري: دوس زرار المشاركة (مربع طالع منه سهم لفوق) واختار «إضافة إلى الشاشة الرئيسية» — هتطلعلك أيقونة المستر جنب تطبيقاتك.</p>
+      <div class="btnrow"><button type="button" class="btn sm ghost" id="pwa-dismiss">فهمت</button></div>
+    </div>`;
+  }
+  return "";
+}
+function bindPwaCard() {
+  const i = document.getElementById("pwa-install");
+  if (i) i.onclick = async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    try { await deferredInstallPrompt.userChoice; } catch (_) {}
+    deferredInstallPrompt = null;
+    renderLogin();
+  };
+  const d = document.getElementById("pwa-dismiss");
+  if (d) d.onclick = () => { localStorage.setItem("pwaDismissed", "1"); renderLogin(); };
+}
+
 /* شاشة المدرس الموقوف من الأدمن — لو دخل وهو موقوف يشوف الرسالة دي بدل لوحته */
 function renderTeacherSuspended() {
   if (bailIfSignedOut()) return;
@@ -422,6 +650,42 @@ function renderTeacherSuspended() {
   document.getElementById("so").onclick = signOut;
 }
 
+/* شاشة المدرس اللي اشتراكه انتهى — يشوف الرسالة دي بدل لوحته، ومحتواه بيتقفل على طلابه */
+function renderTeacherSubExpired() {
+  if (bailIfSignedOut()) return;
+  const si = subInfo(fbProfile || {});
+  app.innerHTML = `
+    <div class="card center" style="max-width:520px; margin:60px auto;">
+      <div style="font-size:44px;">⌛</div>
+      <h1 style="font-size:22px; margin:8px 0;">اشتراكك في المنصة انتهى</h1>
+      <p class="muted">اشتراكك ${si.end ? `(${si.label}) انتهى في <b class="ltr">${subFmtDate(si.end)}</b>` : "انتهى"}.
+      حسابك متوقف دلوقتي ومحتواك مخفي عن طلابك لحد ما تجدد. كلّم إدارة المنصة عشان التجديد،
+      وأول ما يتجدد كل حاجة هترجع زي ما هي.</p>
+      <div class="btnrow" style="justify-content:center;"><button type="button" class="btn ghost" id="so">خروج</button></div>
+    </div>
+    ${closing()}`;
+  document.getElementById("so").onclick = signOut;
+}
+
+/* صفحة «نبذة عن المهندس»: تاب مستقل متاح لكل الأدوار، محتواه من settings/about */
+async function renderAboutPage() {
+  if (bailIfSignedOut()) return;
+  await Promise.all([loadAboutSettings(), loadFooterSettings()]);
+  const profHash = fbRole === "admin" ? "#/admin/profile" : fbRole === "teacher" ? "#/teacher/profile" : "#/student/profile";
+  const backHash = fbRole === "admin" ? "#/admin" : fbRole === "teacher" ? "#/teacher" : "#/student";
+  const nm = (fbProfile && (fbProfile.name || "")) || "";
+  const av = (fbProfile && (fbProfile.avatar || fbProfile.photoData)) || "";
+  app.innerHTML = `
+    ${platNavHtml(nm, av, profHash)}
+    <div class="btnrow" style="margin:4px 0 12px;"><button type="button" class="btn ghost small" id="ab-back">→ رجوع</button></div>
+    <h1 style="margin:0 0 12px;">👤 نبذة عن المهندس</h1>
+    ${aboutPageHtml()}
+    ${closing()}`;
+  bindPlatNav();
+  document.getElementById("ab-back").onclick = () => { location.hash = backHash; };
+  window.scrollTo(0, 0);
+}
+
 /* ---------- الراوتر ---------- */
 function route() {
   const h = location.hash || "#/login";
@@ -430,8 +694,10 @@ function route() {
   if (h === "#/login" || h === "#/" || h === "") return fbUser ? routeByRole() : renderLogin();
   if (!fbUser) return renderLogin();
   if (fbRole === "teacherSuspended") return renderTeacherSuspended();
+  if (fbRole === "teacherSubExpired") return renderTeacherSubExpired();
   // بوابة تأكيد الإيميل: حساب جديد لسه مفعّلش إيميله يقف هنا مهما كان الرابط
   if (needsEmailVerify()) return renderVerifyGate();
+  if (h === "#/about") return renderAboutPage();
   if (fbRole === "admin") {
     if (h.startsWith("#/admin")) return renderAdmin(h);
     return renderAdmin("#/admin");

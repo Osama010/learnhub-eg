@@ -401,6 +401,14 @@ async function renderStudentDash() {
   app.innerHTML = `<div class="spin">بنحمل دروسك...</div>`;
   try { await studentLoadAll(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
+  // إعلان المنصة وترتيب الأسبوع — فشلهم ميوقفش الصفحة
+  let bcData = null, myRank = null;
+  try {
+    const bcSnap = await fbDb.collection("broadcasts").doc("current").get();
+    bcData = bcSnap.exists ? bcSnap.data() : null;
+  } catch (_) {}
+  myRank = await sMyWeeklyRank();
+  await loadAboutSettings(); // تيذر «عن المهندس» في آخر اللوحة
   const s = fbProfile || {};
   // إعلانات المدرس الموقوف عن الطالب ما تظهرش له
   const annVisible = (studentData.ann || []).filter((a) => sVisible(a) && !sSuspendedSet().has(a.teacherId))
@@ -432,6 +440,9 @@ async function renderStudentDash() {
     </div>
     ${studentTabs("lessons")}
     ${termTabsHtml(sTerm())}
+    ${broadcastBannerHtml(bcData, "student")}
+    ${sRankCardHtml(myRank)}
+    ${sBadgesCardHtml()}
     ${lockedTeachers.map((t) => `
     <div class="card lcard" style="border-right:4px solid var(--red); background:var(--redbg, #fef2f2);">
       <b>🔒 ${esc(t.subject ? t.subject + " · " : "")}${esc(t.name || "مدرس")}</b>
@@ -488,8 +499,10 @@ async function renderStudentDash() {
       <h2 style="font-size:20px; margin:8px 0;">لسه مفيش دروس ليك</h2>
       <p class="muted">أول ما مدرسك ينزل دروس لصفك هتظهر هنا.</p>
     </div>`}
+    ${aboutTeaserHtml()}
     ${closing()}`;
   bindStudentTabs();
+  bindAboutTeaser();
   bindTermTabs((t) => { sTermTab = t; renderStudentDash(); });
   // فتح/قفل قسم المادة بالدوس على رأسه، والحالة بتتحفظ
   document.querySelectorAll("[data-sec]").forEach((h) => h.onclick = () => {
@@ -516,7 +529,9 @@ async function renderStudentLesson(id) {
   if (!l || !sVisible(l)) return sUnavailable("الدرس ده مش متاح ليك.");
   if (sTeacherLocked(l)) return sUnavailable("تم إيقاف وصولك لمحتوى هذا المدرس.");
   if (!sLessonOpen(l)) return sUnavailable("الدرس ده مجدول — هيتفتح " + fmtTs(l.publishAt) + ".");
+  const firstWatch = !sIsWatched(id); // أول مشاهدة بس اللي بتتحسب نقاط
   sMarkWatched(id); // علامة «شوفت الدرس» لشريط التقدم والتذكير
+  if (firstWatch) sPingActivity("lesson", id, l.teacherId, 10);
   const myStars = sMyRating(id);
   const emb = l.videoUrl ? videoEmbed(l.videoUrl) : null;
   const linked = (studentData.quizzes || []).filter((q) => q.lessonId === id && sVisible(q) && !sTeacherLocked(q));
@@ -774,6 +789,10 @@ async function sSubmit(item, questions, isExam) {
     m.className = "msg bad"; m.textContent = "مشكلة في الحفظ: " + (e.message || e);
     return;
   }
+  // أول نجاح في الاختبار ده (50%+) بيسجل نقاط ونشاط للسلسلة ولوحة الشرف — إعادة النجاح ما بتتحسبش
+  const prevAtt = (studentData.attempts || []).find((a) => (isExam ? a.examId === item.id : a.quizId === item.id));
+  const prevPassed = !!(prevAtt && prevAtt.total > 0 && prevAtt.score / prevAtt.total >= 0.5);
+  if (questions.length > 0 && score / questions.length >= 0.5 && !prevPassed) sPingActivity("quiz", item.id, item.teacherId, 20);
   sShowResult(item, questions, results, isExam, given);
 }
 
@@ -894,6 +913,7 @@ function sLevelCardHtml() {
   const pts = sPoints();
   const lv = sLevelFor(pts);
   const pct = lv.next ? Math.round(((pts - lv.cur.min) / (lv.next.min - lv.cur.min)) * 100) : 100;
+  const streak = sStreak();
   return `<div class="card tint-amber">
     <div class="btnrow" style="justify-content:space-between;">
       <b style="font-size:16px;">${lv.cur.icon} مستواك: ${lv.cur.name}</b>
@@ -903,6 +923,108 @@ function sLevelCardHtml() {
       <span class="sprog-track"><span class="sprog-fill" style="width:${pct}%; background:#f59e0b;"></span></span>
     </div>
     <div class="muted" style="font-size:12px; margin-top:8px;">${lv.next ? `فاضل ${lv.next.min - pts} نقطة وتوصل مستوى «${lv.next.name}» ${lv.next.icon} — كل درس بتشوفه بـ 10 نقاط وكل اختبار ناجح بـ 20.` : "مبروك! وصلت أعلى مستوى 🏆 — كمّل بنفس الحماس."}</div>
+    <div style="font-size:13px; margin-top:8px;">${streak > 0 ? `⚡ سلسلة نشاطك: <b>${streak} ${streak === 1 ? "يوم" : streak === 2 ? "يومين" : "أيام"}</b> ورا بعض — شوف درس أو انجح في كويز النهارده عشان السلسلة تكمل.` : `⚡ ابدأ سلسلة نشاطك النهارده — شوف درس أو انجح في كويز وبعدّ الأيام ورا بعض.`}</div>
+  </div>`;
+}
+
+/* ---------- نشاط الطالب: السلسلة اليومية + الأوسمة + لوحة الشرف ---------- */
+/* تسجيل نشاط: يوم النهارده بيتعلم في خريطة activityDays على مستند الطالب (للسلسلة)،
+   وبيتكتب سطر في activityLog (للوحة الشرف الأسبوعية عند المدرس وترتيب الطالب).
+   فشل التسجيل ميوقفش حاجة — النقاط الأساسية شغالة من الجهاز زي ما هي. */
+function sPingActivity(kind, refId, teacherId, points) {
+  try {
+    const today = subDateStr(new Date());
+    const upd = {};
+    upd["activityDays." + today] = true;
+    fbDb.collection("students").doc(fbUser.uid).update(upd).catch(() => {});
+    if (teacherId) {
+      fbDb.collection("activityLog").add({
+        studentId: fbUser.uid, teacherId, kind, refId: refId || "",
+        grade: (fbProfile && fbProfile.grade) || "",
+        points: Number(points) || 10,
+        ts: firebase.firestore.FieldValue.serverTimestamp(),
+      }).catch(() => {});
+    }
+    if (!fbProfile.activityDays) fbProfile.activityDays = {};
+    fbProfile.activityDays[today] = true;
+  } catch (_) {}
+}
+
+/* السلسلة اليومية: عدد الأيام المتتالية اللي فيها نشاط. لو النهارده لسه مفيش نشاط بنعد من إمبارح عشان السلسلة ما تتكسرش قبل آخر اليوم */
+function sStreak() {
+  const days = (fbProfile && fbProfile.activityDays) || {};
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  if (!days[subDateStr(d)]) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (days[subDateStr(d)]) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
+/* الأوسمة: بتتحسب من بيانات الطالب نفسها — مشاهدات وكويزات ناجحة وسلسلة الأيام */
+function sBadges() {
+  const lessonIds = new Set((studentData.lessons || []).map((l) => l.id));
+  const watched = [...sWatchedSet()].filter((id) => lessonIds.has(id)).length;
+  const passed = (studentData.attempts || []).filter((a) => a.total > 0 && a.score / a.total >= 0.5).length;
+  const streak = sStreak();
+  return [
+    { icon: "⭐", name: "أول خطوة", desc: "شوفت أول درس", got: watched >= 1 },
+    { icon: "📚", name: "قارئ نشيط", desc: "شوفت 10 دروس", got: watched >= 10 },
+    { icon: "🎯", name: "أول نجاح", desc: "عديت أول اختبار", got: passed >= 1 },
+    { icon: "🏆", name: "بطل الاختبارات", desc: "عديت 5 اختبارات", got: passed >= 5 },
+    { icon: "⚡", name: "سلسلة 3 أيام", desc: "نشاط 3 أيام ورا بعض", got: streak >= 3 },
+    { icon: "🗓️", name: "أسبوع كامل", desc: "نشاط 7 أيام ورا بعض", got: streak >= 7 },
+  ];
+}
+function sBadgesCardHtml() {
+  const badges = sBadges();
+  const got = badges.filter((b) => b.got).length;
+  return `<div class="card">
+    <h2 style="font-size:18px; margin-top:0;">⭐ أوسمتك (${got} من ${badges.length})</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; margin-top:8px;">
+      ${badges.map((b) => `<div class="card card-sub" style="margin:0; text-align:center; padding:12px 8px; ${b.got ? "" : "opacity:.45; filter:grayscale(1);"}">
+        <div style="font-size:26px;">${b.icon}</div>
+        <b style="font-size:13.5px;">${b.name}</b>
+        <div class="muted" style="font-size:12px; margin-top:2px;">${b.desc}</div>
+        ${b.got ? `<div style="font-size:12px; color:var(--green, #16a34a); font-weight:700; margin-top:4px;">✅ خدتها</div>` : ""}
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+/* ترتيب الطالب الأسبوعي بين طلبة مدرسيه في نفس الصف — أرقام بس من غير أسماء (خصوصية الطلبة).
+   النقاط من activityLog الأسبوعي مع إلغاء التكرار (نفس النشاط ميتحسبش مرتين). */
+async function sMyWeeklyRank() {
+  try {
+    const myGrade = fbProfile && fbProfile.grade;
+    const tids = ((fbProfile && fbProfile.teacherIds) || []).slice(0, 10);
+    if (!myGrade || !tids.length) return null;
+    const ws = weekStartFriday();
+    const snap = await fbDb.collection("activityLog").where("teacherId", "in", tids).get();
+    const pts = {}; const seen = new Set();
+    snap.docs.forEach((d) => {
+      const a = d.data();
+      const t = a && a.ts && a.ts.toDate ? a.ts.toDate() : null;
+      if (!t || t < ws || (a.grade || "") !== myGrade || !a.studentId) return;
+      const key = a.studentId + "|" + (a.kind || "") + "|" + (a.refId || "");
+      if (seen.has(key)) return;
+      seen.add(key);
+      pts[a.studentId] = (pts[a.studentId] || 0) + (Number(a.points) || 0);
+    });
+    const mine = pts[fbUser.uid] || 0;
+    const rivals = Object.keys(pts).length;
+    if (!rivals) return null;
+    const rank = Object.values(pts).filter((p) => p > mine).length + 1;
+    return { rank, rivals, mine };
+  } catch (_) { return null; }
+}
+function sRankCardHtml(r) {
+  if (!r) return "";
+  return `<div class="card" style="border-right:4px solid var(--amber, #f59e0b);">
+    <div class="btnrow" style="justify-content:space-between; flex-wrap:wrap;">
+      <b style="font-size:15px;">🏆 ترتيبك الأسبوعي: <span style="color:var(--primary-dark);">المركز ${r.rank} من ${r.rivals}</span> في صفك</b>
+      <span class="chip amber">${r.mine} نقطة الأسبوع ده</span>
+    </div>
+    <div class="muted" style="font-size:12px; margin-top:6px;">الترتيب بين طلبة مدرسيك في نفس صفك بس، والنقاط بتتصفر كل جمعة. مفيش أسماء — الترتيب ده ليك انت بس.</div>
   </div>`;
 }
 

@@ -13,10 +13,18 @@ service cloud.firestore {
         && (request.auth.token.email == "osamaasas0@gmail.com"
             || exists(/databases/$(database)/documents/admins/$(request.auth.token.email)));
     }
+    // اشتراك المدرس ساري: مجاني، أو من غير تاريخ نهاية، أو تاريخ النهاية لسه ماجاش
+    function teacherSubActive(tid) {
+      let d = get(/databases/$(database)/documents/teachers/$(tid)).data;
+      return d.get("subType", "free") == "free"
+        || d.get("subEnd", null) == null
+        || request.time <= d.subEnd;
+    }
     function isTeacher() {
       return request.auth != null
         && exists(/databases/$(database)/documents/teachers/$(request.auth.uid))
-        && get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.active == true;
+        && get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.active == true
+        && teacherSubActive(request.auth.uid);
     }
 
     // الترم الحالي من إعدادات المنصة — ترم أول افتراضياً لو مستند الإعدادات مش موجود
@@ -42,8 +50,12 @@ service cloud.firestore {
     // المدرس مش موقوف من الأدمن (النسخة العامة متاحة للكل وactive=false يعني موقوف)
     // المحتوى القديم لمدرس مفقودة نسخته العامة يفضل متاح — الاستبعاد بيحصل بس لما active=false صراحة
     function teacherNotAdminSuspended(tid) {
+      let pub = get(/databases/$(database)/documents/teachersPublic/$(tid)).data;
       return !exists(/databases/$(database)/documents/teachersPublic/$(tid))
-        || get(/databases/$(database)/documents/teachersPublic/$(tid)).data.get("active", true) != false;
+        || (pub.get("active", true) != false
+            && (pub.get("subType", "free") == "free"
+                || pub.get("subEnd", null) == null
+                || request.time <= pub.subEnd));
     }
 
     // المشرفين: مفتاح المستند هو الإيميل. القراءة والإضافة والحذف للأدمن بس،
@@ -55,9 +67,10 @@ service cloud.firestore {
       allow delete: if isAdmin() && email != "osamaasas0@gmail.com";
     }
 
-    // إعدادات المنصة (الترم الحالي): أي مستخدم مسجل يقرا، والكتابة للأدمن بس
+    // إعدادات المنصة: الترم الحالي والنبذة أي مستخدم مسجل يقراهم،
+    // وجملة أسفل الصفحات (footer) قراءتها عامة عشان تظهر في صفحة الدخول، والكتابة للأدمن بس
     match /settings/{docId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null || docId == "footer";
       allow write: if isAdmin();
     }
 
@@ -68,7 +81,9 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
         || (isTeacher() && request.auth.uid == teacherId
-            && request.resource.data.active == resource.data.active);
+            && request.resource.data.active == resource.data.active
+            // حقول الاشتراك يديرها الأدمن بس — المدرس ميعرفش يمدد لنفسه
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["subType", "subAmount", "subStart", "subEnd"]));
     }
 
     // أسماء ومواد وصور المدرسين للعرض العام في صفحة التسجيل وعند طلابهم — من غير تليفونات.
@@ -276,6 +291,43 @@ service cloud.firestore {
         || (isTeacher() && request.auth.uid in resource.data.teacherIds)
         || (request.auth != null && request.auth.token.email == resource.data.email
             && resource.data.get("authLinked", false) != true);
+    }
+
+    // سجل مدفوعات اشتراكات المدرسين: حسابات الأدمن الخاصة — هو بس اللي يقرا ويكتب
+    match /subscriptionPayments/{paymentId} {
+      allow read, write: if isAdmin();
+    }
+
+    // سجل نشاط الأدمن: بيتكتب مرة واحدة مع كل حركة وميتعدلش وبيتحذفش أبداً
+    match /adminLog/{entryId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // سجل نشاط الطلبة اليومي (نقاط الأسبوع للوحة الشرف + سلسلة المذاكرة):
+    // الطالب يكتب عن نفسه بس وبنقاط ثابتة (درس 10 / اختبار 20) ولمدرس من مدرسينه؛
+    // القراءة: الأدمن، أو المدرس صاحب النشاط، أو طالب عنده نفس المدرس
+    // (بيحسب ترتيبه من غير ما يشوف أسماء — السجل مفيهوش أسماء)
+    match /activityLog/{entryId} {
+      allow get, list: if isAdmin()
+        || (isTeacher() && resource.data.teacherId == request.auth.uid)
+        || (request.auth != null && studentActive()
+            && resource.data.teacherId in studentData().teacherIds);
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.studentId
+        && studentActive()
+        && request.resource.data.teacherId in studentData().teacherIds
+        && notSuspendedBy(request.resource.data.teacherId)
+        && request.resource.data.points in [10, 20]
+        && request.resource.data.kind in ["lesson", "quiz"];
+      allow update, delete: if false;
+    }
+
+    // الإعلان العام: مستند واحد "current" يكتبه الأدمن ويقراه أي مستخدم مسجل
+    match /broadcasts/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 }

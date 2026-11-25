@@ -2,16 +2,50 @@
    يضيف مدرسين (بإنشاء حسابهم في Firebase Auth) ويقدر يعطّلهم أو يشطبهم.
    تقرير الطلاب بعدد طلاب كل مدرس ومستوى كل طالب في كل مادة. */
 
-let adminCache = { teachers: null, students: null, subjects: null, admins: null, library: null };
+let adminCache = { teachers: null, students: null, subjects: null, admins: null, library: null, payments: null, log: null, broadcast: null };
+
+/* سجل نشاط الأدمن: بيتكتب مع كل حركة حساسة — نار ونسيان، فشل التسجيل ميوقفش الحركة */
+function adminLogAction(action, targetType, targetId, targetName, details) {
+  try {
+    fbDb.collection("adminLog").add({
+      action, targetType: targetType || "", targetId: targetId || "", targetName: targetName || "",
+      details: details || "",
+      by: (fbProfile && fbProfile.name) || (fbUser && fbUser.email) || "الأدمن",
+      at: firebase.firestore.FieldValue.serverTimestamp(),
+    }).catch((e) => console.warn("فشل تسجيل الحركة في السجل", e));
+  } catch (_) {}
+}
+
+/* تسجيل دفعة اشتراك مدرس (تلقائي مع التجديد أو يدوي من صفحة المدرس) */
+function recordPayment(batch, t, subData, note) {
+  const ref = fbDb.collection("subscriptionPayments").doc();
+  const data = {
+    teacherId: t.id, teacherName: t.name || "",
+    subType: subData.subType, amount: Number(subData.subAmount) || 0,
+    from: subData.subStart || null, to: subData.subEnd || null,
+    note: note || "",
+    paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+    recordedBy: (fbProfile && fbProfile.name) || (fbUser && fbUser.email) || "الأدمن",
+  };
+  if (batch) batch.set(ref, data); else fbDb.collection("subscriptionPayments").doc().set(data).catch(() => {});
+  adminLogAction("تسجيل دفعة", "teacher", t.id, t.name || "", `${SUB_TYPES[subData.subType] || subData.subType} — ${data.amount} ج${note ? " — " + note : ""}`);
+}
 
 async function adminLoad() {
-  const [t, s, sub, adm, lib] = await Promise.all([
+  const [t, s, sub, adm, lib, pay, lg, bc] = await Promise.all([
     fbDb.collection("teachers").orderBy("createdAt", "desc").get(),
     fbDb.collection("students").orderBy("createdAt", "desc").get(),
     fbDb.collection("subjects").get(),
     fbDb.collection("admins").get(),
     fbDb.collection("library").orderBy("createdAt", "desc").get(),
+    fbDb.collection("subscriptionPayments").orderBy("paidAt", "desc").limit(500).get(),
+    fbDb.collection("adminLog").orderBy("at", "desc").limit(300).get(),
+    fbDb.collection("broadcasts").doc("current").get(),
   ]);
+  adminCache.payments = pay.docs.map((d) => ({ id: d.id, ...d.data() }));
+  adminCache.log = lg.docs.map((d) => ({ id: d.id, ...d.data() }));
+  adminCache.broadcast = bc.exists ? bc.data() : null;
+  await Promise.all([loadAboutSettings(), loadFooterSettings()]); // النبذة وجملة الأسفل
   adminCache.teachers = t.docs.map((d) => ({ id: d.id, ...d.data() }));
   adminCache.students = s.docs.map((d) => ({ id: d.id, ...d.data() }));
   const stageOrder = { "ابتدائي": 0, "إعدادي": 1, "ثانوي": 2 };
@@ -34,12 +68,18 @@ async function adminLoad() {
         batch.set(fbDb.collection("teachersPublic").doc(t.id), {
           name: t.name || "", subject: t.subject || "", stages: t.stages || [],
           email: (t.email || "").toLowerCase(), avatar: av, active: t.active !== false,
+          subType: t.subType || "free", subEnd: t.subEnd || null,
         });
         dirty++;
       } else {
         const fix = {};
         if ((p.email || "") !== (t.email || "").toLowerCase()) fix.email = (t.email || "").toLowerCase();
         if ((p.avatar || "") !== av) fix.avatar = av;
+        // مزامنة نوع ونهاية الاشتراك مع النسخة العامة (طلاب المدرس المنتهي اشتراكه ميشوفوش محتواه)
+        if ((p.subType || "free") !== (t.subType || "free")) fix.subType = t.subType || "free";
+        const pEnd = p.subEnd && p.subEnd.toMillis ? p.subEnd.toMillis() : null;
+        const tEnd = t.subEnd && t.subEnd.toMillis ? t.subEnd.toMillis() : null;
+        if (pEnd !== tEnd) fix.subEnd = t.subEnd || null;
         if (Object.keys(fix).length) { batch.update(fbDb.collection("teachersPublic").doc(t.id), fix); dirty++; }
       }
     });
@@ -69,12 +109,15 @@ function adminLayout(content, tab) {
       <button type="button" class="tab ${tab === "subjects" ? "active" : ""}" data-g="#/admin/subjects">المواد الدراسية</button>
       <button type="button" class="tab ${tab === "library" ? "active" : ""}" data-g="#/admin/library">المكتبة العامة</button>
       <button type="button" class="tab ${tab === "reports" ? "active" : ""}" data-g="#/admin/reports">التقارير</button>
+      <button type="button" class="tab ${tab === "log" ? "active" : ""}" data-g="#/admin/log">السجل</button>
       <button type="button" class="tab ${tab === "admins" ? "active" : ""}" data-g="#/admin/admins">المشرفين</button>
     </div>
     ${content}
+    ${aboutTeaserHtml()}
     ${closing()}`;
   document.querySelectorAll(".tab[data-g]").forEach((b) => b.onclick = () => location.hash = b.dataset.g);
   bindPlatNav();
+  bindAboutTeaser();
   window.scrollTo(0, 0);
 }
 
@@ -89,7 +132,7 @@ async function renderAdmin(h) {
     const tid = decodeURIComponent(h.slice("#/admin/teacher-content/".length));
     return renderAdminTeacherContent(tid);
   }
-  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : h === "#/admin/library" ? "library" : h === "#/admin/reports" ? "reports" : h === "#/admin/admins" ? "admins" : h === "#/admin/profile" ? "profile" : h === "#/admin/transfer" ? "transfer" : "stats";
+  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : h === "#/admin/library" ? "library" : h === "#/admin/reports" ? "reports" : h === "#/admin/log" ? "log" : h === "#/admin/admins" ? "admins" : h === "#/admin/profile" ? "profile" : h === "#/admin/transfer" ? "transfer" : "stats";
   if (tab === "profile") return adminProfile();
   if (tab === "transfer") return adminTransferPage();
   if (tab === "teachers") return adminTeachers();
@@ -97,8 +140,41 @@ async function renderAdmin(h) {
   if (tab === "subjects") return adminSubjects();
   if (tab === "library") return adminLibrary();
   if (tab === "reports") return adminReports();
+  if (tab === "log") return adminLogPage();
   if (tab === "admins") return adminAdmins();
   return adminStats();
+}
+
+/* ---------- تاب السجل ----------
+   كل حركات الأدمن الحساسة (إضافة/إيقاف/حذف/نقل/دفعات/إعلانات) مرتبة بالأحدث.
+   السجل قراءة فقط من اللوحة — مفيش تعديل أو مسح، والقواعد بتمنعهم من أساسه. */
+let logFilter = { action: "", from: "", to: "" };
+function adminLogPage() {
+  if (bailIfSignedOut()) return; // رندر متأخر بعد الخروج يرجع للدخول
+  const ACTIONS = ["إضافة مدرس", "تعديل مدرس", "إيقاف مدرس مؤقتًا", "إلغاء إيقاف مدرس", "حذف مدرس نهائيًا", "قبول طالب", "حذف طالب نهائيًا", "نقل جماعي", "تغيير الترم", "إضافة مادة", "حذف مادة", "تسجيل دفعة", "نشر إعلان", "إيقاف إعلان"];
+  let list = (adminCache.log || []).slice();
+  if (logFilter.action) list = list.filter((l) => l.action === logFilter.action);
+  if (logFilter.from) list = list.filter((l) => { const d = tsToDate(l.at); return d && subDateStr(d) >= logFilter.from; });
+  if (logFilter.to) list = list.filter((l) => { const d = tsToDate(l.at); return d && subDateStr(d) <= logFilter.to; });
+  const content = `
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">📋 سجل النشاط (${list.length})</h2>
+      <p class="muted" style="font-size:13px; margin-top:0;">آخر 300 حركة، الأحدث الأول. السجل بيتكتب تلقائيًا مع كل حركة حساسة ومبيتعدلش ولا بيتمسح.</p>
+      <div class="filterrow">
+        <select id="lf-action" class="inp"><option value="">كل الحركات</option>
+          ${ACTIONS.map((a) => `<option ${logFilter.action === a ? "selected" : ""}>${a}</option>`).join("")}</select>
+        <input id="lf-from" type="date" class="inp" value="${esc(logFilter.from)}" title="من تاريخ">
+        <input id="lf-to" type="date" class="inp" value="${esc(logFilter.to)}" title="إلى تاريخ">
+      </div>
+      ${list.length ? `<div style="overflow-x:auto;"><table class="ttable">
+        <thead><tr><th>التاريخ</th><th>الحركة</th><th>الهدف</th><th>التفاصيل</th><th>بواسطة</th></tr></thead>
+        <tbody>${list.map((l) => `<tr>
+          <td class="ltr">${fmtTs(l.at)}</td><td>${esc(l.action || "—")}</td><td>${esc(l.targetName || "—")}</td><td>${esc(l.details || "—")}</td><td>${esc(l.by || "—")}</td>
+        </tr>`).join("")}</tbody></table></div>` : `<p class="muted center">مفيش حركات بالفلاتر دي لسه.</p>`}
+    </div>`;
+  adminLayout(content, "log");
+  const lf = (id, key) => { const el = document.getElementById(id); if (el) el.onchange = (e) => { logFilter[key] = e.target.value; adminLogPage(); }; };
+  lf("lf-action", "action"); lf("lf-from", "from"); lf("lf-to", "to");
 }
 
 function adminStats() {
@@ -127,6 +203,58 @@ function adminStats() {
       <div class="statcard"><div class="num">${approved}</div><div class="lbl">طالب مقبول</div></div>
       <div class="statcard"><div class="num">${pending}</div><div class="lbl">طلب تحت المراجعة</div></div>
     </div>
+    ${(() => {
+      // كارت اشتراكات المدرسين: عدادات + اللي قرب يخلص أو خلّص مع زرار تجديد سريع
+      const subs = teachers.map((t) => ({ t, si: subInfo(t) }));
+      const active = subs.filter((x) => x.si.status === "active" || x.si.status === "expiring").length;
+      const expiring = subs.filter((x) => x.si.status === "expiring");
+      const expired = subs.filter((x) => x.si.status === "expired");
+      const free = subs.filter((x) => x.si.status === "free").length;
+      const watch = [...expired, ...expiring];
+      return `<div class="card">
+      <h2 style="font-size:18px; margin-top:0;">اشتراكات المدرسين</h2>
+      <div class="statcards">
+        <div class="statcard"><div class="num">${active}</div><div class="lbl">اشتراك نشط</div></div>
+        <div class="statcard amber"><div class="num">${expiring.length}</div><div class="lbl">قرب ينتهي</div></div>
+        <div class="statcard red"><div class="num">${expired.length}</div><div class="lbl">منتهي</div></div>
+        <div class="statcard"><div class="num">${free}</div><div class="lbl">مجاني</div></div>
+      </div>
+      ${watch.length ? `<table class="ttable resp">
+        <thead><tr><th>المدرس</th><th>النوع</th><th>المبلغ</th><th>النهاية</th><th>الحالة</th><th></th></tr></thead>
+        <tbody>${watch.map(({ t, si }) => `<tr>
+          <td data-h="المدرس">${esc(t.name)}</td>
+          <td data-h="النوع">${si.label}</td>
+          <td data-h="المبلغ" class="ltr">${si.amount || 0} ج</td>
+          <td data-h="النهاية" class="ltr">${subFmtDate(si.end)}</td>
+          <td data-h="الحالة">${subChip(si)}</td>
+          <td><button type="button" class="btn sm" data-subren="${t.id}">تجديد</button></td>
+        </tr>`).join("")}</tbody>
+      </table>` : `<p class="muted" style="margin:4px 2px 0;">مفيش اشتراكات قربت تخلص أو خلصت. عدّل اشتراك أي مدرس من تاب "المدرسين".</p>`}
+    </div>`;
+    })()}
+    ${(() => {
+      // كارت الإعلان العام: نص واحد بيوصل للكل أو لفئة معينة لمدة محددة
+      const bc = adminCache.broadcast;
+      const bcTxt = activeBroadcastText(bc, "admin");
+      const bcAud = { all: "الكل", teachers: "المدرسين بس", students: "الطلاب بس" };
+      const bcUntil = bc && tsToDate(bc.until);
+      return `<div class="card" style="border-right:4px solid var(--amber, #f59e0b);">
+      <h2 style="font-size:18px; margin-top:0;">📢 إعلان عام</h2>
+      ${bcTxt ? `<div class="card card-sub" style="margin:0 0 10px;">
+        <b style="font-size:13.5px;">الإعلان الشغال دلوقتي (${bcAud[(bc && bc.audience) || "all"] || "الكل"}${bcUntil ? " — حتى " + subFmtDate(bcUntil) : ""}):</b>
+        <p style="font-size:13.5px; margin:6px 0 0; white-space:pre-wrap;">${esc(bcTxt)}</p>
+        <div class="btnrow" style="margin-top:8px;"><button type="button" class="btn red sm" id="bc-del">إيقاف الإعلان</button></div>
+      </div>` : ""}
+      <textarea id="bc-text" class="inp" rows="2" placeholder="اكتب نص الإعلان... مثال: المنصة هتتجدد يوم الجمعة الساعة 11 بليل" style="resize:vertical;"></textarea>
+      <div class="btnrow" style="align-items:center; margin-top:8px;">
+        <select id="bc-aud" class="inp" style="width:auto;"><option value="all">للكل</option><option value="teachers">للمدرسين بس</option><option value="students">للطلاب بس</option></select>
+        <select id="bc-days" class="inp" style="width:auto;"><option value="1">لمدة يوم</option><option value="3" selected>3 أيام</option><option value="7">أسبوع</option></select>
+        <button type="button" class="btn blue" id="bc-pub">نشر الإعلان</button>
+      </div>
+      <p class="muted" style="font-size:12.5px; margin:6px 0 0;">الإعلان بيظهر بانر فوق لوحة المدرس ولوحة الطالب حسب الفئة اللي اخترتها، وبيختفي لوحده بعد المدة.</p>
+      <p class="msg" id="bc-msg"></p>
+    </div>`;
+    })()}
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">المراحل والصفوف</h2>
       <p class="muted" style="font-size:13px; margin-top:0;">كل مرحلة بصفوفها، وعدد الطلاب في كل صف.</p>
@@ -174,15 +302,50 @@ function adminStats() {
       </table>
     </div>`;
   adminLayout(content, "stats");
+  // تجديد سريع: يفتح فورم المدرس في تاب المدرسين
+  document.querySelectorAll("[data-subren]").forEach((b) => b.onclick = () => { editingTeacherId = b.dataset.subren; location.hash = "#/admin/teachers"; });
   document.getElementById("term-save").onclick = async () => {
     const v = Number((document.querySelector('input[name="cur-term"]:checked') || {}).value || 1);
     const m = document.getElementById("term-msg");
     try {
       await fbDb.collection("settings").doc("app").set({ currentTerm: v }, { merge: true });
+      adminLogAction("تغيير الترم", "settings", "app", "", `الترم الحالي بقى: ${termName(v)}`);
       appSettings.currentTerm = v;
       showToast("الترم الحالي بقى: " + termName(v) + " ✅", "good");
       adminStats();
     } catch (e) { m.className = "msg bad"; m.textContent = "مشكلة: " + (e.message || e); }
+  };
+  // نشر/إيقاف الإعلان العام
+  const bcPub = document.getElementById("bc-pub");
+  if (bcPub) bcPub.onclick = async () => {
+    const m = document.getElementById("bc-msg");
+    const text = document.getElementById("bc-text").value.trim();
+    const audience = document.getElementById("bc-aud").value;
+    const days = Number(document.getElementById("bc-days").value || 3);
+    if (!text) { m.className = "msg bad"; m.textContent = "اكتب نص الإعلان الأول."; return; }
+    try {
+      const until = new Date(); until.setDate(until.getDate() + days); until.setHours(23, 59, 59, 0);
+      await fbDb.collection("broadcasts").doc("current").set({
+        text, audience,
+        until: firebase.firestore.Timestamp.fromDate(until),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      adminLogAction("نشر إعلان", "broadcast", "current", "", text.slice(0, 80));
+      showToast("اتنشر الإعلان ✅", "good");
+      await adminLoad();
+      adminStats();
+    } catch (e) { m.className = "msg bad"; m.textContent = "مشكلة: " + (e.message || e); }
+  };
+  const bcDel = document.getElementById("bc-del");
+  if (bcDel) bcDel.onclick = async () => {
+    if (!confirm("إيقاف الإعلان الحالي؟ هيختفي من عند الكل فورًا.")) return;
+    try {
+      await fbDb.collection("broadcasts").doc("current").delete();
+      adminLogAction("إيقاف إعلان", "broadcast", "current", "", "");
+      showToast("اتوقف الإعلان.", "good");
+      await adminLoad();
+      adminStats();
+    } catch (e) { alert("مشكلة: " + (e.message || e)); }
   };
   document.querySelectorAll("[data-rv-t]").forEach((tr) => tr.onclick = () => adminShowTeacher(tr.dataset.rvT));
   document.querySelectorAll("[data-rv-s]").forEach((tr) => tr.onclick = () => adminShowStudent(tr.dataset.rvS));
@@ -385,6 +548,7 @@ async function adminAddSubject() {
       name, stage, grade, core: false,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
+    adminLogAction("إضافة مادة", "subject", "", name, `${stage}${grade ? " — " + grade : ""}`);
     sjMsg("اتضافت المادة ✅", true);
     await adminLoad();
     adminSubjects();
@@ -418,6 +582,7 @@ async function adminDeleteSubject(id) {
   if (!confirm(`متأكد إنك عايز تحذف مادة "${s ? s.name : ""}"؟`)) return;
   try {
     await fbDb.collection("subjects").doc(id).delete();
+    adminLogAction("حذف مادة", "subject", id, s ? s.name : "", "");
     await adminLoad();
     adminSubjects();
   } catch (e) { alert("مشكلة: " + (e.message || e)); }
@@ -438,6 +603,7 @@ function showDetail(title, rows) {
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   document.body.appendChild(ov);
   ov.querySelector("#ov-close").onclick = () => ov.remove();
+  return ov;
 }
 
 function adminShowTeacher(id) {
@@ -456,7 +622,76 @@ function adminShowTeacher(id) {
     ["عدد الطلاب", String(mine.length)],
     ["طلاب كل مرحلة", esc(teacherStagesText(t))],
     ["أسماء الطلاب", mine.length ? mine.map((s) => esc(s.name)).join("، ") : "—"],
+    ["الاشتراك", `${subChip(subInfo(t))} ${subInfo(t).end ? "حتى " + subFmtDate(subInfo(t).end) : ""}`],
   ]);
+  // سجل المدفوعات + زر تسجيل دفعة جديدة جوه نفس المودال
+  const ov = document.querySelectorAll(".overlay");
+  const cur = ov[ov.length - 1];
+  const pays = (adminCache.payments || []).filter((p) => p.teacherId === id);
+  const card = cur && cur.querySelector(".detailcard");
+  if (card) {
+    const sec = document.createElement("div");
+    sec.innerHTML = `
+      <h3 style="font-size:16px; margin:14px 0 8px;">💰 سجل المدفوعات (${pays.length})</h3>
+      ${pays.length ? `<div style="max-height:180px; overflow-y:auto;"><table class="ttable"><thead><tr><th>التاريخ</th><th>النوع</th><th>الفترة</th><th>المبلغ</th><th>ملاحظة</th></tr></thead>
+        <tbody>${pays.map((p) => `<tr><td>${fmtTs(p.paidAt)}</td><td>${esc(SUB_TYPES[p.subType] || p.subType || "—")}</td><td>${p.from ? subFmtDate(tsToDate(p.from)) : "—"} ← ${p.to ? subFmtDate(tsToDate(p.to)) : "—"}</td><td>${p.amount || 0} ج</td><td>${esc(p.note || "—")}</td></tr>`).join("")}</tbody></table></div>`
+        : `<p class="muted" style="font-size:13px;">مفيش دفعات مسجلة لسه.</p>`}
+      <div class="btnrow" style="margin-top:10px;"><button type="button" class="btn blue sm" id="pay-add">💰 تسجيل دفعة / تجديد</button></div>`;
+    card.insertBefore(sec, card.querySelector(".btnrow"));
+    sec.querySelector("#pay-add").onclick = () => { cur.remove(); adminPaymentModal(t); };
+  }
+}
+
+/* مودال تسجيل دفعة اشتراك: بيحدّث اشتراك المدرس ويسجّل الدفعة في نفس الباتش.
+   تاريخ النهاية بيتحسب تلقائي حسب النوع (شهر / 4 شهور / سنة) وقابل للتعديل. */
+function adminPaymentModal(t) {
+  const si = subInfo(t);
+  const today = subDateStr(new Date());
+  const defStart = today;
+  const ov = openConfirmOverlay(`
+    <b style="font-size:17px;">💰 تسجيل دفعة — ${esc(t.name || "")}</b>
+    <p class="muted" style="font-size:12.5px; margin:6px 0 12px;">الاشتراك الحالي: ${si.type === "free" ? "مجاني" : `${SUB_TYPES[si.type]}${si.end ? " — بينتهي " + subFmtDate(si.end) : ""}`}. تسجيل الدفعة بيحدّث اشتراك المدرس فورًا.</p>
+    <div class="grid2">
+      <div><label class="flabel">نوع الاشتراك</label><select id="pm-type" class="inp">${Object.keys(SUB_TYPES).filter((k) => k !== "free").map((k) => `<option value="${k}" ${si.type === k ? "selected" : ""}>${SUB_TYPES[k]}</option>`).join("")}</select></div>
+      <div><label class="flabel">المبلغ (ج)</label><input id="pm-amount" type="number" min="0" class="inp" value="${si.amount || ""}" placeholder="مثال: 200"></div>
+      <div><label class="flabel">من تاريخ</label><input id="pm-from" type="date" class="inp" value="${defStart}"></div>
+      <div><label class="flabel">إلى تاريخ</label><input id="pm-to" type="date" class="inp"></div>
+    </div>
+    <label class="flabel" style="margin-top:8px;">ملاحظة (اختياري)</label><input id="pm-note" type="text" class="inp" placeholder="مثال: دفع فودافون كاش">
+    <div class="btnrow" style="margin-top:12px;"><button type="button" class="btn blue" id="pm-ok">حفظ الدفعة وتجديد الاشتراك</button><button type="button" class="btn ghost" id="pm-no">إلغاء</button></div>
+    <p class="msg" id="pm-msg"></p>`);
+  const typeEl = ov.querySelector("#pm-type"), fromEl = ov.querySelector("#pm-from"), toEl = ov.querySelector("#pm-to");
+  const syncEnd = () => { toEl.value = subEndDefault(typeEl.value, fromEl.value); };
+  syncEnd();
+  typeEl.onchange = syncEnd;
+  fromEl.onchange = syncEnd;
+  ov.querySelector("#pm-no").onclick = () => ov.remove();
+  ov.querySelector("#pm-ok").onclick = async () => {
+    const m = ov.querySelector("#pm-msg");
+    const subType = typeEl.value;
+    const amount = Number(ov.querySelector("#pm-amount").value || 0);
+    const from = fromEl.value, to = toEl.value, note = ov.querySelector("#pm-note").value.trim();
+    if (!from || !to) { m.className = "msg bad"; m.textContent = "حدد بداية ونهاية الفترة."; return; }
+    if (to <= from) { m.className = "msg bad"; m.textContent = "نهاية الفترة لازم تكون بعد البداية."; return; }
+    const btn = ov.querySelector("#pm-ok");
+    btn.disabled = true;
+    m.className = "msg"; m.textContent = "بنحفظ...";
+    const subData = {
+      subType, subAmount: amount,
+      subStart: firebase.firestore.Timestamp.fromDate(new Date(from + "T00:00:00")),
+      subEnd: firebase.firestore.Timestamp.fromDate(new Date(to + "T23:59:59")),
+    };
+    try {
+      const batch = fbDb.batch();
+      batch.update(fbDb.collection("teachers").doc(t.id), subData);
+      batch.update(fbDb.collection("teachersPublic").doc(t.id), { subType, subEnd: subData.subEnd });
+      recordPayment(batch, t, subData, note);
+      await batch.commit();
+      ov.remove();
+      showToast(`اتسجلت الدفعة واشتراك ${t.name || "المدرس"} بقى ${SUB_TYPES[subType]} حتى ${subFmtDate(subData.subEnd.toDate())} ✅`, "good");
+      await renderAdmin(location.hash || "#/admin");
+    } catch (e) { btn.disabled = false; m.className = "msg bad"; m.textContent = "مشكلة: " + (e.message || e); }
+  };
 }
 
 function adminShowStudent(id) {
@@ -509,6 +744,25 @@ function adminTeachers() {
           ${STAGES.map((st) => `<label><input type="checkbox" class="ta-stage" value="${st}" ${editing && (editing.stages || []).includes(st) ? "checked" : ""}> ${st}</label>`).join("")}
         </div>
       </div>
+      ${(() => {
+        // قسم الاشتراك: الأدمن بيحدد النوع والمبلغ والمدة لكل مدرس (المدرسين القدامى مجاني)
+        const si = subInfo(editing || {});
+        const curType = editing ? si.type : "free";
+        const curStart = editing && editing.subStart ? subDateStr(subEndOf({ subEnd: editing.subStart }) || new Date()) : subDateStr(new Date());
+        const curEnd = editing && si.end ? subDateStr(si.end) : subEndDefault(curType, curStart);
+        return `<div style="border-top:1px dashed var(--border); padding-top:14px; margin-top:4px;">
+        <label class="flabel">اشتراك المدرس (الاشتراك على المدرس كله مش على كل طالب)</label>
+        <div class="grid2">
+          <div><label class="flabel" style="font-size:12.5px;">نوع الاشتراك</label><select id="ta-subtype" class="inp">
+            ${Object.keys(SUB_TYPES).map((k) => `<option value="${k}" ${curType === k ? "selected" : ""}>${SUB_TYPES[k]}</option>`).join("")}
+          </select></div>
+          <div><label class="flabel" style="font-size:12.5px;">مبلغ الاشتراك (ج)</label><input id="ta-subamount" type="number" min="0" step="1" class="inp ltr" value="${editing && editing.subAmount ? Number(editing.subAmount) : ""}" placeholder="0"></div>
+          <div><label class="flabel" style="font-size:12.5px;">بداية الاشتراك</label><input id="ta-substart" type="date" class="inp ltr" value="${curType === "free" ? "" : curStart}"></div>
+          <div><label class="flabel" style="font-size:12.5px;">نهاية الاشتراك</label><input id="ta-subend" type="date" class="inp ltr" value="${curType === "free" ? "" : curEnd}"></div>
+        </div>
+        <p class="muted" style="font-size:12.5px; margin:6px 2px 0;">المدرس المجاني مفيش عليه انتهاء. لو الاشتراك انتهى بيتوقف حساب المدرس ومحتواه بيختفي عن طلابه لحد التجديد. تاريخ النهاية بيتحسب تلقائي من النوع والبداية وتقدر تعدّله.</p>
+      </div>`;
+      })()}
       <div>
         <label class="flabel">صورة المدرس (اختياري — بتتصغّر وتتحفظ مع بياناته)</label>
         <input id="ta-photo" type="file" accept="image/*" class="inp">
@@ -527,13 +781,14 @@ function adminTeachers() {
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">المدرسين (${teachers.length})</h2>
       <table class="ttable resp">
-        <thead><tr><th>الاسم</th><th>المادة</th><th>المراحل (طلاب كل مرحلة)</th><th>الإيميل</th><th>طلابه</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <thead><tr><th>الاسم</th><th>المادة</th><th>المراحل (طلاب كل مرحلة)</th><th>الإيميل</th><th>طلابه</th><th>الحالة</th><th>الاشتراك</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${teachers.length ? teachers.map((t) => {
             const mine = students.filter((s) => (s.teacherIds || []).includes(t.id)).length;
             return `<tr data-rv-t="${t.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
               <td data-h="الاسم">${t.photoData ? `<img src="${t.photoData}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-left:8px;">` : ""}${esc(t.name)}</td><td data-h="المادة">${esc(t.subject || "—")}</td><td data-h="المراحل">${esc(teacherStagesText(t))}</td><td class="ltr" data-h="الإيميل">${esc(t.email)}</td><td data-h="طلابه">${mine}</td>
               <td data-h="الحالة">${t.active === false ? '<span class="chip red">موقوف</span>' : '<span class="chip green">نشط</span>'}</td>
+              <td data-h="الاشتراك">${subChip(subInfo(t))}${subInfo(t).end ? `<div class="muted" style="font-size:12px; margin-top:3px;">${subInfo(t).label} · لحد <span class="ltr">${subFmtDate(subInfo(t).end)}</span></div>` : ""}</td>
               <td>
                 <div class="btnrow">
                   <button type="button" class="btn sm" data-tc="${t.id}">👁️ عرض المحتوى</button>
@@ -545,7 +800,7 @@ function adminTeachers() {
                 </div>
               </td>
             </tr>`;
-          }).join("") : `<tr><td colspan="7" class="center muted">لسه مفيش مدرسين</td></tr>`}
+          }).join("") : `<tr><td colspan="8" class="center muted">لسه مفيش مدرسين</td></tr>`}
         </tbody>
       </table>
       <p class="muted" style="font-size:12.5px; margin:10px 4px 0;">المدرس الموقوف بيختفي من صفحة التسجيل للطلبة الجداد ومحتواه بيتقفل على طلابه الحاليين لحد ما يرجع.</p>
@@ -564,6 +819,27 @@ function adminTeachers() {
       taMsg("الصورة دي مش مدعومة، جرّب صورة تانية (JPG أو PNG).");
     }
   };
+  // مدخلات الاشتراك: تعطيلها للنوع المجاني + حساب تاريخ النهاية تلقائيًا من النوع والبداية
+  const subTypeSel = document.getElementById("ta-subtype");
+  const subStartInp = document.getElementById("ta-substart");
+  const subEndInp = document.getElementById("ta-subend");
+  const subAmountInp = document.getElementById("ta-subamount");
+  const syncSubDisabled = () => {
+    const free = subTypeSel.value === "free";
+    [subStartInp, subEndInp, subAmountInp].forEach((x) => { x.disabled = free; });
+  };
+  subTypeSel.onchange = () => {
+    syncSubDisabled();
+    if (subTypeSel.value === "free") { subStartInp.value = ""; subEndInp.value = ""; }
+    else {
+      if (!subStartInp.value) subStartInp.value = subDateStr(new Date());
+      subEndInp.value = subEndDefault(subTypeSel.value, subStartInp.value);
+    }
+  };
+  subStartInp.onchange = () => {
+    if (subTypeSel.value !== "free" && subStartInp.value) subEndInp.value = subEndDefault(subTypeSel.value, subStartInp.value);
+  };
+  syncSubDisabled();
   document.getElementById("ta-add").onclick = adminSaveTeacher;
   const cancelBtn = document.getElementById("ta-cancel");
   if (cancelBtn) cancelBtn.onclick = () => { editingTeacherId = null; adminTeachers(); };
@@ -629,16 +905,38 @@ async function adminSaveTeacher() {
   if (!subject) return taMsg("اختار المادة من القايمة.");
   if (!stages.length) return taMsg("اختار مرحلة واحدة على الأقل اللي المدرس بيدرّسها.");
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return taMsg("اكتب إيميل صح.");
+  // بيانات الاشتراك: المجاني من غير تواريخ، غير كده لازم بداية ونهاية (النهاية بآخر يومها)
+  const subTypeEl = document.getElementById("ta-subtype");
+  const subType = subTypeEl && SUB_TYPES[subTypeEl.value] ? subTypeEl.value : "free"; // قيمة غريبة = مجاني
+  const subAmount = Number(document.getElementById("ta-subamount").value || 0);
+  const subStartStr = document.getElementById("ta-substart").value;
+  const subEndStr = document.getElementById("ta-subend").value;
+  if (subType !== "free") {
+    if (!subStartStr || !subEndStr) return taMsg("حدد بداية ونهاية الاشتراك، أو خلي النوع مجاني.");
+    if (subEndStr <= subStartStr) return taMsg("نهاية الاشتراك لازم تكون بعد البداية.");
+  }
+  const subData = subType === "free"
+    ? { subType: "free", subAmount: 0, subStart: null, subEnd: null }
+    : { subType, subAmount,
+        subStart: firebase.firestore.Timestamp.fromDate(new Date(subStartStr + "T00:00:00")),
+        subEnd: firebase.firestore.Timestamp.fromDate(new Date(subEndStr + "T23:59:59")) };
   if (editingTeacherId) {
     // تعديل بيانات مدرس موجود (السجل + النسخة العامة)
     try {
-      const newData = { name, subject, email, phone, stages };
+      const newData = { name, subject, email, phone, stages, ...subData };
       if (taPhotoData) newData.photoData = taPhotoData;
       const batch = fbDb.batch();
       batch.update(fbDb.collection("teachers").doc(editingTeacherId), newData);
-      const pubUpd = { name, subject, stages, email };
+      const pubUpd = { name, subject, stages, email, subType: subData.subType, subEnd: subData.subEnd };
       if (taPhotoData) pubUpd.avatar = taPhotoData;
       batch.update(fbDb.collection("teachersPublic").doc(editingTeacherId), pubUpd);
+      // لو الاشتراك اتجدد (تاريخ النهاية اتغير) سجّل الدفعة تلقائيًا مع الحفظ
+      const oldT = (adminCache.teachers || []).find((x) => x.id === editingTeacherId) || {};
+      const oldEnd = subEndOf(oldT), newEnd = subEndOf(subData);
+      if (subData.subType !== "free" && (!oldEnd || !newEnd || oldEnd.getTime() !== newEnd.getTime())) {
+        recordPayment(batch, { id: editingTeacherId, name }, subData);
+      }
+      adminLogAction("تعديل مدرس", "teacher", editingTeacherId, name, "");
       await batch.commit();
       taMsg("اتحفظت التعديلات ✅", true);
       editingTeacherId = null;
@@ -665,11 +963,14 @@ async function adminSaveTeacher() {
       name, email, subject, phone, stages,
       photoData: taPhotoData || "",
       active: true,
+      ...subData,
       emailVerifyRequired: true, // حساب جديد: لازم يفعّل إيميله قبل أول دخول
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     // نسخة عامة لصفحة التسجيل وتحذير "الإيميل مش مسجل" وصورة المدرس عند طلابه — من غير تليفون
-    batch.set(fbDb.collection("teachersPublic").doc(uid), { name, subject, stages, email, avatar: taPhotoData || "", active: true });
+    batch.set(fbDb.collection("teachersPublic").doc(uid), { name, subject, stages, email, avatar: taPhotoData || "", active: true, subType: subData.subType, subEnd: subData.subEnd });
+    if (subData.subType !== "free") recordPayment(batch, { id: uid, name }, subData, "أول اشتراك");
+    adminLogAction("إضافة مدرس", "teacher", uid, name, `المادة: ${subject}`);
     await batch.commit();
     taMsg("اتضاف المدرس " + name + " ✅ واتبعت لينك التفعيل على إيميله", true);
     adminCache.teachers = null;
@@ -692,6 +993,7 @@ async function adminToggleTeacher(id) {
       const batch = fbDb.batch();
       batch.update(fbDb.collection("teachers").doc(id), { active: t.active === false });
       batch.update(fbDb.collection("teachersPublic").doc(id), { active: t.active === false });
+      adminLogAction(t.active === false ? "إلغاء إيقاف مدرس" : "إيقاف مدرس مؤقتًا", "teacher", id, t.name || "", "");
       await batch.commit();
       showToast(t.active === false ? `رجع ${t.name} للمنصة ✅` : `اتوقف ${t.name} مؤقتًا.`, "good");
       await adminLoad();
@@ -736,6 +1038,7 @@ function adminDeleteTeacher(id) {
     m.className = "msg"; m.textContent = "بنحذف...";
     try {
       const c = await deleteTeacherEverywhere(t);
+      adminLogAction("حذف مدرس نهائيًا", "teacher", t.id, t.name || "", `${c.lessons} درس و${c.quizzes} كويز و${c.exams} امتحان`);
       ov.remove();
       showToast(`اتحذف ${t.name || "المدرس"} نهائيًا: ${c.lessons} درس و${c.quizzes} كويز و${c.exams} امتحان و${c.quizAttempts} محاولة، واتشال من قوائم ${c.students} طالب.`, "good");
       await adminLoad();
@@ -1130,6 +1433,7 @@ async function adminApprove(id) {
     if (s && s.email) {
       batch.update(fbDb.collection("registrationLookup").doc(String(s.email).toLowerCase()), { status: "approved" });
     }
+    adminLogAction("قبول طالب", "student", id, (s && s.name) || "", "");
     await batch.commit();
     await adminLoad();
     adminStudents();
@@ -1140,7 +1444,11 @@ async function adminApprove(id) {
 function adminDeleteStudent(id) {
   const s = (adminCache.students || []).find((x) => x.id === id);
   if (!s) return;
-  confirmDeleteStudent(s, async () => { await adminLoad(); adminStudents(); });
+  confirmDeleteStudent(s, async () => {
+    adminLogAction("حذف طالب نهائيًا", "student", s.id, s.name || "", s.grade || "");
+    await adminLoad();
+    adminStudents();
+  });
 }
 
 /* صفحة النقل الجماعي للأدمن — أي طلبة */
@@ -1151,12 +1459,13 @@ function adminTransferPage() {
     teachers: adminCache.teachers || [],
     wrap: (content) => adminLayout(content, "students"),
     backHash: "#/admin/students",
+    onTransfer: (n, from, to) => adminLogAction("نقل جماعي", "students", "", `${n} طالب`, `من «${from}» إلى «${to}»`),
     onDone: async () => { await adminLoad(); adminTransferPage(); },
   });
 }
 
 /* ---------- التقارير ---------- */
-let reportState = { type: "students", teacher: "", status: "", grade: "", stage: "", kind: "", q: "", from: "", to: "" };
+let reportState = { type: "students", teacher: "", status: "", grade: "", stage: "", kind: "", q: "", from: "", to: "", sub: "", month: "" };
 
 function statusText(st) {
   return st === "approved" ? "مقبول" : st === "rejected" ? "مرفوض" : "تحت المراجعة";
@@ -1184,12 +1493,34 @@ function buildReport() {
     let list = teachers.slice();
     if (reportState.subject) { list = list.filter((t) => (t.subject || "").trim() === reportState.subject); desc.push("المادة: " + reportState.subject); }
     if (reportState.status) { list = list.filter((t) => reportState.status === "active" ? t.active !== false : t.active === false); desc.push("الحالة: " + (reportState.status === "active" ? "نشط" : "معطّل")); }
+    if (reportState.sub) {
+      const subTxt = { free: "مجاني", active: "نشط", expiring: "قرب ينتهي", expired: "منتهي" };
+      list = list.filter((t) => subInfo(t).status === reportState.sub);
+      desc.push("الاشتراك: " + (subTxt[reportState.sub] || reportState.sub));
+    }
     if (reportState.q) { list = list.filter((t) => (t.name || "").includes(reportState.q) || (t.email || "").includes(reportState.q)); desc.push("بحث: " + reportState.q); }
     const rows = list.map((t) => {
       const mine = students.filter((s) => (s.teacherIds || []).includes(t.id)).length;
-      return [t.name || "", t.subject || "—", (t.stages || []).join("، ") || "—", teacherStagesText(t), t.email || "", t.phone || "", String(mine), t.active === false ? "معطّل" : "نشط", fmtTs(t.createdAt)];
+      const si = subInfo(t);
+      const subTxt = si.status === "free" ? "مجاني" : si.status === "expired" ? "منتهي" : si.status === "expiring" ? "قرب ينتهي" : "نشط";
+      return [t.name || "", t.subject || "—", (t.stages || []).join("، ") || "—", teacherStagesText(t), t.email || "", t.phone || "", String(mine), t.active === false ? "معطّل" : "نشط", si.label, si.type === "free" ? "—" : String(si.amount || 0), si.end ? subFmtDate(si.end) : "—", subTxt, fmtTs(t.createdAt)];
     });
-    return { title: "تقرير المدرسين", columns: ["الاسم", "المادة", "المراحل", "طلاب كل مرحلة", "الإيميل", "الواتساب", "عدد الطلاب", "الحالة", "تاريخ الإضافة"], rows, filtersDesc: desc };
+    return { title: "تقرير المدرسين", columns: ["الاسم", "المادة", "المراحل", "طلاب كل مرحلة", "الإيميل", "الواتساب", "عدد الطلاب", "الحالة", "الاشتراك", "مبلغ الاشتراك", "نهاية الاشتراك", "حالة الاشتراك", "تاريخ الإضافة"], rows, filtersDesc: desc };
+  }
+
+  // تقرير المدفوعات: كل دفعات اشتراكات المدرسين مع فلترة بالشهر والمدرس وإجمالي في الآخر
+  if (reportState.type === "payments") {
+    let list = (adminCache.payments || []).slice();
+    if (reportState.teacher) { list = list.filter((p) => p.teacherId === reportState.teacher); desc.push("المدرس: " + tName(reportState.teacher)); }
+    if (reportState.month) {
+      list = list.filter((p) => { const d = tsToDate(p.paidAt); return d && subDateStr(d).slice(0, 7) === reportState.month; });
+      desc.push("الشهر: " + reportState.month);
+    }
+    if (reportState.q) { list = list.filter((p) => (p.teacherName || "").includes(reportState.q) || (p.note || "").includes(reportState.q)); desc.push("بحث: " + reportState.q); }
+    const total = list.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    const rows = list.map((p) => [fmtTs(p.paidAt), p.teacherName || "—", SUB_TYPES[p.subType] || p.subType || "—", (p.from ? subFmtDate(tsToDate(p.from)) : "—") + " ← " + (p.to ? subFmtDate(tsToDate(p.to)) : "—"), String(p.amount || 0) + " ج", p.note || "—", p.recordedBy || "—"]);
+    if (rows.length) rows.push(["الإجمالي", "", "", "", String(total) + " ج", "", ""]);
+    return { title: "تقرير المدفوعات", columns: ["التاريخ", "المدرس", "النوع", "الفترة", "المبلغ", "ملاحظة", "سجلها"], rows, filtersDesc: desc };
   }
 
   if (reportState.type === "subjects") {
@@ -1252,6 +1583,17 @@ function adminReports() {
       <select id="rf-status" class="inp"><option value="">كل الحالات</option>
         <option value="active" ${reportState.status === "active" ? "selected" : ""}>نشط</option>
         <option value="inactive" ${reportState.status === "inactive" ? "selected" : ""}>معطّل</option></select>
+      <select id="rf-sub" class="inp"><option value="">كل الاشتراكات</option>
+        <option value="free" ${reportState.sub === "free" ? "selected" : ""}>مجاني</option>
+        <option value="active" ${reportState.sub === "active" ? "selected" : ""}>اشتراك نشط</option>
+        <option value="expiring" ${reportState.sub === "expiring" ? "selected" : ""}>قرب ينتهي</option>
+        <option value="expired" ${reportState.sub === "expired" ? "selected" : ""}>منتهي</option></select>
+      ` + filtersHtml;
+  } else if (reportState.type === "payments") {
+    filtersHtml = `
+      <select id="rf-teacher" class="inp"><option value="">كل المدرسين</option>
+        ${teachers.map((t) => `<option value="${t.id}" ${reportState.teacher === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
+      <input id="rf-month" type="month" class="inp" value="${esc(reportState.month)}" title="الشهر">
       ` + filtersHtml;
   } else {
     filtersHtml = `
@@ -1263,7 +1605,7 @@ function adminReports() {
       ` + filtersHtml;
   }
   const content = `
-    <div class="tabs">${typeBtn("students", "تقرير الطلاب")}${typeBtn("teachers", "تقرير المدرسين")}${typeBtn("subjects", "تقرير المواد")}</div>
+    <div class="tabs">${typeBtn("students", "تقرير الطلاب")}${typeBtn("teachers", "تقرير المدرسين")}${typeBtn("payments", "تقرير المدفوعات")}${typeBtn("subjects", "تقرير المواد")}</div>
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">${rep.title} (${rep.rows.length})</h2>
       <div class="filterrow">${filtersHtml}</div>
@@ -1284,7 +1626,7 @@ function adminReports() {
       <p class="muted" style="font-size:12.5px;">الطباعة والتصدير بيطلعوا اللي قدامك بالفلاتر الحالية. امسح الفلاتر لو عايز التقرير الكامل.</p>
     </div>`;
   adminLayout(content, "reports");
-  document.querySelectorAll("[data-rt]").forEach((b) => b.onclick = () => { reportState = { type: b.dataset.rt, teacher: "", status: "", grade: "", stage: "", kind: "", q: "", from: "", to: "" }; adminReports(); });
+  document.querySelectorAll("[data-rt]").forEach((b) => b.onclick = () => { reportState = { type: b.dataset.rt, teacher: "", status: "", grade: "", stage: "", kind: "", q: "", from: "", to: "", sub: "", month: "" }; adminReports(); });
   const bind = (id, key, ev) => { const el = document.getElementById(id); if (el) el[ev] = (e) => { reportState[key] = e.target.value.trim ? e.target.value.trim() : e.target.value; adminReports(); }; };
   bind("rf-teacher", "teacher", "onchange");
   bind("rf-status", "status", "onchange");
@@ -1292,11 +1634,13 @@ function adminReports() {
   bind("rf-stage", "stage", "onchange");
   bind("rf-kind", "kind", "onchange");
   bind("rf-subject", "subject", "onchange");
+  bind("rf-sub", "sub", "onchange");
   bind("rf-from", "from", "onchange");
   bind("rf-to", "to", "onchange");
+  bind("rf-month", "month", "onchange");
   const q = document.getElementById("rf-q");
   if (q) q.onchange = (e) => { reportState.q = e.target.value.trim(); adminReports(); };
-  document.getElementById("rp-clear").onclick = () => { const t = reportState.type; reportState = { type: t, teacher: "", status: "", grade: "", stage: "", kind: "", q: "", from: "", to: "" }; adminReports(); };
+  document.getElementById("rp-clear").onclick = () => { const t = reportState.type; reportState = { type: t, teacher: "", status: "", grade: "", stage: "", kind: "", q: "", from: "", to: "", sub: "", month: "" }; adminReports(); };
   document.getElementById("rp-print").onclick = printReport;
   document.getElementById("rp-csv").onclick = () => exportReport("csv");
   document.getElementById("rp-xls").onclick = () => exportReport("xls");
@@ -1490,6 +1834,47 @@ function adminProfile() {
       <div style="margin-top:8px;">${isSuper ? '<span class="chip green">الأدمن الأساسي</span>' : '<span class="chip">مشرف</span>'}</div>
     </div>
     <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">👤 نبذة عن المهندس</h2>
+      <p class="muted" style="font-size:13px;">المحتوى ده بيظهر في تاب «نبذة عن المهندس» وفي الكارت الصغير آخر الصفحات (طالب / مدرس / أدمن). اكتب [النص](الرابط) جوه النبذة عشان يتحوّل للينك، وكل سطر جديد في النبذة الطويلة بيبقى فقرة.</p>
+      <div class="fgrid">
+        <div><label class="flabel">الاسم</label><input id="ab-name" class="inp" value="${esc(aboutGet().name)}"></div>
+        <div><label class="flabel">اللقب</label><input id="ab-title" class="inp" value="${esc(aboutGet().title)}"></div>
+      </div>
+      <label class="flabel">نبذة قصيرة (بتظهر فوق الصفحة)</label>
+      <textarea id="ab-short" class="inp" rows="3">${esc(aboutGet().shortBio)}</textarea>
+      <label class="flabel">النبذة الطويلة (كل سطر = فقرة)</label>
+      <textarea id="ab-long" class="inp ltr" rows="7" style="text-align:right;">${esc(aboutGet().longBio)}</textarea>
+      <label class="flabel">المهارات (افصل بينها بفاصلة)</label>
+      <input id="ab-skills" class="inp" value="${esc(aboutGet().skills)}">
+      <div class="fgrid">
+        <div><label class="flabel">رقم واتساب</label><input id="ab-wa" class="inp ltr" value="${esc(aboutGet().whatsapp)}"></div>
+        <div><label class="flabel">لينك فيسبوك</label><input id="ab-fb" class="inp ltr" value="${esc(aboutGet().facebook)}"></div>
+      </div>
+      <div class="fgrid">
+        <div><label class="flabel">لينك يوتيوب</label><input id="ab-yt" class="inp ltr" value="${esc(aboutGet().youtube)}"></div>
+        <div><label class="flabel">تيليجرام (اختياري)</label><input id="ab-tg" class="inp ltr" value="${esc(aboutGet().telegram)}"></div>
+      </div>
+      <label class="flabel">لينكدإن (اختياري)</label><input id="ab-li" class="inp ltr" value="${esc(aboutGet().linkedin)}">
+      <label class="flabel">الصورة الشخصية (اختياري — لو فاضية بتظهر الصورة الافتراضية)</label>
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <div id="ab-photo-prev">${aboutGet().photo ? `<img src="${aboutGet().photo}" alt="" style="width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid #f59e0b;">` : `<span class="muted" style="font-size:13px;">الصورة الافتراضية</span>`}</div>
+        <input id="ab-photo" type="file" accept="image/*" class="inp" style="max-width:260px;">
+        ${aboutGet().photo ? `<button type="button" class="btn ghost sm" id="ab-photodel">إزالة الصورة المخصصة</button>` : ""}
+      </div>
+      <div class="btnrow" style="margin-top:14px;"><button type="button" class="btn" id="ab-save">حفظ النبذة</button></div>
+      <p class="msg" id="ab-msg"></p>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">📝 جملة أسفل الصفحات</h2>
+      <p class="muted" style="font-size:13px;">بتظهر في أسفل كل صفحات المنصة (حتى صفحة الدخول). منفصلة تمامًا عن النبذة — تعديلها مبيأثرش على النبذة والعكس.</p>
+      <label class="flabel">النص</label>
+      <input id="ft-text" class="inp" value="${esc(footerText)}">
+      <div class="closing" id="ft-prev" style="margin-top:10px; border:1px dashed var(--line, #cbd5e1); border-radius:10px;">${esc(footerText)}</div>
+      <p class="muted" style="font-size:12px; margin-top:4px;">معاينة شكل الجملة زي ما بتظهر في أسفل الصفحة.</p>
+      <div class="btnrow" style="margin-top:10px;"><button type="button" class="btn" id="ft-save">حفظ جملة الأسفل</button></div>
+      <p class="msg" id="ft-msg"></p>
+    </div>
+    <div class="card">
       <h2 style="font-size:18px; margin-top:0;">🔒 الباسورد</h2>
       ${hasPasswordProvider ? `
         <div style="display:grid; gap:10px; max-width:340px;">
@@ -1514,6 +1899,86 @@ function adminProfile() {
       <p class="msg" id="apr-pin-msg"></p>
     </div>`;
   adminLayout(content, "profile");
+
+  /* --- فورم النبذة: تخزين مستقل في settings/about --- */
+  let abPhotoData = aboutGet().photo || ""; // الصورة المخصصة الحالية (فاضي = الافتراضية)
+  const abMsg = document.getElementById("ab-msg");
+  const setAbMsg = (t, good) => { abMsg.className = "msg " + (good ? "good" : "bad"); abMsg.textContent = t; };
+  const abPrev = document.getElementById("ab-photo-prev");
+  const abPhotoInp = document.getElementById("ab-photo");
+  if (abPhotoInp) abPhotoInp.onchange = () => {
+    const file = abPhotoInp.files && abPhotoInp.files[0];
+    if (!file) return;
+    if (!file.type || !file.type.startsWith("image/")) return setAbMsg("اختار ملف صورة.");
+    const reader = new FileReader();
+    reader.onerror = () => setAbMsg("مشكلة في قراءة الصورة.");
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => setAbMsg("الملف ده مش صورة صالحة.");
+      img.onload = () => {
+        const size = 256;
+        const c = document.createElement("canvas");
+        c.width = size; c.height = size;
+        const ctx = c.getContext("2d");
+        const min = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, size, size);
+        abPhotoData = c.toDataURL("image/jpeg", 0.82);
+        abPrev.innerHTML = `<img src="${abPhotoData}" alt="" style="width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid #f59e0b;">`;
+        setAbMsg("الصورة جاهزة — دوس «حفظ النبذة» عشان تتخزن.", true);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  const abPhotoDel = document.getElementById("ab-photodel");
+  if (abPhotoDel) abPhotoDel.onclick = () => {
+    abPhotoData = "";
+    abPrev.innerHTML = `<span class="muted" style="font-size:13px;">الصورة الافتراضية</span>`;
+    setAbMsg("الصورة المخصصة اتشالت — دوس «حفظ النبذة» للتأكيد.", true);
+  };
+  document.getElementById("ab-save").onclick = async () => {
+    const btn = document.getElementById("ab-save");
+    const val = (id) => (document.getElementById(id).value || "").trim();
+    if (!val("ab-name")) return setAbMsg("الاسم مطلوب.");
+    btn.disabled = true;
+    setAbMsg("بنحفظ...");
+    try {
+      const data = {
+        name: val("ab-name"), title: val("ab-title"), shortBio: val("ab-short"),
+        longBio: val("ab-long"), skills: val("ab-skills"),
+        whatsapp: val("ab-wa").replace(/[^\d]/g, ""), facebook: val("ab-fb"), youtube: val("ab-yt"),
+        telegram: val("ab-tg"), linkedin: val("ab-li"), photo: abPhotoData,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+      await fbDb.collection("settings").doc("about").set(data, { merge: true });
+      aboutCfg = Object.assign({}, aboutCfg || {}, data);
+      adminLogAction("تعديل نبذة المهندس", "settings", "about", data.name);
+      setAbMsg("تمام، النبذة اتحفظت ✅", true);
+      showToast("تمام، النبذة اتحفظت ✅", "good");
+    } catch (e) { setAbMsg("مشكلة: " + (e.message || e)); }
+    btn.disabled = false;
+  };
+
+  /* --- فورم جملة الأسفل: تخزين مستقل في settings/footer --- */
+  const ftMsg = document.getElementById("ft-msg");
+  const ftText = document.getElementById("ft-text");
+  const ftPrev = document.getElementById("ft-prev");
+  ftText.oninput = () => { ftPrev.textContent = ftText.value.trim() || "فكرة وإعداد: مهندس اسامه حسن عسس"; };
+  document.getElementById("ft-save").onclick = async () => {
+    const btn = document.getElementById("ft-save");
+    const text = ftText.value.trim();
+    if (!text) { ftMsg.className = "msg bad"; ftMsg.textContent = "اكتب نص الجملة الأول."; return; }
+    btn.disabled = true;
+    ftMsg.className = "msg"; ftMsg.textContent = "بنحفظ...";
+    try {
+      await fbDb.collection("settings").doc("footer").set({ text, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      footerText = text;
+      adminLogAction("تعديل جملة أسفل الصفحات", "settings", "footer", text);
+      ftMsg.className = "msg good"; ftMsg.textContent = "تمام، الجملة اتحفظت ✅";
+      showToast("تمام، الجملة اتحفظت ✅", "good");
+    } catch (e) { ftMsg.className = "msg bad"; ftMsg.textContent = "مشكلة: " + (e.message || e); }
+    btn.disabled = false;
+  };
 
   const passMsg = document.getElementById("apr-pass-msg");
   const setPassMsg = (t, good) => { passMsg.className = "msg " + (good ? "good" : "bad"); passMsg.textContent = t; if (t) showToast(t, good ? "good" : "bad"); };
