@@ -73,6 +73,17 @@ function adminStats() {
       <div class="statcard"><div class="num">${pending}</div><div class="lbl">طلب تحت المراجعة</div></div>
     </div>
     <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">المراحل والصفوف</h2>
+      <p class="muted" style="font-size:13px; margin-top:0;">كل مرحلة بصفوفها، وعدد الطلاب في كل صف.</p>
+      ${STAGES.map((st) => {
+        const stu = students.filter((s) => stageOfGrade(s.grade) === st).length;
+        return `<h3 style="margin:14px 0 8px; font-size:15px;">المرحلة ال${esc(st)}ة <span class="muted" style="font-weight:400;">(${stu} طالب)</span></h3>
+        <table class="ttable"><thead><tr><th>الصف</th><th>عدد الطلاب</th></tr></thead><tbody>
+          ${gradesOfStage(st).map((g) => `<tr><td>${esc(g)}</td><td>${students.filter((s) => s.grade === g).length}</td></tr>`).join("")}
+        </tbody></table>`;
+      }).join("")}
+    </div>
+    <div class="card">
       <h2 style="font-size:18px; margin-top:0;">طلاب كل مدرس</h2>
       <table class="ttable">
         <thead><tr><th>المدرس</th><th>المادة</th><th>المراحل (طلاب كل مرحلة)</th><th>عدد طلابه</th><th>مقبول</th><th>طلبات جديدة</th></tr></thead>
@@ -147,6 +158,11 @@ function teacherStagesText(t) {
   return stages.map((st) => `${st}: ${counts[st] || 0}`).join(" · ");
 }
 
+// اختيارات الصف حسب المرحلة المختارة في فورم المادة
+function sjGradeOptions(stage, val) {
+  return `<option value="">كل صفوف المرحلة</option>` + gradesOfStage(stage).map((g) => `<option value="${esc(g)}" ${val === g ? "selected" : ""}>${esc(g)}</option>`).join("");
+}
+
 function adminSubjects() {
   const subjects = adminCache.subjects || [];
   const content = `
@@ -157,19 +173,22 @@ function adminSubjects() {
         <select id="sj-stage" class="inp">
           ${STAGES.map((s) => `<option>${s}</option>`).join("")}
         </select>
+        <select id="sj-grade" class="inp">${sjGradeOptions(STAGES[0], "")}</select>
         <button type="button" class="btn" id="sj-add">إضافة</button>
       </div>
+      <p class="muted" style="font-size:12.5px;">قايمة الصفوف بتتغير حسب المرحلة المختارة. "كل صفوف المرحلة" للمادة العامة على المرحلة كلها.</p>
       <p class="msg" id="sj-msg"></p>
     </div>
     ${subjects.length ? `
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">تقرير المواد</h2>
       <table class="ttable">
-        <thead><tr><th>المادة</th><th>المرحلة</th><th>عدد المدرسين</th><th>عدد الطلاب</th><th>متوسط تقدم الطلاب</th></tr></thead>
+        <thead><tr><th>المادة</th><th>المرحلة</th><th>الصف</th><th>عدد المدرسين</th><th>عدد الطلاب</th><th>متوسط تقدم الطلاب</th></tr></thead>
         <tbody>
           ${subjectReportRows().map((r) => `<tr>
             <td>${esc(r.s.name)}</td>
             <td>ال${esc(r.s.stage)}ة</td>
+            <td>${esc(r.s.grade || "كل الصفوف")}</td>
             <td>${r.teachers}</td>
             <td>${r.students}</td>
             <td>${r.avg}</td>
@@ -184,10 +203,8 @@ function adminSubjects() {
       <button type="button" class="btn" id="sj-seed">إضافة المواد الأساسية لكل المراحل</button>
     </div>` : ""}
     ${STAGES.map((stage) => {
-      const list = subjects.filter((s) => s.stage === stage);
-      return `
-      <div class="card">
-        <h2 style="font-size:18px; margin-top:0;">المرحلة ال${stage}ة (${list.length})</h2>
+      const stageSubs = subjects.filter((s) => s.stage === stage);
+      const subTable = (list, emptyTxt) => `
         <table class="ttable">
           <thead><tr><th>المادة</th><th>النوع</th><th>إجراءات</th></tr></thead>
           <tbody>
@@ -200,12 +217,23 @@ function adminSubjects() {
                   <button type="button" class="btn sm red" data-sd-sub="${s.id}">حذف</button>
                 </div>
               </td>
-            </tr>`).join("") : `<tr><td colspan="3" class="center muted">مفيش مواد في المرحلة دي لسه</td></tr>`}
+            </tr>`).join("") : `<tr><td colspan="3" class="center muted">${emptyTxt}</td></tr>`}
           </tbody>
-        </table>
+        </table>`;
+      return `
+      <div class="card">
+        <h2 style="font-size:18px; margin-top:0;">المرحلة ال${stage}ة (${stageSubs.length})</h2>
+        ${gradesOfStage(stage).map((g) => {
+          const list = stageSubs.filter((s) => (s.grade || "") === g);
+          return `<h3 style="margin:14px 0 8px; font-size:15px;">${esc(g)} <span class="muted" style="font-weight:400;">(${list.length} مواد)</span></h3>
+          ${subTable(list, "مفيش مواد متسجلة للصف ده لسه")}`;
+        }).join("")}
+        <h3 style="margin:14px 0 8px; font-size:15px;">كل صفوف المرحلة <span class="muted" style="font-weight:400;">(مادة عامة)</span></h3>
+        ${subTable(stageSubs.filter((s) => !s.grade), "مفيش مواد عامة على المرحلة كلها")}
       </div>`;
     }).join("")}`;
   adminLayout(content, "subjects");
+  document.getElementById("sj-stage").onchange = (e) => { document.getElementById("sj-grade").innerHTML = sjGradeOptions(e.target.value, ""); };
   document.getElementById("sj-add").onclick = adminAddSubject;
   const seedBtn = document.getElementById("sj-seed");
   if (seedBtn) seedBtn.onclick = adminSeedSubjects;
@@ -243,6 +271,8 @@ function adminEditSubject(id) {
     <select id="ej-stage" class="inp">
       ${STAGES.map((st) => `<option ${s.stage === st ? "selected" : ""}>${st}</option>`).join("")}
     </select>
+    <label class="flabel">الصف</label>
+    <select id="ej-grade" class="inp">${sjGradeOptions(s.stage, s.grade || "")}</select>
     <div class="btnrow" style="justify-content:center; margin-top:14px;">
       <button type="button" class="btn" id="ej-save">حفظ</button>
       <button type="button" class="btn ghost" id="ej-cancel">إلغاء</button>
@@ -252,13 +282,15 @@ function adminEditSubject(id) {
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   document.body.appendChild(ov);
   ov.querySelector("#ej-cancel").onclick = () => ov.remove();
+  ov.querySelector("#ej-stage").onchange = (e) => { ov.querySelector("#ej-grade").innerHTML = sjGradeOptions(e.target.value, ""); };
   ov.querySelector("#ej-save").onclick = async () => {
     const name = ov.querySelector("#ej-name").value.trim();
     const stage = ov.querySelector("#ej-stage").value;
+    const grade = ov.querySelector("#ej-grade").value;
     const m = ov.querySelector("#ej-msg");
     if (!name) { m.textContent = "اكتب اسم المادة."; m.className = "msg bad"; return; }
     try {
-      await fbDb.collection("subjects").doc(id).update({ name, stage });
+      await fbDb.collection("subjects").doc(id).update({ name, stage, grade });
       ov.remove();
       await adminLoad();
       adminSubjects();
@@ -278,11 +310,12 @@ async function adminAddSubject() {
   const name = document.getElementById("sj-name").value.trim();
   const stage = document.getElementById("sj-stage").value;
   if (!name) return sjMsg("اكتب اسم المادة.");
-  const dup = (adminCache.subjects || []).find((s) => s.name === name && s.stage === stage);
-  if (dup) return sjMsg("المادة دي موجودة في المرحلة دي قبل كده.");
+  const grade = document.getElementById("sj-grade").value;
+  const dup = (adminCache.subjects || []).find((s) => s.name === name && s.stage === stage && (s.grade || "") === grade);
+  if (dup) return sjMsg(grade ? "المادة دي موجودة في الصف ده قبل كده." : "المادة دي موجودة كمادة عامة في المرحلة دي قبل كده.");
   try {
     await fbDb.collection("subjects").add({
-      name, stage, core: false,
+      name, stage, grade, core: false,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     sjMsg("اتضافت المادة ✅", true);
@@ -295,14 +328,16 @@ async function adminSeedSubjects() {
   try {
     const batch = fbDb.batch();
     Object.keys(CORE_SUBJECTS).forEach((stage) => {
-      CORE_SUBJECTS[stage].forEach((name) => {
-        const exists = (adminCache.subjects || []).find((s) => s.name === name && s.stage === stage);
-        if (!exists) {
-          batch.set(fbDb.collection("subjects").doc(), {
-            name, stage, core: true,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          });
-        }
+      gradesOfStage(stage).forEach((grade) => {
+        CORE_SUBJECTS[stage].forEach((name) => {
+          const exists = (adminCache.subjects || []).find((s) => s.name === name && s.stage === stage && (s.grade || "") === grade);
+          if (!exists) {
+            batch.set(fbDb.collection("subjects").doc(), {
+              name, stage, grade, core: true,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+          }
+        });
       });
     });
     await batch.commit();
@@ -382,7 +417,10 @@ function adminTeachers() {
   const students = adminCache.students || [];
   const editing = editingTeacherId ? (adminCache.teachers || []).find((t) => t.id === editingTeacherId) : null;
   const subjects = adminCache.subjects || [];
-  const subjectOptions = subjects.map((s) => `<option value="${esc(s.name)}" ${editing && (editing.subject || "") === s.name ? "selected" : ""}>${esc(s.name)} — ال${esc(s.stage)}ة</option>`).join("");
+  // المدرس بيتربط بالمادة بالاسم في المرحلة، فبنعرض كل اسم مادة مرة واحدة مهما اتكررت على الصفوف
+  const seenSub = new Set();
+  const subjectOptions = subjects.filter((s) => { const k = (s.name || "") + "|" + (s.stage || ""); if (seenSub.has(k)) return false; seenSub.add(k); return true; })
+    .map((s) => `<option value="${esc(s.name)}" ${editing && (editing.subject || "") === s.name ? "selected" : ""}>${esc(s.name)} — ال${esc(s.stage)}ة</option>`).join("");
   const content = `
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">${editing ? "تعديل بيانات: " + esc(editing.name) : "إضافة مدرس جديد"}</h2>

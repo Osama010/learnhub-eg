@@ -89,7 +89,11 @@ async function renderTeacherDash() {
         const icons = { "ابتدائي": "🎒", "إعدادي": "📗", "ثانوي": "🎓" };
         const names = { "ابتدائي": "الابتدائية", "إعدادي": "الإعدادية", "ثانوي": "الثانوية" };
         const count = approved.filter((s) => stageOfGrade(s.grade) === st).length;
-        return `<div class="statcard" data-glink="#/teacher/lessons/${encodeURIComponent(st)}" style="cursor:pointer;" title="اضغط لعرض دروس المرحلة"><div style="font-size:26px;">${icons[st] || "📚"}</div><div class="lbl">المرحلة ${names[st] || st}</div><div class="num" style="font-size:20px;">${count} طالب</div></div>`;
+        const gradeCounts = gradesOfStage(st).map((g) => {
+          const c = approved.filter((s) => s.grade === g).length;
+          return c ? `${g.replace("الصف ", "")}: ${c}` : "";
+        }).filter(Boolean).join(" · ");
+        return `<div class="statcard" data-glink="#/teacher/lessons/${encodeURIComponent(st)}" style="cursor:pointer;" title="اضغط لعرض دروس المرحلة"><div style="font-size:26px;">${icons[st] || "📚"}</div><div class="lbl">المرحلة ${names[st] || st}</div><div class="num" style="font-size:20px;">${count} طالب</div><div class="muted" style="font-size:12px;">${gradeCounts || "—"}</div></div>`;
       }).join("")}
     </div>` : ""}
     <div class="statcards">
@@ -123,11 +127,15 @@ async function renderTeacherDash() {
       </table>
     </div>` : ""}
     <div class="card">
-      <h2 style="font-size:18px; margin-top:0;">طلابك (${approved.length})</h2>
+      <h2 style="font-size:18px; margin-top:0;">طلابك${dashGradeFilter ? " — " + esc(dashGradeFilter) : ""} (${dashGradeFilter ? approved.filter((s) => s.grade === dashGradeFilter).length : approved.length})</h2>
+      ${((fbProfile && fbProfile.stages) || []).length ? `<div class="btnrow" style="margin-bottom:10px;">
+        <button type="button" class="btn sm ${!dashGradeFilter ? "" : "ghost"}" data-dgf="">كل الصفوف</button>
+        ${[...new Set(((fbProfile && fbProfile.stages) || []).flatMap((st) => gradesOfStage(st)))].map((g) => `<button type="button" class="btn sm ${dashGradeFilter === g ? "" : "ghost"}" data-dgf="${esc(g)}">${esc(g.replace("الصف ", ""))}</button>`).join("")}
+      </div>` : ""}
       <table class="ttable">
         <thead><tr><th>الاسم</th><th>السنة</th><th>ولي الأمر</th><th>تقدمه</th><th>إجراءات</th></tr></thead>
         <tbody>
-          ${approved.length ? approved.map((s) => {
+          ${approved.length ? approved.filter((s) => !dashGradeFilter || s.grade === dashGradeFilter).map((s) => {
             const avg = studentQuizAvg(s.id);
             const prog = avg !== null ? avg + "%" : ((s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0) + "%";
             return `<tr>
@@ -166,6 +174,7 @@ async function renderTeacherDash() {
   document.querySelectorAll("[data-dl]").forEach((b) => b.onclick = () => teacherDeleteStudent(b.dataset.dl));
   document.querySelectorAll("[data-spop]").forEach((b) => b.onclick = () => teacherShowStudent(b.dataset.spop));
   document.querySelectorAll("[data-snotes]").forEach((b) => b.onclick = () => openStudentNotes(b.dataset.snotes));
+  document.querySelectorAll("[data-dgf]").forEach((b) => b.onclick = () => { dashGradeFilter = b.dataset.dgf; renderTeacherDash(); });
   window.scrollTo(0, 0);
 }
 
@@ -202,6 +211,14 @@ function teacherShowStudent(id) {
       <p class="msg" id="pp-msg" style="margin:4px 0 0;"></p>
     </div>
     <div style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px;">
+      <b style="font-size:14px;">تصحيح الصف الدراسي</b>
+      <div class="btnrow" style="margin-top:6px;">
+        <select id="gr-edit" class="inp" style="flex:1;">${GRADES.map((g) => `<option ${s.grade === g ? "selected" : ""}>${g}</option>`).join("")}</select>
+        <button type="button" class="btn sm" id="gr-save">حفظ</button>
+      </div>
+      <p class="msg" id="gr-msg" style="margin:4px 0 0;"></p>
+    </div>
+    <div style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px;">
       <b style="font-size:14px;">سجل الكويزات والامتحانات (${attempts.length})</b>
       ${attempts.length ? `<table class="ttable" style="margin-top:8px;">
         <thead><tr><th>الاختبار</th><th>النوع</th><th>الدرجة</th><th>النسبة</th><th>آخر محاولة</th></tr></thead>
@@ -221,6 +238,15 @@ function teacherShowStudent(id) {
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   document.body.appendChild(ov);
   ov.querySelector("#ov-close").onclick = () => ov.remove();
+  ov.querySelector("#gr-save").onclick = async () => {
+    const v = ov.querySelector("#gr-edit").value;
+    const m = ov.querySelector("#gr-msg");
+    try {
+      await fbDb.collection("students").doc(id).update({ grade: v });
+      s.grade = v;
+      m.className = "msg good"; m.textContent = "اتحفظ الصف الجديد ✅";
+    } catch (e) { m.className = "msg bad"; m.textContent = "مشكلة: " + (e.message || e); }
+  };
   ov.querySelector("#pp-save").onclick = async () => {
     const v = normalizeEgPhone(ov.querySelector("#pp-edit").value);
     const m = ov.querySelector("#pp-msg");
@@ -287,17 +313,19 @@ let quizFormOpen = false;
 let lessonsInnerTab = "lessons"; // lessons | quizexams
 let quizResultsOpenFor = null;
 let examResultsOpenFor = null;
+let lessonsGradeFilter = ""; // فلتر الصف في قوائم المحتوى
+let dashGradeFilter = "";    // فلتر الصف في تاب طلابي
 
 function emptyExamForm() {
-  return { id: null, title: "", desc: "", openAt: "", closeAt: "", closed: false, quiz: [] };
+  return { id: null, title: "", desc: "", openAt: "", closeAt: "", closed: false, quiz: [], grade: "" };
 }
 
 function emptyLessonForm() {
-  return { id: null, unit: "", lessonNum: "", title: "", desc: "", videoUrl: "", pdfUrl: "", publishAt: "" };
+  return { id: null, unit: "", lessonNum: "", title: "", desc: "", videoUrl: "", pdfUrl: "", publishAt: "", grade: "" };
 }
 
 function emptyQuizForm() {
-  return { id: null, title: "", lessonId: "", quiz: [] };
+  return { id: null, title: "", lessonId: "", quiz: [], grade: "" };
 }
 
 function lsMsg(t, good) {
@@ -363,6 +391,24 @@ function qFromStored(q) {
 
 const STAGE_NAMES = { "ابتدائي": "الابتدائية", "إعدادي": "الإعدادية", "ثانوي": "الثانوية" };
 const STAGE_ICONS = { "ابتدائي": "🎒", "إعدادي": "📗", "ثانوي": "🎓" };
+
+// شارة صف المحتوى: فاضي = كل صفوف المرحلة
+function gradeChip(g) {
+  return g ? `<span class="chip">${esc(g)}</span>` : `<span class="chip green">كل الصفوف</span>`;
+}
+
+// سيلكت الصف لفورمات المحتوى: "كل صفوف المرحلة" (الافتراضي) أو صف معين
+function gradeSelectHtml(id, stage, val) {
+  return `<select id="${id}" class="inp"><option value="">كل صفوف المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}</option>${gradesOfStage(stage).map((g) => `<option value="${esc(g)}" ${val === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>`;
+}
+
+// أزرار فلتر الصفوف فوق القوائم
+function gradeFilterRowHtml(attr, stage, current) {
+  return `<div class="btnrow" style="margin-bottom:10px;">
+    <button type="button" class="btn sm ${!current ? "" : "ghost"}" data-${attr}="">كل الصفوف</button>
+    ${gradesOfStage(stage).map((g) => `<button type="button" class="btn sm ${current === g ? "" : "ghost"}" data-${attr}="${esc(g)}">${esc(g.replace("الصف ", ""))}</button>`).join("")}
+  </div>`;
+}
 
 function quizBuilderHtml(p, qs) {
   if (!qs.length) {
@@ -544,22 +590,27 @@ function quizAttemptsFor(q) {
 }
 
 function renderStageLists(stage, myStages) {
-  const list = (stage ? teacherLessons.filter((l) => l.stage === stage) : teacherLessons)
+  // فلتر الصف: "الصف الأول" بيوري محتوى الصف ده + محتوى "كل الصفوف"
+  const gf = (items) => lessonsGradeFilter ? items.filter((x) => !x.grade || x.grade === lessonsGradeFilter) : items;
+  const list = gf(stage ? teacherLessons.filter((l) => l.stage === stage) : teacherLessons)
     .slice().sort((a, b) => (a.unit || 0) - (b.unit || 0) || (a.lessonNum || 0) - (b.lessonNum || 0));
-  const quizList = (stage ? teacherQuizzes.filter((q) => q.stage === stage) : teacherQuizzes)
+  const quizList = gf(stage ? teacherQuizzes.filter((q) => q.stage === stage) : teacherQuizzes)
     .slice().sort((a, b) => (a.title || "").localeCompare(b.title || "", "ar"));
-  const examList = stage ? teacherExams.filter((e) => e.stage === stage) : teacherExams;
+  const examList = gf(stage ? teacherExams.filter((e) => e.stage === stage) : teacherExams);
+  const gradeRow = stage ? gradeFilterRowHtml("gf", stage, lessonsGradeFilter) : "";
   let content = "";
 
   if (lessonsInnerTab === "lessons") {
     content = `
     <div class="card">
-      <h2 style="font-size:18px; margin-top:0;">دروسك — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")} (${list.length})</h2>
+      <h2 style="font-size:18px; margin-top:0;">دروسك — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}${lessonsGradeFilter ? " — " + esc(lessonsGradeFilter) : ""} (${list.length})</h2>
+      ${gradeRow}
       ${bigAddBtn("ls-addbig", "＋ إضافة درس جديد")}
       ${list.length ? `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px;">
         ${list.map((l) => `
           <div class="card" style="margin:0;">
               <div style="font-size:12px; color:var(--primary-dark); font-weight:700;">الوحدة ${l.unit || "—"} · الدرس ${l.lessonNum || "—"}</div>
+              <div style="margin:2px 0;">${gradeChip(l.grade)}</div>
               <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(l.title)}</b>${l.publishAt && l.publishAt.toDate && l.publishAt.toDate() > new Date() ? `<span class="chip amber">🕒 مجدول: ${fmtTs(l.publishAt)}</span>` : ""}</div>
               ${l.desc ? `<div class="muted" style="font-size:13px; margin-top:4px;">${esc(l.desc)}</div>` : ""}
               <div class="muted" style="font-size:12px; margin:4px 0;">${l.videoUrl ? "🎬 فيديو" : ""}${l.videoUrl && l.pdfUrl ? " · " : ""}${l.pdfUrl ? "📄 PDF" : ""}${!l.videoUrl && !l.pdfUrl ? "من غير وسائط" : ""}</div>
@@ -575,7 +626,8 @@ function renderStageLists(stage, myStages) {
   } else {
     content = `
     <div class="card">
-      <h2 style="font-size:18px; margin-top:0;">الكويزات (${quizList.length})</h2>
+      <h2 style="font-size:18px; margin-top:0;">الكويزات${lessonsGradeFilter ? " — " + esc(lessonsGradeFilter) : ""} (${quizList.length})</h2>
+      ${gradeRow}
       ${bigAddBtn("qz-addbig", "＋ إضافة كويز جديد")}
       ${quizList.length ? `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px;">
         ${quizList.map((q) => {
@@ -588,6 +640,7 @@ function renderStageLists(stage, myStages) {
               ${q.lessonId
                 ? `<div style="margin:4px 0;"><span class="chip">🔗 مرتبط بالدرس: ${esc(linked ? linked.title : "درس محذوف")}</span></div>`
                 : `<div class="muted" style="font-size:12px; margin:4px 0;">كويز عام — مش مرتبط بدرس</div>`}
+              <div style="margin:4px 0;">${gradeChip(q.grade)}</div>
               <div class="muted" style="font-size:12px; margin:4px 0;">📝 ${(q.questions || []).length} سؤال</div>
               <div class="muted" style="font-size:12px; margin:4px 0;">${at.length ? `${at.length} محاولة · المتوسط ${avg}%` : "مفيش محاولات لسه"}</div>
               <div class="btnrow">
@@ -613,6 +666,7 @@ function renderStageLists(stage, myStages) {
           <div class="card" style="margin:0;">
               <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(e.title)}</b><span class="chip ${stCls}">${stTxt}</span></div>
               ${e.desc ? `<div class="muted" style="font-size:13px; margin-top:4px;">${esc(e.desc)}</div>` : ""}
+              <div style="margin:4px 0;">${gradeChip(e.grade)}</div>
               <div class="muted" style="font-size:12px; margin:4px 0;">📝 ${(e.quiz || []).length} سؤال${e.openAt ? " · يفتح " + fmtTs(e.openAt) : ""}${e.closeAt ? " · يقفل " + fmtTs(e.closeAt) : ""}</div>
               <div class="muted" style="font-size:12px; margin:4px 0;">${at.length ? `${at.length} محاولة · المتوسط ${avg}%` : "مفيش محاولات لسه"}</div>
               <div class="btnrow">
@@ -644,6 +698,7 @@ function renderStageLists(stage, myStages) {
   if (backBtn) backBtn.onclick = () => location.hash = "#/teacher/lessons";
   document.getElementById("it-lessons").onclick = () => { lessonsInnerTab = "lessons"; renderTeacherLessons(stage); };
   document.getElementById("it-quizexams").onclick = () => { lessonsInnerTab = "quizexams"; renderTeacherLessons(stage); };
+  document.querySelectorAll("[data-gf]").forEach((b) => b.onclick = () => { lessonsGradeFilter = b.dataset.gf; renderTeacherLessons(stage); });
   const addL = document.getElementById("ls-addbig");
   if (addL) addL.onclick = () => { lessonForm = emptyLessonForm(); lessonFormOpen = true; renderTeacherLessons(stage); };
   const addQ = document.getElementById("qz-addbig");
@@ -657,7 +712,7 @@ function renderStageLists(stage, myStages) {
     lessonForm = {
       id: l.id, unit: l.unit || "", lessonNum: l.lessonNum || "", title: l.title || "",
       videoUrl: l.videoUrl || "", pdfUrl: l.pdfUrl || "", desc: l.desc || "",
-      publishAt: tsToLocalInput(l.publishAt),
+      publishAt: tsToLocalInput(l.publishAt), grade: l.grade || "",
     };
     lessonFormOpen = true;
     renderTeacherLessons(stage);
@@ -669,7 +724,7 @@ function renderStageLists(stage, myStages) {
   document.querySelectorAll("[data-qedit]").forEach((b) => b.onclick = () => {
     const q = teacherQuizzes.find((x) => x.id === b.dataset.qedit);
     if (!q) return;
-    quizForm = { id: q.id, title: q.title || "", lessonId: q.lessonId || "", quiz: (q.questions || []).map(qFromStored) };
+    quizForm = { id: q.id, title: q.title || "", lessonId: q.lessonId || "", quiz: (q.questions || []).map(qFromStored), grade: q.grade || "" };
     quizFormOpen = true;
     renderTeacherLessons(stage);
   });
@@ -684,7 +739,7 @@ function renderStageLists(stage, myStages) {
     examForm = {
       id: e.id, title: e.title || "", desc: e.desc || "",
       openAt: tsToLocalInput(e.openAt), closeAt: tsToLocalInput(e.closeAt),
-      closed: !!e.closed, quiz: (e.quiz || []).map(qFromStored),
+      closed: !!e.closed, quiz: (e.quiz || []).map(qFromStored), grade: e.grade || "",
     };
     examFormOpen = true;
     renderTeacherLessons(stage);
@@ -715,6 +770,9 @@ function renderLessonFormPage(stage, subject) {
       </div>
       <label class="flabel">عنوان الدرس</label>
       <input id="ls-title" type="text" class="inp" placeholder="مثال: البرمجة بلغة بايثون" value="${esc(lessonForm.title)}">
+      <label class="flabel">الصف (اختياري)</label>
+      ${gradeSelectHtml("ls-grade", stage, lessonForm.grade || "")}
+      <p class="muted" style="font-size:12.5px; margin-top:2px;">سيبه "كل صفوف المرحلة" لو الدرس لكل طلاب المرحلة، أو اختار صف معين لو الدرس موجه ليه بس.</p>
       <div class="fgrid">
         <div><label class="flabel">رابط الفيديو (يوتيوب أو جوجل درايف)</label><input id="ls-video" type="url" class="inp ltr" placeholder="https://youtube.com/watch?v=... أو https://drive.google.com/file/d/..." value="${esc(lessonForm.videoUrl)}"></div>
         <div><label class="flabel">رابط ملف PDF (جوجل درايف)</label><input id="ls-pdf" type="url" class="inp ltr" placeholder="https://drive.google.com/..." value="${esc(lessonForm.pdfUrl)}"></div>
@@ -740,6 +798,7 @@ function renderLessonFormPage(stage, subject) {
   document.getElementById("ls-pdf").oninput = (e) => lessonForm.pdfUrl = e.target.value;
   document.getElementById("ls-desc").oninput = (e) => lessonForm.desc = e.target.value;
   document.getElementById("ls-pub").onchange = (e) => lessonForm.publishAt = e.target.value;
+  document.getElementById("ls-grade").onchange = (e) => lessonForm.grade = e.target.value;
   document.getElementById("ls-save").onclick = () => teacherSaveLesson(stage);
   const goBack = () => { lessonForm = emptyLessonForm(); lessonFormOpen = false; renderTeacherLessons(stage); };
   document.getElementById("ls-cancel").onclick = goBack;
@@ -767,6 +826,8 @@ function renderQuizFormPage(stage, subject) {
     <div class="card">
       <label class="flabel">عنوان الكويز</label>
       <input id="qz-title" type="text" class="inp" placeholder="مثال: كويز الوحدة الأولى" value="${esc(quizForm.title)}">
+      <label class="flabel">الصف (اختياري)</label>
+      ${gradeSelectHtml("qz-grade", stage, quizForm.grade || "")}
       <label class="flabel">ربط بدرس (اختياري)</label>
       <select id="qz-lesson" class="inp">
         <option value="">كويز عام — مش مرتبط بدرس</option>
@@ -786,6 +847,7 @@ function renderQuizFormPage(stage, subject) {
     ${closing()}`;
   bindTeacherTabs();
   document.getElementById("qz-title").oninput = (e) => quizForm.title = e.target.value;
+  document.getElementById("qz-grade").onchange = (e) => quizForm.grade = e.target.value;
   document.getElementById("qz-lesson").onchange = (e) => quizForm.lessonId = e.target.value;
   document.getElementById("qz-addq").onclick = () => {
     quizForm.quiz.push(qNew("mcq"));
@@ -815,6 +877,8 @@ function renderExamFormPage(stage) {
       <input id="ex-title" type="text" class="inp" placeholder="مثال: امتحان شهر نوفمبر" value="${esc(examForm.title)}">
       <label class="flabel">وصف الامتحان (اختياري)</label>
       <textarea id="ex-desc" class="inp" rows="2" placeholder="تعليمات أو وصف قصير للطلاب">${esc(examForm.desc)}</textarea>
+      <label class="flabel">الصف (اختياري)</label>
+      ${gradeSelectHtml("ex-grade", stage, examForm.grade || "")}
       <div class="fgrid">
         <div><label class="flabel">موعد الفتح (اختياري)</label><input id="ex-open" type="datetime-local" class="inp ltr" value="${esc(examForm.openAt)}"></div>
         <div><label class="flabel">موعد القفل (اختياري)</label><input id="ex-close" type="datetime-local" class="inp ltr" value="${esc(examForm.closeAt)}"></div>
@@ -835,6 +899,7 @@ function renderExamFormPage(stage) {
   document.getElementById("ex-desc").oninput = (e) => examForm.desc = e.target.value;
   document.getElementById("ex-open").onchange = (e) => examForm.openAt = e.target.value;
   document.getElementById("ex-close").onchange = (e) => examForm.closeAt = e.target.value;
+  document.getElementById("ex-grade").onchange = (e) => examForm.grade = e.target.value;
   document.getElementById("ex-addq").onclick = () => { examForm.quiz.push(qNew("mcq")); renderTeacherLessons(stage); };
   document.getElementById("ex-bank").onclick = () => openBankPicker(examForm.quiz, stage);
   bindQuizEditor("x", examForm.quiz, () => renderTeacherLessons(stage));
@@ -904,7 +969,7 @@ function quizResultsHtml(q) {
     <thead><tr><th>الطالب</th><th>الدرجة</th><th>آخر محاولة</th></tr></thead>
     <tbody>${attempts.map((a) => `<tr><td>${esc(a.studentName || "—")}</td><td>${a.score} من ${a.total}</td><td>${a.updatedAt ? fmtTs(a.updatedAt) : "—"}</td></tr>`).join("")}</tbody>
   </table>` : `<p class="muted" style="font-size:13px; margin:10px 0 0;">لسه مفيش طالب حل الكويز ده.</p>`;
-  return table + lateStudentsHtml(q.stage, attempts, "الكويز", q.title);
+  return table + lateStudentsHtml(q.stage, attempts, "الكويز", q.title, q.grade);
 }
 
 async function teacherSaveLesson(stage) {
@@ -930,6 +995,7 @@ async function teacherSaveLesson(stage) {
     pdfUrl: lessonForm.pdfUrl.trim(),
     desc: lessonForm.desc.trim(),
     publishAt: lessonForm.publishAt ? firebase.firestore.Timestamp.fromDate(new Date(lessonForm.publishAt)) : null,
+    grade: lessonForm.grade || "",
   };
   try {
     if (lessonForm.id) {
@@ -965,6 +1031,7 @@ async function teacherSaveQuiz(stage) {
     title: quizForm.title.trim(),
     lessonId: quizForm.lessonId || null,
     questions: quizForm.quiz.map(qSerialize),
+    grade: quizForm.grade || "",
   };
   try {
     if (quizForm.id) {
@@ -1044,7 +1111,7 @@ function examResultsHtml(e) {
     <table class="ttable">
     <thead><tr><th>الطالب</th><th>الدرجة</th><th>النسبة</th><th>آخر محاولة</th></tr></thead>
     <tbody>${attempts.map((a) => `<tr><td>${esc(a.studentName || "—")}</td><td>${a.score} من ${a.total}</td><td>${a.total > 0 ? Math.round((a.score / a.total) * 100) + "%" : "—"}</td><td>${a.updatedAt ? fmtTs(a.updatedAt) : "—"}</td></tr>`).join("")}</tbody>
-  </table>${lateStudentsHtml(e.stage, attempts, "الامتحان", e.title)}</div>`;
+  </table>${lateStudentsHtml(e.stage, attempts, "الامتحان", e.title, e.grade)}</div>`;
 }
 
 async function teacherSaveExam(stage) {
@@ -1069,6 +1136,7 @@ async function teacherSaveExam(stage) {
     closeAt: examForm.closeAt ? firebase.firestore.Timestamp.fromDate(new Date(examForm.closeAt)) : null,
     closed: !!examForm.closed,
     quiz: examForm.quiz.map(qSerialize),
+    grade: examForm.grade || "",
   };
   try {
     if (examForm.id) {
@@ -1110,7 +1178,7 @@ async function teacherDeleteExam(id, stage) {
 }
 
 /* ---------- تقارير المدرس ---------- */
-let trepState = { type: "students", stage: "", quizId: "", examId: "" };
+let trepState = { type: "students", stage: "", grade: "", quizId: "", examId: "" };
 
 const TREP_TYPES = [
   ["students", "تقرير الطلاب"],
@@ -1133,7 +1201,8 @@ function buildTeacherReport() {
 
   if (t === "stage") {
     const st = trepState.stage || ((fbProfile && fbProfile.stages) || [])[0] || "";
-    const list = students.filter((s) => stageOfGrade(s.grade) === st);
+    let list = students.filter((s) => stageOfGrade(s.grade) === st);
+    if (trepState.grade) list = list.filter((s) => s.grade === trepState.grade);
     const withAtt = list.filter((s) => studentQuizAvg(s.id) !== null);
     const avgAll = withAtt.length ? Math.round(withAtt.reduce((sum, s) => sum + studentQuizAvg(s.id), 0) / withAtt.length) : null;
     const lessonsN = teacherLessons.filter((l) => l.stage === st).length;
@@ -1147,7 +1216,7 @@ function buildTeacherReport() {
       title: "تقرير مرحلة " + (STAGE_NAMES[st] || st || "—"),
       summary: `الطلاب: ${list.length} · الدروس: ${lessonsN} · الامتحانات: ${examsN} · متوسط درجات المرحلة: ${avgAll !== null ? avgAll + "%" : "—"}`,
       columns: ["الاسم", "المرحلة", "السنة", "الموبايل", "ولي الأمر", "الحالة", "متوسط الدرجات", "تاريخ التسجيل"],
-      rows, filtersDesc: ["المرحلة: " + (STAGE_NAMES[st] || st)],
+      rows, filtersDesc: ["المرحلة: " + (STAGE_NAMES[st] || st)].concat(trepState.grade ? ["الصف: " + trepState.grade] : []),
     };
   }
 
@@ -1206,9 +1275,9 @@ function buildTeacherReport() {
       const at = teacherAttempts.filter((a) => a.lessonId === l.id || linkedIds.includes(a.quizId));
       const avg = at.length ? Math.round(at.reduce((s, a) => s + attemptPct(a), 0) / at.length) : null;
       const content = [l.videoUrl ? "فيديو" : "", l.pdfUrl ? "PDF" : ""].filter(Boolean).join(" + ") || "—";
-      return { cells: [STAGE_NAMES[l.stage] || l.stage || "—", String(l.unit || "—"), String(l.lessonNum || "—"), l.title || "", content, String(linked.length), String(at.length), avg !== null ? avg + "%" : "—"] };
+      return { cells: [STAGE_NAMES[l.stage] || l.stage || "—", l.grade || "كل الصفوف", String(l.unit || "—"), String(l.lessonNum || "—"), l.title || "", content, String(linked.length), String(at.length), avg !== null ? avg + "%" : "—"] };
     });
-    return { title: "تقرير الدروس", columns: ["المرحلة", "الوحدة", "الدرس", "العنوان", "المحتوى", "كويزات مرتبطة", "المحاولات", "متوسط الدرجة"], rows, filtersDesc: [] };
+    return { title: "تقرير الدروس", columns: ["المرحلة", "الصف", "الوحدة", "الدرس", "العنوان", "المحتوى", "كويزات مرتبطة", "المحاولات", "متوسط الدرجة"], rows, filtersDesc: [] };
   }
 
   if (t === "quiz") {
@@ -1258,14 +1327,15 @@ function buildTeacherReport() {
       const at = teacherAttempts.filter((a) => a.examId === e.id);
       const avg = at.length ? Math.round(at.reduce((s, a) => s + attemptPct(a), 0) / at.length) : null;
       const [stTxt] = examStatus(e);
-      return { cells: [STAGE_NAMES[e.stage] || e.stage || "—", e.title || "", String((e.quiz || []).length), e.openAt ? fmtTs(e.openAt) : "مفتوح دائماً", e.closeAt ? fmtTs(e.closeAt) : "—", stTxt, String(at.length), avg !== null ? avg + "%" : "—"] };
+      return { cells: [STAGE_NAMES[e.stage] || e.stage || "—", e.grade || "كل الصفوف", e.title || "", String((e.quiz || []).length), e.openAt ? fmtTs(e.openAt) : "مفتوح دائماً", e.closeAt ? fmtTs(e.closeAt) : "—", stTxt, String(at.length), avg !== null ? avg + "%" : "—"] };
     });
-    return { title: "تقرير الامتحانات", columns: ["المرحلة", "العنوان", "الأسئلة", "الفتح", "القفل", "الحالة", "المحاولات", "المتوسط"], rows, filtersDesc: [] };
+    return { title: "تقرير الامتحانات", columns: ["المرحلة", "الصف", "العنوان", "الأسئلة", "الفتح", "القفل", "الحالة", "المحاولات", "المتوسط"], rows, filtersDesc: [] };
   }
 
   // students (الافتراضي)
   let list = students;
   if (trepState.stage) list = list.filter((s) => stageOfGrade(s.grade) === trepState.stage);
+  if (trepState.grade) list = list.filter((s) => s.grade === trepState.grade);
   const rows = list.map((s) => ({
     cells: [s.name || "", stName(s.grade), s.grade || "—", s.phone || "", pp(s), s.email || "", s.status === "approved" ? "مقبول" : s.status === "rejected" ? "مرفوض" : "تحت المراجعة", studentQuizAvg(s.id) !== null ? studentQuizAvg(s.id) + "%" : "—", String(teacherAttempts.filter((a) => a.studentId === s.id).length), fmtTs(s.createdAt)],
     sid: s.id,
@@ -1273,7 +1343,7 @@ function buildTeacherReport() {
   return {
     title: "تقرير الطلاب",
     columns: ["الاسم", "المرحلة", "السنة", "الموبايل", "ولي الأمر", "الإيميل", "الحالة", "متوسط الدرجات", "عدد الاختبارات", "تاريخ التسجيل"],
-    rows, filtersDesc: trepState.stage ? ["المرحلة: " + (STAGE_NAMES[trepState.stage] || trepState.stage)] : [],
+    rows, filtersDesc: (trepState.stage ? ["المرحلة: " + (STAGE_NAMES[trepState.stage] || trepState.stage)] : []).concat(trepState.grade ? ["الصف: " + trepState.grade] : []),
   };
 }
 
@@ -1327,11 +1397,17 @@ async function renderTeacherReports() {
   const myStages = (fbProfile && fbProfile.stages) || [];
   let filtersHtml = "";
   if (trepState.type === "students") {
+    const gradeOpts = trepState.stage ? gradesOfStage(trepState.stage) : GRADES;
     filtersHtml = `<select id="trf-stage" class="inp"><option value="">كل المراحل</option>
-      ${myStages.map((s) => `<option value="${esc(s)}" ${trepState.stage === s ? "selected" : ""}>${esc(STAGE_NAMES[s] || s)}</option>`).join("")}</select>`;
+      ${myStages.map((s) => `<option value="${esc(s)}" ${trepState.stage === s ? "selected" : ""}>${esc(STAGE_NAMES[s] || s)}</option>`).join("")}</select>
+      <select id="trf-grade" class="inp"><option value="">كل الصفوف</option>
+      ${gradeOpts.map((g) => `<option value="${esc(g)}" ${trepState.grade === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>`;
   } else if (trepState.type === "stage") {
+    const stSel = trepState.stage || myStages[0] || "";
     filtersHtml = `<select id="trf-stage" class="inp">
-      ${myStages.map((s) => `<option value="${esc(s)}" ${(trepState.stage || myStages[0]) === s ? "selected" : ""}>${esc(STAGE_NAMES[s] || s)}</option>`).join("")}</select>`;
+      ${myStages.map((s) => `<option value="${esc(s)}" ${stSel === s ? "selected" : ""}>${esc(STAGE_NAMES[s] || s)}</option>`).join("")}</select>
+      <select id="trf-grade" class="inp"><option value="">كل صفوف المرحلة</option>
+      ${gradesOfStage(stSel).map((g) => `<option value="${esc(g)}" ${trepState.grade === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>`;
   } else if (trepState.type === "quiz") {
     const sel = trepState.quizId || (teacherQuizzes[0] && teacherQuizzes[0].id) || "";
     filtersHtml = `<select id="trf-quiz" class="inp">
@@ -1376,9 +1452,11 @@ async function renderTeacherReports() {
     </div>
     ${closing()}`;
   bindTeacherTabs();
-  document.querySelectorAll("[data-trt]").forEach((b) => b.onclick = () => { trepState = { type: b.dataset.trt, stage: "", quizId: "", examId: "" }; renderTeacherReports(); });
+  document.querySelectorAll("[data-trt]").forEach((b) => b.onclick = () => { trepState = { type: b.dataset.trt, stage: "", grade: "", quizId: "", examId: "" }; renderTeacherReports(); });
   const stSel = document.getElementById("trf-stage");
-  if (stSel) stSel.onchange = (e) => { trepState.stage = e.target.value; renderTeacherReports(); };
+  if (stSel) stSel.onchange = (e) => { trepState.stage = e.target.value; trepState.grade = ""; renderTeacherReports(); };
+  const grSel = document.getElementById("trf-grade");
+  if (grSel) grSel.onchange = (e) => { trepState.grade = e.target.value; renderTeacherReports(); };
   const qzSel = document.getElementById("trf-quiz");
   if (qzSel) qzSel.onchange = (e) => { trepState.quizId = e.target.value; renderTeacherReports(); };
   document.getElementById("trp-print").onclick = teacherPrintReport;
@@ -1389,12 +1467,13 @@ async function renderTeacherReports() {
 }
 
 /* ---------- المتأخرين عن كويز/امتحان + تذكير واتساب ---------- */
-function lateStudentsHtml(stage, attempts, kindLabel, title) {
-  const students = (teacherCache || []).filter((x) => x.status === "approved" && stageOfGrade(x.grade) === stage);
+function lateStudentsHtml(stage, attempts, kindLabel, title, grade) {
+  // grade فاضي = المحتوى لكل صفوف المرحلة، غير كده للصف المحدد بس
+  const students = (teacherCache || []).filter((x) => x.status === "approved" && stageOfGrade(x.grade) === stage && (!grade || x.grade === grade));
   if (!students.length) return "";
   const done = new Set(attempts.map((a) => a.studentId));
   const late = students.filter((x) => !done.has(x.id));
-  if (!late.length) return `<p class="muted" style="font-size:13px; margin:12px 0 0;">✅ كل طلاب المرحلة حلوا ${kindLabel} — مفيش متأخرين.</p>`;
+  if (!late.length) return `<p class="muted" style="font-size:13px; margin:12px 0 0;">✅ كل الطلاب المستهدفين حلوا ${kindLabel} — مفيش متأخرين.</p>`;
   const rows = late.map((x) => {
     const to = x.parentPhone || x.phone || "";
     const parent = !!x.parentPhone;
@@ -1405,7 +1484,7 @@ function lateStudentsHtml(stage, attempts, kindLabel, title) {
       <td>${to ? `<a class="btn sm green" target="_blank" rel="noopener" href="${waLink(to, text)}">إرسال تذكير واتساب${parent ? " لولي الأمر" : " للطالب"}</a>` : `<span class="muted" style="font-size:12.5px;">مفيش رقم</span>`}</td></tr>`;
   }).join("");
   return `<h3 style="font-size:15.5px; margin:16px 0 4px;">⏰ المتأخرين عن ${kindLabel} (${late.length})</h3>
-  <p class="muted" style="font-size:12.5px; margin:0 0 6px;">طلابك المقبولين في المرحلة دي اللي لسه ماحلوش. الزرار بيفتح واتساب برسالة تذكير جاهزة بتبعتها بنفسك — لولي الأمر أولاً، وللطالب لو مفيش رقم ولي أمر.</p>
+  <p class="muted" style="font-size:12.5px; margin:0 0 6px;">طلابك المقبولين اللي ${kindLabel} ده موجه لهم${grade ? " (" + esc(grade) + ")" : ""} ولسه ماحلوش. الزرار بيفتح واتساب برسالة تذكير جاهزة بتبعتها بنفسك — لولي الأمر أولاً، وللطالب لو مفيش رقم ولي أمر.</p>
   <table class="ttable">
     <thead><tr><th>الطالب</th><th>الرقم</th><th>تذكير</th></tr></thead>
     <tbody>${rows}</tbody>
@@ -1550,6 +1629,7 @@ async function openBankPicker(qs, stage) {
 /* ---------- الإعلانات لطلاب مرحلة ---------- */
 let teacherAnn = [];
 let annStageSel = "";
+let annGradeSel = "";
 
 async function renderTeacherAnnouncements() {
   app.innerHTML = `<div class="spin">بنحمل الإعلانات...</div>`;
@@ -1572,25 +1652,27 @@ async function renderTeacherAnnouncements() {
         <div><label class="flabel">المرحلة</label><select id="an-stage" class="inp">
           ${myStages.map((st) => `<option value="${esc(st)}" ${annStageSel === st ? "selected" : ""}>المرحلة ${esc(STAGE_NAMES[st] || st)}</option>`).join("")}
         </select></div>
+        <div><label class="flabel">الصف (اختياري)</label>${gradeSelectHtml("an-grade", annStageSel, annGradeSel)}</div>
       </div>
       <label class="flabel">نص الإعلان</label>
       <textarea id="an-text" class="inp" rows="3" placeholder="مثال: مراجعة الوحدة الأولى يوم الخميس الساعة 5"></textarea>
       <button type="button" class="btn" id="an-send">نشر الإعلان</button>
       <p id="an-msg" class="msg"></p>
-      <p class="muted" style="font-size:12.5px; margin-top:6px;">الإعلان بيوصل لكل طلابك المقبولين في المرحلة المختارة. عرض الإعلان عند الطالب هيتفعل مع واجهة الطالب لما تجهز — دلوقتي بيتحفظ وبيطلع في قائمتك تحت.</p>
+      <p class="muted" style="font-size:12.5px; margin-top:6px;">الإعلان بيوصل لكل طلابك المقبولين في المرحلة المختارة — ولو اخترت صف، للصف ده بس. عرض الإعلان عند الطالب هيتفعل مع واجهة الطالب لما تجهز — دلوقتي بيتحفظ وبيطلع في قائمتك تحت.</p>
     </div>
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">الإعلانات السابقة (${teacherAnn.length})</h2>
       ${teacherAnn.length ? teacherAnn.map((a) => `
       <div class="card" style="margin:0 0 10px;">
-        <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(a.text || "")}</b><span class="chip">المرحلة ${esc(STAGE_NAMES[a.stage] || a.stage || "")}</span></div>
+        <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(a.text || "")}</b><span class="btnrow" style="margin:0;"><span class="chip">المرحلة ${esc(STAGE_NAMES[a.stage] || a.stage || "")}</span>${gradeChip(a.grade)}</span></div>
         <div class="muted" style="font-size:12px; margin:4px 0;">${a.createdAt ? fmtTs(a.createdAt) : ""}</div>
         <div class="btnrow"><button type="button" class="btn sm red" data-adel="${a.id}">حذف</button></div>
       </div>`).join("") : `<p class="muted center">لسه مفيش إعلانات — اكتب أول إعلان فوق.</p>`}
     </div>
     ${closing()}`;
   bindTeacherTabs();
-  document.getElementById("an-stage").onchange = (e) => annStageSel = e.target.value;
+  document.getElementById("an-stage").onchange = (e) => { annStageSel = e.target.value; annGradeSel = ""; renderTeacherAnnouncements(); };
+  document.getElementById("an-grade").onchange = (e) => annGradeSel = e.target.value;
   document.getElementById("an-send").onclick = async () => {
     const text = document.getElementById("an-text").value.trim();
     const m = document.getElementById("an-msg");
@@ -1604,6 +1686,7 @@ async function renderTeacherAnnouncements() {
         teacherName: (fbProfile && fbProfile.name) || "",
         subject: (fbProfile && fbProfile.subject) || "",
         stage: annStageSel,
+        grade: annGradeSel || "",
         text,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });

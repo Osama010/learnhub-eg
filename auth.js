@@ -286,6 +286,11 @@ function stageOfGrade(g) {
   return "ثانوي";
 }
 
+// صفوف مرحلة معينة من قايمة GRADES الثابتة (كل مرحلة ماسكة صفوفها)
+function gradesOfStage(st) {
+  return GRADES.filter((g) => stageOfGrade(g) === st);
+}
+
 function filterRegTeachers() {
   const st = stageOfGrade(document.getElementById("rg-grade").value);
   let visible = 0;
