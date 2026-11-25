@@ -66,6 +66,10 @@ function route() {
   }
   if (fbRole === "teacher") {
     if (h === "#/teacher/reports") return renderTeacherReports();
+    if (h.startsWith("#/teacher/lesson/")) {
+      const lid = decodeURIComponent(h.slice("#/teacher/lesson/".length));
+      return renderTeacherLessonView(lid);
+    }
     if (h.startsWith("#/teacher/lessons")) {
       const st = decodeURIComponent(h.slice("#/teacher/lessons".length).replace(/^\//, "") || "");
       return renderTeacherLessons(st || null);

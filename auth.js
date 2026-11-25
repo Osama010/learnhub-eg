@@ -65,7 +65,10 @@ async function resolveRole(u) {
   }
 }
 
-function signOut() { fbAuth.signOut(); }
+function signOut() {
+  clearAdminPinSession();
+  fbAuth.signOut();
+}
 
 function authErrAr(e) {
   const c = (e && e.code) || "";
@@ -150,7 +153,7 @@ function renderLoginForm() {
       <div class="center" style="margin:8px 0 4px;"><a href="javascript:void(0)" id="li-forgot" style="color:var(--primary-dark); font-size:13px;">نسيت الباسورد؟</a></div>
       <div class="center muted" style="font-size:13px; margin:6px 0;">— أو —</div>
       <button type="button" class="btn blue" id="li-google" style="width:100%;">الدخول بحساب جوجل</button>
-      <p class="muted" style="font-size:12.5px; margin-top:8px;">الدخول بالباسورد بيشتغل لو الأدمن ربط باسورد بحسابه من تاب المشرفين بعد دخوله بجوجل. كده محدش يقدر يعمل حساب بإيميل أدمن من عنده.</p>`;
+      <p class="muted" style="font-size:12.5px; margin-top:8px;">الدخول بالباسورد بيشتغل لو الأدمن ربط باسورد بحسابه من تاب المشرفين بعد دخوله بجوجل. كده محدش يقدر يعمل حساب بإيميل أدمن من عنده. وبعد أي دخول أدمن، اللوحة بتطلب رقم الأدمن السري قبل ما تفتح.</p>`;
     document.getElementById("li-btn").onclick = () => doLogin("admin");
     document.getElementById("li-google").onclick = doGoogleLogin;
     document.getElementById("li-forgot").onclick = doAdminForgot;
@@ -205,6 +208,8 @@ async function doGoogleLogin() {
   loginMsg("");
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
+    // يفتح قائمة اختيار الحساب في كل مرة، حتى لو فيه حساب جوجل محفوظ على الجهاز
+    provider.setCustomParameters({ prompt: "select_account" });
     const cred = await fbAuth.signInWithPopup(provider);
     let isAdm = cred.user.email === ADMIN_EMAIL;
     if (!isAdm) {
@@ -354,4 +359,133 @@ async function doRegister() {
   } catch (e) {
     regMsg("حصلت مشكلة في التسجيل: " + (e.message || e));
   }
+}
+
+/* ---------- حماية جلسة الأدمن: رقم سري (PIN) + خروج تلقائي عند الخمول ----------
+   بعد دخول الأدمن (بجوجل أو بالباسورد) لازم يكتب رقمه السري قبل ما اللوحة تفتح.
+   أول مرة بيختار الرقم بنفسه وبيتحفظ مشفّر (SHA-256) في مستنده في مجموعة admins.
+   فتح اللوحة بيفضل ساري في التاب الحالي بس (sessionStorage)، ويقفل بقفل التاب.
+   وكمان خروج تلقائي بعد 15 دقيقة من غير أي نشاط، وخروج إجباري بعد 5 محاولات غلط. */
+
+const ADMIN_IDLE_MINUTES = 15;
+let adminIdleTimer = null;
+let adminPinFails = 0;
+
+function adminPinOk() {
+  return !!fbUser && sessionStorage.getItem("admPinOk") === (fbUser.email || "");
+}
+
+function clearAdminPinSession() {
+  sessionStorage.removeItem("admPinOk");
+  adminPinFails = 0;
+  stopIdleWatch();
+}
+
+function startIdleWatch() {
+  stopIdleWatch();
+  if (fbRole !== "admin") return;
+  const reset = () => {
+    if (adminIdleTimer) clearTimeout(adminIdleTimer);
+    adminIdleTimer = setTimeout(() => {
+      alert("اتسجّل خروجك تلقائياً بعد " + ADMIN_IDLE_MINUTES + " دقيقة من غير نشاط، حمايةً للوحة الأدمن.");
+      signOut();
+    }, ADMIN_IDLE_MINUTES * 60 * 1000);
+  };
+  ["click", "keydown", "touchstart"].forEach((ev) => document.addEventListener(ev, reset, { passive: true }));
+  startIdleWatch._reset = reset;
+  reset();
+}
+
+function stopIdleWatch() {
+  if (adminIdleTimer) { clearTimeout(adminIdleTimer); adminIdleTimer = null; }
+  if (startIdleWatch._reset) {
+    ["click", "keydown", "touchstart"].forEach((ev) => document.removeEventListener(ev, startIdleWatch._reset));
+    startIdleWatch._reset = null;
+  }
+}
+
+async function renderAdminPinGate(afterHash) {
+  const email = ((fbUser && fbUser.email) || "").toLowerCase();
+  let doc = null;
+  let loadErr = null;
+  try {
+    doc = await fbDb.collection("admins").doc(email).get();
+  } catch (e) { loadErr = e; }
+  const hasPin = !!(doc && doc.exists && doc.data().pinHash);
+
+  app.innerHTML = `
+    <div class="hdr" style="margin-top:32px;">
+      <h1>حماية لوحة الأدمن</h1>
+      <div class="fact">${esc(email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
+    </div>
+    <div class="card" style="max-width:460px; margin:0 auto;">
+      ${loadErr ? `<p class="msg bad">مشكلة في التحقق من حسابك: ${esc(loadErr.message || loadErr)}</p>` : hasPin ? `
+        <div class="center" style="font-size:40px;">🔒</div>
+        <h2 style="font-size:18px; margin-top:0;">اكتب رقم الأدمن السري</h2>
+        <p class="muted" style="font-size:13px;">رقم حماية إضافي غير حساب جوجل، عشان محدش يفتح اللوحة من جهاز عليه حسابك محفوظ.</p>
+        <label class="flabel">الرقم السري (PIN)</label>
+        <input id="apg-pin" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="••••" autocomplete="off">
+        <button type="button" class="btn" id="apg-btn" style="width:100%;">دخول اللوحة</button>
+      ` : `
+        <div class="center" style="font-size:40px;">🔐</div>
+        <h2 style="font-size:18px; margin-top:0;">اختار رقم الأدمن السري (أول مرة)</h2>
+        <p class="muted" style="font-size:13px;">هتكتب الرقم ده كل مرة تدخل فيها لوحة الأدمن بعد تسجيل الدخول، عشان محدش يفتح اللوحة من جهاز عليه حسابك محفوظ. تقدر تغيّره بعدين من تاب المشرفين.</p>
+        <label class="flabel">الرقم السري (من 4 لـ 6 أرقام)</label>
+        <input id="apg-pin1" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="مثال: 246810" autocomplete="off">
+        <label class="flabel">تأكيد الرقم السري</label>
+        <input id="apg-pin2" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="نفس الرقم تاني" autocomplete="off">
+        <button type="button" class="btn" id="apg-btn" style="width:100%;">حفظ ودخول اللوحة</button>
+      `}
+      <p id="apg-msg" class="msg bad"></p>
+    </div>
+    ${closing()}`;
+
+  if (loadErr) return;
+  const msg = (t) => { const m = document.getElementById("apg-msg"); if (m) m.textContent = t || ""; };
+  document.getElementById("apg-btn").onclick = async () => {
+    msg("");
+    if (hasPin) {
+      const pin = document.getElementById("apg-pin").value.trim();
+      if (!pin) return msg("اكتب الرقم السري.");
+      const h = await sha256Hex(email + ":" + pin);
+      if (h === doc.data().pinHash) {
+        sessionStorage.setItem("admPinOk", fbUser.email);
+        adminPinFails = 0;
+        startIdleWatch();
+        renderAdmin(afterHash || "#/admin");
+      } else {
+        adminPinFails++;
+        if (adminPinFails >= 5) {
+          alert("محاولات كتير غلط. اتسجّل خروجك حمايةً للوحة الأدمن.");
+          signOut();
+          return;
+        }
+        msg("الرقم السري غلط. (محاولة " + adminPinFails + " من 5)");
+      }
+    } else {
+      const p1 = document.getElementById("apg-pin1").value.trim();
+      const p2 = document.getElementById("apg-pin2").value.trim();
+      if (!/^[0-9]{4,6}$/.test(p1)) return msg("الرقم السري من 4 لـ 6 أرقام.");
+      if (p1 !== p2) return msg("الرقمين مش زي بعض.");
+      const pinHash = await sha256Hex(email + ":" + p1);
+      try {
+        if (doc && doc.exists) {
+          await fbDb.collection("admins").doc(email).update({ pinHash });
+        } else {
+          await fbDb.collection("admins").doc(email).set({
+            email,
+            name: email === ADMIN_EMAIL ? "الأدمن الأساسي" : "مشرف",
+            pinHash,
+            addedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            addedBy: "النظام",
+          });
+        }
+        sessionStorage.setItem("admPinOk", fbUser.email);
+        startIdleWatch();
+        renderAdmin(afterHash || "#/admin");
+      } catch (e) {
+        msg("حصلت مشكلة في الحفظ: " + (e.message || e));
+      }
+    }
+  };
 }

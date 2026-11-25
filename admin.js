@@ -46,6 +46,8 @@ function adminLayout(content, tab) {
 }
 
 async function renderAdmin(h) {
+  // بوابة الرقم السري قبل أي تحميل لبيانات اللوحة
+  if (!adminPinOk()) return renderAdminPinGate(h);
   app.innerHTML = `<div class="spin">بنحمل بيانات المنصة...</div>`;
   try { await adminLoad(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
@@ -993,6 +995,16 @@ function adminAdmins() {
       <p id="adp-msg" class="msg"></p>
     </div>
     <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">رقم الأدمن السري (PIN)</h2>
+      <p class="muted" style="font-size:13px;">ده الرقم اللي اللوحة بتطلبه منك كل مرة تدخل فيها بعد تسجيل الدخول — حماية إضافية لو الجهاز في إيد حد تاني. بيتحفظ مشفّر ومحدش يقدر يقرأه، ولو نسيته تقدر تغيّره من هنا في أي وقت.</p>
+      <div class="fgrid">
+        <div><label class="flabel">الرقم السري الجديد (من 4 لـ 6 أرقام)</label><input id="apc-pin1" type="password" inputmode="numeric" maxlength="6" class="inp ltr" autocomplete="off"></div>
+        <div><label class="flabel">تأكيد الرقم السري</label><input id="apc-pin2" type="password" inputmode="numeric" maxlength="6" class="inp ltr" autocomplete="off"></div>
+      </div>
+      <button type="button" class="btn" id="apc-btn">تغيير الرقم السري</button>
+      <p id="apc-msg" class="msg"></p>
+    </div>
+    <div class="card">
       <h2 style="font-size:18px; margin-top:0;">المشرفين (${admins.length})</h2>
       <table class="ttable">
         <thead><tr><th>الاسم</th><th>الإيميل</th><th>أضافه</th><th>تاريخ الإضافة</th><th>إجراءات</th></tr></thead>
@@ -1016,6 +1028,7 @@ function adminAdmins() {
   adminLayout(content, "admins");
   document.getElementById("an-add").onclick = adminAddAdmin;
   document.getElementById("adp-btn").onclick = adminLinkPassword;
+  document.getElementById("apc-btn").onclick = adminChangePin;
   document.querySelectorAll("[data-admdel]").forEach((b) => b.onclick = () => adminDeleteAdmin(b.dataset.admdel));
 }
 
@@ -1055,6 +1068,32 @@ async function adminDeleteAdmin(email) {
 function adpMsg(t, good) {
   const m = document.getElementById("adp-msg");
   if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
+}
+
+function apcMsg(t, good) {
+  const m = document.getElementById("apc-msg");
+  if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
+}
+
+// تغيير رقم الأدمن السري (PIN) من تاب المشرفين
+async function adminChangePin() {
+  const p1 = document.getElementById("apc-pin1").value.trim();
+  const p2 = document.getElementById("apc-pin2").value.trim();
+  if (!/^[0-9]{4,6}$/.test(p1)) return apcMsg("الرقم السري من 4 لـ 6 أرقام.");
+  if (p1 !== p2) return apcMsg("الرقمين مش زي بعض.");
+  const btn = document.getElementById("apc-btn");
+  btn.disabled = true;
+  try {
+    const email = (fbUser.email || "").toLowerCase();
+    const pinHash = await sha256Hex(email + ":" + p1);
+    await fbDb.collection("admins").doc(email).update({ pinHash });
+    document.getElementById("apc-pin1").value = "";
+    document.getElementById("apc-pin2").value = "";
+    apcMsg("اتغيّر الرقم السري. هتستخدمه من أول مرة دخول جاية.", true);
+  } catch (e) {
+    apcMsg("حصلت مشكلة: " + (e.message || e));
+  }
+  btn.disabled = false;
 }
 
 // ربط باسورد بحساب الأدمن الحالي (المتحقق منه) عشان يدخل بالإيميل والباسورد كمان

@@ -3,10 +3,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // الأدمن: الإيميل الأساسي، أو إيميل مسجل في مجموعة admins (يضيفهم الأدمن من اللوحة)
+    // الدخول بجوجل يُعتبر تحقق بحد ذاته (جوجل بيملك gmail.com)، فمش محتاجين email_verified معاه
     // لازم الإيميل يكون متحقق منه (جوجل بيحقق تلقائياً)، عشان محدش يعمل حساب
     // بإيميل وباسورد بإيميل أدمن من غير تحقق وياخد صلاحياته
     function isAdmin() {
-      return request.auth != null && request.auth.token.email_verified == true
+      return request.auth != null
+        && (request.auth.token.email_verified == true
+            || request.auth.token.firebase.sign_in_provider == "google.com")
         && (request.auth.token.email == "osamaasas0@gmail.com"
             || exists(/databases/$(database)/documents/admins/$(request.auth.token.email)));
     }
@@ -17,11 +20,11 @@ service cloud.firestore {
     }
 
     // المشرفين: مفتاح المستند هو الإيميل. القراءة والإضافة والحذف للأدمن بس،
-    // ومستند الأدمن الأساسي ميتحذفش أبداً، والتعديل مقفول (حذف + إضافة من جديد بدله)
+    // ومستند الأدمن الأساسي ميتحذفش أبداً
     match /admins/{email} {
       allow read: if isAdmin();
       allow create: if isAdmin();
-      allow update: if false;
+      allow update: if isAdmin();
       allow delete: if isAdmin() && email != "osamaasas0@gmail.com";
     }
 

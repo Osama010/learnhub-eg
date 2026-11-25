@@ -557,6 +557,7 @@ async function renderTeacherLessons(stageArg) {
               ${l.desc ? `<div class="muted" style="font-size:13px; margin-top:4px;">${esc(l.desc)}</div>` : ""}
               <div class="muted" style="font-size:12px; margin:4px 0;">${l.videoUrl ? "🎬 فيديو · " : ""}${l.pdfUrl ? "📄 PDF · " : ""}${(l.quiz || []).length ? `📝 كويز ${(l.quiz || []).length} سؤال` : "من غير كويز"}</div>
               <div class="btnrow">
+                <button type="button" class="btn sm" data-lview="${l.id}">عرض</button>
                 <button type="button" class="btn sm ghost" data-lres="${l.id}">النتائج</button>
                 <button type="button" class="btn sm ghost" data-ledit="${l.id}">تعديل</button>
                 <button type="button" class="btn sm red" data-ldel="${l.id}">حذف</button>
@@ -620,10 +621,90 @@ async function renderTeacherLessons(stageArg) {
     renderTeacherLessons(stage);
   });
   document.querySelectorAll("[data-ldel]").forEach((b) => b.onclick = () => teacherDeleteLesson(b.dataset.ldel, stage));
+  document.querySelectorAll("[data-lview]").forEach((b) => b.onclick = () => { location.hash = "#/teacher/lesson/" + b.dataset.lview; });
   document.querySelectorAll("[data-lres]").forEach((b) => b.onclick = () => {
     resultsOpenFor = resultsOpenFor === b.dataset.lres ? null : b.dataset.lres;
     renderTeacherLessons(stage);
   });
+  window.scrollTo(0, 0);
+}
+
+/* ---------- معاينة الدرس: صفحة عرض محتوى الدرس للمدرس ---------- */
+const QTYPE_LABELS = {
+  mcq: "اختيار من متعدد", multi: "اختيارات متعددة", tf: "صح أم خطأ",
+  text: "إجابة نصية", fill: "أكمل الفراغ", match: "توصيل", num: "إجابة رقمية",
+};
+
+function lessonViewQuestionHtml(q, i) {
+  const head = `<div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line);">
+    <b>${i + 1}. ${esc(q.q)}</b> <span class="chip">${QTYPE_LABELS[q.type] || esc(q.type)}</span></div>`;
+  const okStyle = `style="color:#15803d; font-weight:700;"`;
+  if (q.type === "mcq") {
+    return head + `<ul style="margin:8px 0 0; padding-inline-start:22px;">${(q.options || []).map((o, oi) =>
+      `<li ${oi === q.correct ? okStyle : ""}>${esc(o)}${oi === q.correct ? " ✓" : ""}</li>`).join("")}</ul>`;
+  }
+  if (q.type === "multi") {
+    const corr = Array.isArray(q.correct) ? q.correct : [];
+    return head + `<ul style="margin:8px 0 0; padding-inline-start:22px;">${(q.options || []).map((o, oi) =>
+      `<li ${corr.includes(oi) ? okStyle : ""}>${esc(o)}${corr.includes(oi) ? " ✓" : ""}</li>`).join("")}</ul>`;
+  }
+  if (q.type === "tf") {
+    return head + `<p style="margin:8px 0 0;">الإجابة الصحيحة: <b style="color:#15803d;">${q.correct === 0 ? "صح" : "خطأ"}</b></p>`;
+  }
+  if (q.type === "match") {
+    return head + `<table class="ttable" style="margin-top:8px;">
+      <thead><tr><th>العمود الأول</th><th>المقابل الصحيح</th></tr></thead>
+      <tbody>${(q.pairs || []).map((p) => `<tr><td>${esc(p.a)}</td><td>${esc(p.b)}</td></tr>`).join("")}</tbody></table>`;
+  }
+  if (q.type === "num") {
+    return head + `<p style="margin:8px 0 0;">الإجابة: <b class="ltr" style="color:#15803d;">${esc(q.answer)}</b>${q.tolerance ? ` <span class="muted">(± ${esc(q.tolerance)})</span>` : ""}</p>`;
+  }
+  // text / fill
+  return head + `<p style="margin:8px 0 0;">الإجابات المقبولة: <b style="color:#15803d;">${esc(q.answer)}</b></p>`;
+}
+
+async function renderTeacherLessonView(id) {
+  app.innerHTML = `<div class="spin">بنحمل الدرس...</div>`;
+  let l = null;
+  try {
+    const d = await fbDb.collection("lessons").doc(id).get();
+    if (d.exists) l = { id: d.id, ...d.data() };
+  } catch (e) {
+    app.innerHTML = `<p class="msg bad">مشكلة في تحميل الدرس: ${esc(e.message || e)}</p>${closing()}`;
+    return;
+  }
+  const backHash = l && l.stage ? "#/teacher/lessons/" + encodeURIComponent(l.stage) : "#/teacher";
+  if (!l) {
+    app.innerHTML = `<div class="card center" style="max-width:520px; margin:60px auto;">
+      <p class="msg bad">الدرس ده مش موجود (ممكن يكون اتحذف).</p>
+      <div class="btnrow" style="justify-content:center;"><a class="btn ghost" href="#/teacher">رجوع</a></div>
+    </div>${closing()}`;
+    return;
+  }
+  const embed = l.videoUrl ? ytEmbed(l.videoUrl) : null;
+  const quiz = (l.quiz || []).map(qFromStored);
+  app.innerHTML = `
+    <div class="hdr">
+      <h1>${esc(l.title || "درس")}</h1>
+      <div class="fact">الوحدة ${esc(String(l.unit || "—"))} · الدرس ${esc(String(l.lessonNum || "—"))}${l.subject ? " · " + esc(l.subject) : ""} · المرحلة ${esc(STAGE_NAMES[l.stage] || l.stage || "")}</div>
+    </div>
+    ${teacherTabs("lessons")}
+    <div class="btnrow"><button type="button" class="btn ghost" id="lv-back">← رجوع للدروس</button></div>
+    ${l.desc ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">وصف الدرس</h2><p style="white-space:pre-wrap; margin:0;">${esc(l.desc)}</p></div>` : ""}
+    ${embed ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">الفيديو 🎬</h2>
+      <div style="position:relative; padding-top:56.25%; border-radius:12px; overflow:hidden; background:#0f172a;">
+        <iframe src="${esc(embed)}" title="فيديو الدرس" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      </div></div>`
+      : l.videoUrl ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">الفيديو 🎬</h2><a class="btn ghost" href="${esc(l.videoUrl)}" target="_blank" rel="noopener">فتح رابط الفيديو في تاب جديد</a></div>` : ""}
+    ${l.pdfUrl ? `<div class="card"><h2 style="font-size:17px; margin-top:0;">ملف PDF 📄</h2><a class="btn ghost" href="${esc(l.pdfUrl)}" target="_blank" rel="noopener">فتح الملف في تاب جديد</a></div>` : ""}
+    <div class="card">
+      <h2 style="font-size:17px; margin-top:0;">الكويز 📝 (${quiz.length} سؤال)</h2>
+      <p class="muted" style="font-size:12.5px;">الإجابات الصحيحة ظاهرة بالأخضر — المعاينة دي ليك انت بس، الطالب مش بيشوفها.</p>
+      ${quiz.length ? quiz.map((q, i) => lessonViewQuestionHtml(q, i)).join("") : `<p class="muted">الدرس ده من غير كويز.</p>`}
+    </div>
+    ${closing()}`;
+  bindTeacherTabs();
+  document.getElementById("lv-back").onclick = () => location.hash = backHash;
   window.scrollTo(0, 0);
 }
 
