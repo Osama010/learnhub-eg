@@ -89,6 +89,21 @@ function route() {
   }
   if (fbRole === "student") {
     if (h === "#/student") return renderStudentHome();
+    if (h === "#/student/quizexams") return renderStudentQuizExams();
+    if (h === "#/student/ann") return renderStudentAnn();
+    if (h === "#/student/grades") return renderStudentGrades();
+    if (h.startsWith("#/student/lesson/")) {
+      const lid = decodeURIComponent(h.slice("#/student/lesson/".length));
+      return renderStudentLesson(lid);
+    }
+    if (h.startsWith("#/student/quiz/")) {
+      const qid = decodeURIComponent(h.slice("#/student/quiz/".length));
+      return renderStudentTake(qid, false);
+    }
+    if (h.startsWith("#/student/exam/")) {
+      const eid = decodeURIComponent(h.slice("#/student/exam/".length));
+      return renderStudentTake(eid, true);
+    }
     return renderStudentHome();
   }
   renderLogin();

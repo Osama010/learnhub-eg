@@ -617,7 +617,6 @@ function renderStageLists(stage, myStages) {
               <div class="btnrow">
                 <button type="button" class="btn sm" data-lview="${l.id}">عرض</button>
                 <button type="button" class="btn sm ghost" data-ledit="${l.id}">تعديل</button>
-                <button type="button" class="btn sm ghost" data-lcopy="${l.id}">📑 نسخ لمرحلة</button>
                 <button type="button" class="btn sm red" data-ldel="${l.id}">حذف</button>
               </div>
           </div>`).join("")}
@@ -646,7 +645,6 @@ function renderStageLists(stage, myStages) {
               <div class="btnrow">
                 <button type="button" class="btn sm ghost" data-qres="${q.id}">النتائج</button>
                 <button type="button" class="btn sm ghost" data-qedit="${q.id}">تعديل</button>
-                <button type="button" class="btn sm ghost" data-qcopy="${q.id}">📑 نسخ لمرحلة</button>
                 <button type="button" class="btn sm red" data-qdel="${q.id}">حذف</button>
               </div>
               ${quizResultsOpenFor === q.id ? quizResultsHtml(q) : ""}
@@ -672,7 +670,6 @@ function renderStageLists(stage, myStages) {
               <div class="btnrow">
                 <button type="button" class="btn sm ghost" data-xres="${e.id}">النتائج</button>
                 <button type="button" class="btn sm ghost" data-xedit="${e.id}">تعديل</button>
-                <button type="button" class="btn sm ghost" data-xcopy="${e.id}">📑 نسخ لمرحلة</button>
                 <button type="button" class="btn sm ${e.closed ? "" : "amber"}" data-xtgl="${e.id}">${e.closed ? "فتح" : "قفل"}</button>
                 <button type="button" class="btn sm red" data-xdel="${e.id}">حذف</button>
               </div>
@@ -718,9 +715,6 @@ function renderStageLists(stage, myStages) {
     renderTeacherLessons(stage);
   });
   document.querySelectorAll("[data-ldel]").forEach((b) => b.onclick = () => teacherDeleteLesson(b.dataset.ldel, stage));
-  document.querySelectorAll("[data-lcopy]").forEach((b) => b.onclick = () => copyToStageModal("lesson", b.dataset.lcopy, stage));
-  document.querySelectorAll("[data-qcopy]").forEach((b) => b.onclick = () => copyToStageModal("quiz", b.dataset.qcopy, stage));
-  document.querySelectorAll("[data-xcopy]").forEach((b) => b.onclick = () => copyToStageModal("exam", b.dataset.xcopy, stage));
   document.querySelectorAll("[data-qedit]").forEach((b) => b.onclick = () => {
     const q = teacherQuizzes.find((x) => x.id === b.dataset.qedit);
     if (!q) return;
@@ -1489,53 +1483,6 @@ function lateStudentsHtml(stage, attempts, kindLabel, title, grade) {
     <thead><tr><th>الطالب</th><th>الرقم</th><th>تذكير</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
-}
-
-/* ---------- نسخ درس/كويز/امتحان لمرحلة تانية ---------- */
-function copyToStageModal(kind, id, stage) {
-  const myStages = (fbProfile && fbProfile.stages) || [];
-  const targets = myStages.filter((st) => st !== stage);
-  if (!targets.length) { alert("انت مسجل في مرحلة واحدة بس — مفيش مرحلة تانية تنسخ ليها."); return; }
-  const names = { lesson: "الدرس", quiz: "الكويز", exam: "الامتحان" };
-  const ov = document.createElement("div");
-  ov.className = "overlay";
-  ov.innerHTML = `<div class="detailcard" style="max-width:420px;">
-    <h3>📑 نسخ ${names[kind]} لمرحلة تانية</h3>
-    <p class="muted" style="font-size:13px;">هتتعمل نسخة بنفس المحتوى في المرحلة اللي هتختارها، وتقدر تعدلها بعدها عادي.</p>
-    <div style="display:grid; gap:8px; margin-top:10px;">
-      ${targets.map((st) => `<button type="button" class="btn ghost" data-cpst="${esc(st)}">${STAGE_ICONS[st] || "📚"} المرحلة ${esc(STAGE_NAMES[st] || st)}</button>`).join("")}
-    </div>
-    <div class="btnrow" style="justify-content:center; margin-top:12px;"><button type="button" class="btn ghost" id="ov-cancel">إلغاء</button></div>
-  </div>`;
-  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
-  document.body.appendChild(ov);
-  ov.querySelector("#ov-cancel").onclick = () => ov.remove();
-  ov.querySelectorAll("[data-cpst]").forEach((b) => b.onclick = async () => {
-    const st = b.dataset.cpst;
-    b.disabled = true;
-    try {
-      let src, data;
-      if (kind === "lesson") {
-        src = teacherLessons.find((x) => x.id === id);
-        data = { teacherId: src.teacherId, teacherName: src.teacherName || "", subject: src.subject || "", stage: st, unit: src.unit || 1, lessonNum: src.lessonNum || 1, title: src.title || "", videoUrl: src.videoUrl || "", pdfUrl: src.pdfUrl || "", desc: src.desc || "", publishAt: src.publishAt || null };
-      } else if (kind === "quiz") {
-        src = teacherQuizzes.find((x) => x.id === id);
-        data = { teacherId: src.teacherId, teacherName: src.teacherName || "", subject: src.subject || "", stage: st, title: src.title || "", lessonId: null, questions: src.questions || [] };
-      } else {
-        src = teacherExams.find((x) => x.id === id);
-        data = { teacherId: src.teacherId, teacherName: src.teacherName || "", subject: src.subject || "", stage: st, title: src.title || "", desc: src.desc || "", openAt: null, closeAt: null, closed: false, quiz: src.quiz || [] };
-      }
-      if (!src) throw new Error("العنصر مش موجود");
-      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await fbDb.collection(kind === "lesson" ? "lessons" : kind === "quiz" ? "quizzes" : "exams").add(data);
-      ov.remove();
-      alert("اتعملت النسخة في المرحلة " + (STAGE_NAMES[st] || st) + " ✅");
-      await renderTeacherLessons(stage);
-    } catch (e) {
-      b.disabled = false;
-      alert("مشكلة: " + (e.message || e));
-    }
-  });
 }
 
 /* ---------- بنك الأسئلة ---------- */
