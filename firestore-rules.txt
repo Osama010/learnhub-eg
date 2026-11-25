@@ -80,6 +80,32 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
     }
 
+    // إعلانات المدرس لطلاب مرحلة: المدرس يضيف ويحذف إعلاناته بس،
+    // والطالب يشوف إعلانات مدرسينه بس (العرض عند الطالب بيتفعل مع واجهته لما تجهز)
+    match /announcements/{annId} {
+      allow get, list: if isAdmin()
+        || (isTeacher() && resource.data.teacherId == request.auth.uid)
+        || (request.auth != null
+            && exists(/databases/$(database)/documents/students/$(request.auth.uid))
+            && resource.data.teacherId in get(/databases/$(database)/documents/students/$(request.auth.uid)).data.teacherIds);
+      allow create: if isAdmin() || (isTeacher() && request.resource.data.teacherId == request.auth.uid);
+      allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
+    // بنك الأسئلة: خاص بكل مدرس لوحده — الطلبة مالهمش أي وصول خالص
+    match /questionBank/{qId} {
+      allow get, list: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+      allow create: if isAdmin() || (isTeacher() && request.resource.data.teacherId == request.auth.uid);
+      allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
+    // ملاحظات المدرس الخاصة على الطلبة: صاحب الملاحظة بس — الطلبة مالهمش أي وصول خالص
+    match /studentNotes/{noteId} {
+      allow get, list: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+      allow create: if isAdmin() || (isTeacher() && request.resource.data.teacherId == request.auth.uid);
+      allow update, delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
     // الامتحانات المستقلة (خارج الدروس، لكل مرحلة): زي الدروس بالظبط —
     // الطالب يشوف امتحانات مدرسينه بس، والمدرس يضيف ويعدّل ويحذف امتحاناته بس
     match /exams/{examId} {

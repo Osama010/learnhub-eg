@@ -8,6 +8,7 @@ function teacherTabs(active) {
   return `<div class="tabs">
     <button type="button" class="tab ${active === "students" ? "active" : ""}" data-g="#/teacher">طلابي</button>
     <button type="button" class="tab ${active === "lessons" ? "active" : ""}" data-g="#/teacher/lessons">الدروس والكويزات</button>
+    <button type="button" class="tab ${active === "ann" ? "active" : ""}" data-g="#/teacher/announcements">الإعلانات</button>
     <button type="button" class="tab ${active === "reports" ? "active" : ""}" data-g="#/teacher/reports">التقارير</button>
   </div>`;
 }
@@ -53,12 +54,14 @@ async function teacherLoadLessons() {
     });
     await fbDb.collection("lessons").doc(d.id).update({ quiz: firebase.firestore.FieldValue.delete() });
   }
-  const [ls, at, ex, qz] = await Promise.all([
+  const [ls, at, ex, qz, st] = await Promise.all([
     fbDb.collection("lessons").where("teacherId", "==", fbUser.uid).get(),
     fbDb.collection("quizAttempts").where("teacherId", "==", fbUser.uid).get(),
     fbDb.collection("exams").where("teacherId", "==", fbUser.uid).get(),
     fbDb.collection("quizzes").where("teacherId", "==", fbUser.uid).get(),
+    fbDb.collection("students").where("teacherIds", "array-contains", fbUser.uid).get(),
   ]);
+  teacherCache = st.docs.map((d) => ({ id: d.id, ...d.data() }));
   teacherLessons = ls.docs.map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (b.createdAt && a.createdAt ? b.createdAt.seconds - a.createdAt.seconds : 0));
   teacherAttempts = at.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -132,6 +135,7 @@ async function renderTeacherDash() {
               <td>
                 <div class="btnrow">
                   <a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك مدرسك من منصة الدروس.")}">واتساب</a>
+                  <button type="button" class="btn sm ghost" data-snotes="${s.id}">📝 ملاحظات</button>
                   <button type="button" class="btn sm ghost" data-rs="${s.id}">إعادة ضبط الباسورد</button>
                   <button type="button" class="btn sm red" data-dl="${s.id}">حذف</button>
                 </div>
@@ -161,6 +165,7 @@ async function renderTeacherDash() {
   document.querySelectorAll("[data-rs]").forEach((b) => b.onclick = () => teacherResetStudent(b.dataset.rs));
   document.querySelectorAll("[data-dl]").forEach((b) => b.onclick = () => teacherDeleteStudent(b.dataset.dl));
   document.querySelectorAll("[data-spop]").forEach((b) => b.onclick = () => teacherShowStudent(b.dataset.spop));
+  document.querySelectorAll("[data-snotes]").forEach((b) => b.onclick = () => openStudentNotes(b.dataset.snotes));
   window.scrollTo(0, 0);
 }
 
@@ -288,7 +293,7 @@ function emptyExamForm() {
 }
 
 function emptyLessonForm() {
-  return { id: null, unit: "", lessonNum: "", title: "", desc: "", videoUrl: "", pdfUrl: "" };
+  return { id: null, unit: "", lessonNum: "", title: "", desc: "", videoUrl: "", pdfUrl: "", publishAt: "" };
 }
 
 function emptyQuizForm() {
@@ -414,6 +419,9 @@ function quizBuilderHtml(p, qs) {
       <select class="inp" data-${p}qtype="${i}" style="margin-bottom:8px;">
         ${QTYPES.map(([v, lbl]) => `<option value="${v}" ${q.type === v ? "selected" : ""}>${lbl}</option>`).join("")}
       </select>
+      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); margin-bottom:8px; cursor:pointer;">
+        <input type="checkbox" data-${p}qbank="${i}" ${q.saveToBank ? "checked" : ""}> احفظ السؤال ده في بنك الأسئلة
+      </label>
       <input type="text" class="inp" placeholder="نص السؤال" data-${p}qt="${i}" value="${esc(q.q)}">
       ${body}
     </div>`;
@@ -455,6 +463,7 @@ function bindQuizEditor(p, qs, rerender) {
     el.oninput = () => qs[i].pairs[j].b = el.value;
   });
   document.querySelectorAll(`[data-${p}qadd]`).forEach((b) => b.onclick = () => { qs[Number(b.dataset[p + "qadd"])].pairs.push({ a: "", b: "" }); rerender(); });
+  document.querySelectorAll(`[data-${p}qbank]`).forEach((el) => el.onchange = () => qs[Number(el.dataset[p + "qbank"])].saveToBank = el.checked);
   document.querySelectorAll(`[data-${p}qpd]`).forEach((b) => b.onclick = () => {
     const [i, j] = b.dataset[p + "qpd"].split("-").map(Number);
     qs[i].pairs.splice(j, 1); rerender();
@@ -551,12 +560,13 @@ function renderStageLists(stage, myStages) {
         ${list.map((l) => `
           <div class="card" style="margin:0;">
               <div style="font-size:12px; color:var(--primary-dark); font-weight:700;">الوحدة ${l.unit || "—"} · الدرس ${l.lessonNum || "—"}</div>
-              <b style="font-size:15px;">${esc(l.title)}</b>
+              <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(l.title)}</b>${l.publishAt && l.publishAt.toDate && l.publishAt.toDate() > new Date() ? `<span class="chip amber">🕒 مجدول: ${fmtTs(l.publishAt)}</span>` : ""}</div>
               ${l.desc ? `<div class="muted" style="font-size:13px; margin-top:4px;">${esc(l.desc)}</div>` : ""}
               <div class="muted" style="font-size:12px; margin:4px 0;">${l.videoUrl ? "🎬 فيديو" : ""}${l.videoUrl && l.pdfUrl ? " · " : ""}${l.pdfUrl ? "📄 PDF" : ""}${!l.videoUrl && !l.pdfUrl ? "من غير وسائط" : ""}</div>
               <div class="btnrow">
                 <button type="button" class="btn sm" data-lview="${l.id}">عرض</button>
                 <button type="button" class="btn sm ghost" data-ledit="${l.id}">تعديل</button>
+                <button type="button" class="btn sm ghost" data-lcopy="${l.id}">📑 نسخ لمرحلة</button>
                 <button type="button" class="btn sm red" data-ldel="${l.id}">حذف</button>
               </div>
           </div>`).join("")}
@@ -583,6 +593,7 @@ function renderStageLists(stage, myStages) {
               <div class="btnrow">
                 <button type="button" class="btn sm ghost" data-qres="${q.id}">النتائج</button>
                 <button type="button" class="btn sm ghost" data-qedit="${q.id}">تعديل</button>
+                <button type="button" class="btn sm ghost" data-qcopy="${q.id}">📑 نسخ لمرحلة</button>
                 <button type="button" class="btn sm red" data-qdel="${q.id}">حذف</button>
               </div>
               ${quizResultsOpenFor === q.id ? quizResultsHtml(q) : ""}
@@ -607,6 +618,7 @@ function renderStageLists(stage, myStages) {
               <div class="btnrow">
                 <button type="button" class="btn sm ghost" data-xres="${e.id}">النتائج</button>
                 <button type="button" class="btn sm ghost" data-xedit="${e.id}">تعديل</button>
+                <button type="button" class="btn sm ghost" data-xcopy="${e.id}">📑 نسخ لمرحلة</button>
                 <button type="button" class="btn sm ${e.closed ? "" : "amber"}" data-xtgl="${e.id}">${e.closed ? "فتح" : "قفل"}</button>
                 <button type="button" class="btn sm red" data-xdel="${e.id}">حذف</button>
               </div>
@@ -645,11 +657,15 @@ function renderStageLists(stage, myStages) {
     lessonForm = {
       id: l.id, unit: l.unit || "", lessonNum: l.lessonNum || "", title: l.title || "",
       videoUrl: l.videoUrl || "", pdfUrl: l.pdfUrl || "", desc: l.desc || "",
+      publishAt: tsToLocalInput(l.publishAt),
     };
     lessonFormOpen = true;
     renderTeacherLessons(stage);
   });
   document.querySelectorAll("[data-ldel]").forEach((b) => b.onclick = () => teacherDeleteLesson(b.dataset.ldel, stage));
+  document.querySelectorAll("[data-lcopy]").forEach((b) => b.onclick = () => copyToStageModal("lesson", b.dataset.lcopy, stage));
+  document.querySelectorAll("[data-qcopy]").forEach((b) => b.onclick = () => copyToStageModal("quiz", b.dataset.qcopy, stage));
+  document.querySelectorAll("[data-xcopy]").forEach((b) => b.onclick = () => copyToStageModal("exam", b.dataset.xcopy, stage));
   document.querySelectorAll("[data-qedit]").forEach((b) => b.onclick = () => {
     const q = teacherQuizzes.find((x) => x.id === b.dataset.qedit);
     if (!q) return;
@@ -704,6 +720,8 @@ function renderLessonFormPage(stage, subject) {
         <div><label class="flabel">رابط ملف PDF (جوجل درايف)</label><input id="ls-pdf" type="url" class="inp ltr" placeholder="https://drive.google.com/..." value="${esc(lessonForm.pdfUrl)}"></div>
       </div>
       <p class="muted" style="font-size:12.5px; margin-top:2px;">فيديو درايف لازم يكون متشارك: من جوجل درايف ← كليك يمين على الملف ← مشاركة ← "أي شخص لديه الرابط". فيديو يوتيوب بيشتغل على طول.</p>
+      <div><label class="flabel">🕒 موعد النشر (اختياري)</label><input id="ls-pub" type="datetime-local" class="inp ltr" value="${esc(lessonForm.publishAt || "")}"></div>
+      <p class="muted" style="font-size:12.5px; margin-top:2px;">سيبه فاضي عشان الدرس ينشر فورا. لو حددت معاد، الدرس يتسجل كـ"مجدول" وتظهر عليه شارة — إظهاره للطالب في المعاد هيتفعل مع واجهة الطالب لما تجهز.</p>
       <label class="flabel">وصف الدرس (اختياري — يظهر على كارت الدرس)</label>
       <textarea id="ls-desc" class="inp" rows="2" placeholder="مثال: في الدرس ده هنتعلم أساسيات لغة بايثون ونكتب أول برنامج">${esc(lessonForm.desc)}</textarea>
       <div class="btnrow">
@@ -721,6 +739,7 @@ function renderLessonFormPage(stage, subject) {
   document.getElementById("ls-video").oninput = (e) => lessonForm.videoUrl = e.target.value;
   document.getElementById("ls-pdf").oninput = (e) => lessonForm.pdfUrl = e.target.value;
   document.getElementById("ls-desc").oninput = (e) => lessonForm.desc = e.target.value;
+  document.getElementById("ls-pub").onchange = (e) => lessonForm.publishAt = e.target.value;
   document.getElementById("ls-save").onclick = () => teacherSaveLesson(stage);
   const goBack = () => { lessonForm = emptyLessonForm(); lessonFormOpen = false; renderTeacherLessons(stage); };
   document.getElementById("ls-cancel").onclick = goBack;
@@ -757,6 +776,7 @@ function renderQuizFormPage(stage, subject) {
       <div id="qz-quiz">${quizBuilderHtml("q", quizForm.quiz)}</div>
       <div class="btnrow">
         <button type="button" class="btn ghost" id="qz-addq">+ إضافة سؤال</button>
+        <button type="button" class="btn ghost" id="qz-bank">📚 إضافة من بنك الأسئلة</button>
         <button type="button" class="btn" id="qz-save">${editing ? "حفظ التعديلات" : "إضافة الكويز"}</button>
         <button type="button" class="btn ghost" id="qz-cancel">إلغاء</button>
       </div>
@@ -771,6 +791,7 @@ function renderQuizFormPage(stage, subject) {
     quizForm.quiz.push(qNew("mcq"));
     renderTeacherLessons(stage);
   };
+  document.getElementById("qz-bank").onclick = () => openBankPicker(quizForm.quiz, stage);
   bindQuizEditor("q", quizForm.quiz, () => renderTeacherLessons(stage));
   document.getElementById("qz-save").onclick = () => teacherSaveQuiz(stage);
   const goBack = () => { quizForm = emptyQuizForm(); quizFormOpen = false; renderTeacherLessons(stage); };
@@ -802,6 +823,7 @@ function renderExamFormPage(stage) {
       <div id="ex-quiz">${quizBuilderHtml("x", examForm.quiz)}</div>
       <div class="btnrow">
         <button type="button" class="btn ghost" id="ex-addq">+ إضافة سؤال</button>
+      <button type="button" class="btn ghost" id="ex-bank">📚 إضافة من بنك الأسئلة</button>
         <button type="button" class="btn" id="ex-save">${examForm.id ? "حفظ التعديلات" : "إضافة الامتحان"}</button>
         <button type="button" class="btn ghost" id="ex-cancel">إلغاء</button>
       </div>
@@ -814,6 +836,7 @@ function renderExamFormPage(stage) {
   document.getElementById("ex-open").onchange = (e) => examForm.openAt = e.target.value;
   document.getElementById("ex-close").onchange = (e) => examForm.closeAt = e.target.value;
   document.getElementById("ex-addq").onclick = () => { examForm.quiz.push(qNew("mcq")); renderTeacherLessons(stage); };
+  document.getElementById("ex-bank").onclick = () => openBankPicker(examForm.quiz, stage);
   bindQuizEditor("x", examForm.quiz, () => renderTeacherLessons(stage));
   document.getElementById("ex-save").onclick = () => teacherSaveExam(stage);
   const goBack = () => { examForm = emptyExamForm(); examFormOpen = false; renderTeacherLessons(stage); };
@@ -877,11 +900,11 @@ function renderExamFormPage(stage) {
 
 function quizResultsHtml(q) {
   const attempts = quizAttemptsFor(q);
-  if (!attempts.length) return `<p class="muted" style="font-size:13px; margin:10px 0 0;">لسه مفيش طالب حل الكويز ده.</p>`;
-  return `<table class="ttable" style="margin-top:10px;">
+  const table = attempts.length ? `<table class="ttable" style="margin-top:10px;">
     <thead><tr><th>الطالب</th><th>الدرجة</th><th>آخر محاولة</th></tr></thead>
     <tbody>${attempts.map((a) => `<tr><td>${esc(a.studentName || "—")}</td><td>${a.score} من ${a.total}</td><td>${a.updatedAt ? fmtTs(a.updatedAt) : "—"}</td></tr>`).join("")}</tbody>
-  </table>`;
+  </table>` : `<p class="muted" style="font-size:13px; margin:10px 0 0;">لسه مفيش طالب حل الكويز ده.</p>`;
+  return table + lateStudentsHtml(q.stage, attempts, "الكويز", q.title);
 }
 
 async function teacherSaveLesson(stage) {
@@ -906,6 +929,7 @@ async function teacherSaveLesson(stage) {
     videoUrl: lessonForm.videoUrl.trim(),
     pdfUrl: lessonForm.pdfUrl.trim(),
     desc: lessonForm.desc.trim(),
+    publishAt: lessonForm.publishAt ? firebase.firestore.Timestamp.fromDate(new Date(lessonForm.publishAt)) : null,
   };
   try {
     if (lessonForm.id) {
@@ -949,9 +973,11 @@ async function teacherSaveQuiz(stage) {
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       await fbDb.collection("quizzes").add(data);
     }
+    const toBank = quizForm.quiz.filter((q) => q.saveToBank);
     quizForm = emptyQuizForm();
     quizFormOpen = false;
     lessonsInnerTab = "quizexams";
+    try { await saveToBank(toBank); } catch (_) {}
     await renderTeacherLessons(stage);
   } catch (e) {
     btn.disabled = false;
@@ -1018,7 +1044,7 @@ function examResultsHtml(e) {
     <table class="ttable">
     <thead><tr><th>الطالب</th><th>الدرجة</th><th>النسبة</th><th>آخر محاولة</th></tr></thead>
     <tbody>${attempts.map((a) => `<tr><td>${esc(a.studentName || "—")}</td><td>${a.score} من ${a.total}</td><td>${a.total > 0 ? Math.round((a.score / a.total) * 100) + "%" : "—"}</td><td>${a.updatedAt ? fmtTs(a.updatedAt) : "—"}</td></tr>`).join("")}</tbody>
-  </table></div>`;
+  </table>${lateStudentsHtml(e.stage, attempts, "الامتحان", e.title)}</div>`;
 }
 
 async function teacherSaveExam(stage) {
@@ -1051,9 +1077,11 @@ async function teacherSaveExam(stage) {
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       await fbDb.collection("exams").add(data);
     }
+    const toBank = examForm.quiz.filter((q) => q.saveToBank);
     examForm = emptyExamForm();
     examFormOpen = false;
     lessonsInnerTab = "quizexams";
+    try { await saveToBank(toBank); } catch (_) {}
     await renderTeacherLessons(stage);
   } catch (e) {
     btn.disabled = false;
@@ -1087,6 +1115,7 @@ let trepState = { type: "students", stage: "", quizId: "", examId: "" };
 const TREP_TYPES = [
   ["students", "تقرير الطلاب"],
   ["stage", "تقرير مرحلة"],
+  ["compare", "مقارنة المراحل"],
   ["lessons", "تقرير الدروس"],
   ["quiz", "نتائج الكويزات"],
   ["top", "أوائل المراحل 🏆"],
@@ -1119,6 +1148,54 @@ function buildTeacherReport() {
       summary: `الطلاب: ${list.length} · الدروس: ${lessonsN} · الامتحانات: ${examsN} · متوسط درجات المرحلة: ${avgAll !== null ? avgAll + "%" : "—"}`,
       columns: ["الاسم", "المرحلة", "السنة", "الموبايل", "ولي الأمر", "الحالة", "متوسط الدرجات", "تاريخ التسجيل"],
       rows, filtersDesc: ["المرحلة: " + (STAGE_NAMES[st] || st)],
+    };
+  }
+
+  if (t === "compare") {
+    const stages = ((fbProfile && fbProfile.stages) || []);
+    const cmpRows = stages.map((st) => {
+      const lsn = teacherLessons.filter((l) => l.stage === st).length;
+      const qzn = teacherQuizzes.filter((q) => q.stage === st).length + teacherExams.filter((e) => e.stage === st).length;
+      const qids = new Set(teacherQuizzes.filter((q) => q.stage === st).map((q) => q.id));
+      const eids = new Set(teacherExams.filter((e) => e.stage === st).map((e) => e.id));
+      const lids = new Set(teacherLessons.filter((l) => l.stage === st).map((l) => l.id));
+      const at = teacherAttempts.filter((a) => qids.has(a.quizId) || eids.has(a.examId) || lids.has(a.lessonId));
+      const avg = at.length ? Math.round(at.reduce((sum, a) => sum + attemptPct(a), 0) / at.length) : null;
+      return { cells: [STAGE_NAMES[st] || st, String(lsn), String(qzn), String(at.length), avg !== null ? avg + "%" : "—"] };
+    });
+    // أصعب الأسئلة: من إجابات الطلبة المتخزنة في المحاولات (answers)
+    const sources = teacherQuizzes.map((q) => ({ kind: "كويز", title: q.title, stage: q.stage, questions: q.questions || [], id: q.id, lessonId: q.lessonId }))
+      .concat(teacherExams.map((e) => ({ kind: "امتحان", title: e.title, stage: e.stage, questions: e.quiz || [], id: e.id, lessonId: null })));
+    const hard = [];
+    sources.forEach((src) => {
+      const at = src.kind === "كويز"
+        ? teacherAttempts.filter((a) => a.quizId === src.id || (src.lessonId && a.lessonId === src.lessonId))
+        : teacherAttempts.filter((a) => a.examId === src.id);
+      const withAns = at.filter((a) => Array.isArray(a.answers) && a.answers.length);
+      if (!withAns.length) return;
+      src.questions.forEach((qq, qi) => {
+        let wrong = 0, tot = 0;
+        withAns.forEach((a) => {
+          const an = a.answers[qi];
+          if (an == null) return;
+          tot++;
+          if (an === false || (an && an.correct === false)) wrong++;
+        });
+        if (tot) hard.push({ wrongPct: Math.round((wrong / tot) * 100), text: qq.q || "", place: src.title, stage: STAGE_NAMES[src.stage] || src.stage || "—" });
+      });
+    });
+    hard.sort((a, b) => b.wrongPct - a.wrongPct);
+    const hardRows = hard.slice(0, 10).map((hh) => ({ cells: [hh.text, hh.place, hh.stage, hh.wrongPct + "%"] }));
+    return {
+      title: "مقارنة المراحل",
+      summary: "متوسط الدرجات محسوب على كل محاولات الكويزات والامتحانات في المرحلة.",
+      columns: ["المرحلة", "الدروس", "الكويزات والامتحانات", "المحاولات", "متوسط الدرجات"],
+      rows: cmpRows, filtersDesc: [],
+      extraTitle: "أصعب الأسئلة (تحليل على مستوى السؤال)",
+      extraColumns: ["السؤال", "في", "المرحلة", "نسبة الغلط"],
+      extraRows: hardRows,
+      extraEmpty: "لسه مفيش بيانات إجابات — التحليل ده بيتملى أول ما الطلبة يحلوا كويزات وامتحانات (مع واجهة الطالب).",
+      extraNote: "نسبة الغلط = عدد الطلبة اللي غلطوا في السؤال من اللي جاوبوه. بيتحسب من إجابات كل سؤال المتخزنة في المحاولات.",
     };
   }
 
@@ -1284,6 +1361,17 @@ async function renderTeacherReports() {
         </tbody>
       </table>
       </div>
+      ${rep.extraColumns ? `
+      <h2 style="font-size:17px; margin:18px 0 6px;">🧩 ${esc(rep.extraTitle || "")}</h2>
+      ${rep.extraNote ? `<p class="muted" style="font-size:12.5px; margin-top:0;">${esc(rep.extraNote)}</p>` : ""}
+      <div style="overflow-x:auto;">
+      <table class="ttable">
+        <thead><tr>${rep.extraColumns.map((cl) => `<th>${cl}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${(rep.extraRows || []).length ? rep.extraRows.map((r) => `<tr>${r.cells.map((cl) => `<td>${esc(cl)}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${rep.extraColumns.length}" class="center muted">${esc(rep.extraEmpty || "مفيش بيانات لسه")}</td></tr>`}
+        </tbody>
+      </table>
+      </div>` : ""}
       <p class="muted" style="font-size:12.5px;">الطباعة والتصدير بيطلعوا اللي قدامك بالفلاتر الحالية. اضغط على اسم أي طالب لعرض بياناته كاملة.</p>
     </div>
     ${closing()}`;
@@ -1298,4 +1386,306 @@ async function renderTeacherReports() {
   document.getElementById("trp-xls").onclick = () => teacherExportReport("xls");
   document.querySelectorAll("[data-spop]").forEach((b) => b.onclick = () => teacherShowStudent(b.dataset.spop));
   window.scrollTo(0, 0);
+}
+
+/* ---------- المتأخرين عن كويز/امتحان + تذكير واتساب ---------- */
+function lateStudentsHtml(stage, attempts, kindLabel, title) {
+  const students = (teacherCache || []).filter((x) => x.status === "approved" && stageOfGrade(x.grade) === stage);
+  if (!students.length) return "";
+  const done = new Set(attempts.map((a) => a.studentId));
+  const late = students.filter((x) => !done.has(x.id));
+  if (!late.length) return `<p class="muted" style="font-size:13px; margin:12px 0 0;">✅ كل طلاب المرحلة حلوا ${kindLabel} — مفيش متأخرين.</p>`;
+  const rows = late.map((x) => {
+    const to = x.parentPhone || x.phone || "";
+    const parent = !!x.parentPhone;
+    const text = parent
+      ? "أهلاً بحضرتك، معاك مدرس " + (x.name || "نجلكم") + ". بنفكركم إن " + (x.name || "الطالب") + " لسه ما حلش " + kindLabel + ": " + (title || "") + ". لو سمحتوا فكروه يحله."
+      : "أهلاً " + (x.name || "") + "، معاك مدرسك. فكرك إنك لسه ما حليتش " + kindLabel + ": " + (title || "") + ". متنساش تحله.";
+    return `<tr><td>${esc(x.name || "—")}</td><td class="ltr">${esc(to || "غير مسجل")}</td>
+      <td>${to ? `<a class="btn sm green" target="_blank" rel="noopener" href="${waLink(to, text)}">إرسال تذكير واتساب${parent ? " لولي الأمر" : " للطالب"}</a>` : `<span class="muted" style="font-size:12.5px;">مفيش رقم</span>`}</td></tr>`;
+  }).join("");
+  return `<h3 style="font-size:15.5px; margin:16px 0 4px;">⏰ المتأخرين عن ${kindLabel} (${late.length})</h3>
+  <p class="muted" style="font-size:12.5px; margin:0 0 6px;">طلابك المقبولين في المرحلة دي اللي لسه ماحلوش. الزرار بيفتح واتساب برسالة تذكير جاهزة بتبعتها بنفسك — لولي الأمر أولاً، وللطالب لو مفيش رقم ولي أمر.</p>
+  <table class="ttable">
+    <thead><tr><th>الطالب</th><th>الرقم</th><th>تذكير</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+/* ---------- نسخ درس/كويز/امتحان لمرحلة تانية ---------- */
+function copyToStageModal(kind, id, stage) {
+  const myStages = (fbProfile && fbProfile.stages) || [];
+  const targets = myStages.filter((st) => st !== stage);
+  if (!targets.length) { alert("انت مسجل في مرحلة واحدة بس — مفيش مرحلة تانية تنسخ ليها."); return; }
+  const names = { lesson: "الدرس", quiz: "الكويز", exam: "الامتحان" };
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `<div class="detailcard" style="max-width:420px;">
+    <h3>📑 نسخ ${names[kind]} لمرحلة تانية</h3>
+    <p class="muted" style="font-size:13px;">هتتعمل نسخة بنفس المحتوى في المرحلة اللي هتختارها، وتقدر تعدلها بعدها عادي.</p>
+    <div style="display:grid; gap:8px; margin-top:10px;">
+      ${targets.map((st) => `<button type="button" class="btn ghost" data-cpst="${esc(st)}">${STAGE_ICONS[st] || "📚"} المرحلة ${esc(STAGE_NAMES[st] || st)}</button>`).join("")}
+    </div>
+    <div class="btnrow" style="justify-content:center; margin-top:12px;"><button type="button" class="btn ghost" id="ov-cancel">إلغاء</button></div>
+  </div>`;
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  ov.querySelector("#ov-cancel").onclick = () => ov.remove();
+  ov.querySelectorAll("[data-cpst]").forEach((b) => b.onclick = async () => {
+    const st = b.dataset.cpst;
+    b.disabled = true;
+    try {
+      let src, data;
+      if (kind === "lesson") {
+        src = teacherLessons.find((x) => x.id === id);
+        data = { teacherId: src.teacherId, teacherName: src.teacherName || "", subject: src.subject || "", stage: st, unit: src.unit || 1, lessonNum: src.lessonNum || 1, title: src.title || "", videoUrl: src.videoUrl || "", pdfUrl: src.pdfUrl || "", desc: src.desc || "", publishAt: src.publishAt || null };
+      } else if (kind === "quiz") {
+        src = teacherQuizzes.find((x) => x.id === id);
+        data = { teacherId: src.teacherId, teacherName: src.teacherName || "", subject: src.subject || "", stage: st, title: src.title || "", lessonId: null, questions: src.questions || [] };
+      } else {
+        src = teacherExams.find((x) => x.id === id);
+        data = { teacherId: src.teacherId, teacherName: src.teacherName || "", subject: src.subject || "", stage: st, title: src.title || "", desc: src.desc || "", openAt: null, closeAt: null, closed: false, quiz: src.quiz || [] };
+      }
+      if (!src) throw new Error("العنصر مش موجود");
+      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      await fbDb.collection(kind === "lesson" ? "lessons" : kind === "quiz" ? "quizzes" : "exams").add(data);
+      ov.remove();
+      alert("اتعملت النسخة في المرحلة " + (STAGE_NAMES[st] || st) + " ✅");
+      await renderTeacherLessons(stage);
+    } catch (e) {
+      b.disabled = false;
+      alert("مشكلة: " + (e.message || e));
+    }
+  });
+}
+
+/* ---------- بنك الأسئلة ---------- */
+async function saveToBank(questions) {
+  if (!questions.length) return;
+  const batch = fbDb.batch();
+  const col = fbDb.collection("questionBank");
+  questions.forEach((q) => {
+    batch.set(col.doc(), {
+      teacherId: fbUser.uid,
+      subject: (fbProfile && fbProfile.subject) || "",
+      q: qSerialize(q),
+      useCount: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+  await batch.commit();
+}
+
+async function openBankPicker(qs, stage) {
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `<div class="detailcard" style="max-height:85vh; overflow-y:auto; max-width:640px;">
+    <h3>📚 بنك الأسئلة — اختار اللي يتحط</h3>
+    <p class="muted" style="font-size:13px;">بنكك الخاص — أي سؤال بتحفظه من أي كويز أو امتحان بيظهر هنا.</p>
+    <p class="muted">بنحمل البنك...</p>
+  </div>`;
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  let bank = [];
+  try {
+    const snap = await fbDb.collection("questionBank").where("teacherId", "==", fbUser.uid).get();
+    bank = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt && a.createdAt ? b.createdAt.seconds - a.createdAt.seconds : 0));
+  } catch (e) {
+    ov.querySelector(".muted").textContent = "مشكلة في تحميل البنك: " + (e.message || e);
+    return;
+  }
+  const typeLbl = { mcq: "اختيارات", multi: "اختيار متعدد", tf: "صح/خطأ", text: "إجابة قصيرة", fill: "أكمل", match: "توصيل", num: "رقمية" };
+  const card = ov.querySelector(".detailcard");
+  const listHtml = bank.length ? bank.map((bq) => `
+    <div style="border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; display:flex; gap:8px; align-items:flex-start;" data-brow="${bq.id}">
+      <input type="checkbox" data-bsel="${bq.id}" style="margin-top:4px;">
+      <div style="flex:1;" data-btxt="${bq.id}"><b style="font-size:14px;">${esc((bq.q && bq.q.q) || "")}</b>
+        <div class="muted" style="font-size:12px;">${typeLbl[(bq.q && bq.q.type)] || "سؤال"} · استُخدم ${bq.useCount || 0} مرة</div></div>
+      <button type="button" class="btn sm red" data-bdel="${bq.id}">حذف</button>
+    </div>`).join("")
+    : `<p class="muted center">البنك فاضي لسه — احفظ أسئلة من فورم الكويز أو الامتحان وهتظهر هنا.</p>`;
+  card.innerHTML = `
+    <h3>📚 بنك الأسئلة — اختار اللي يتحط (${bank.length})</h3>
+    <input type="text" class="inp" id="bk-search" placeholder="بحث في البنك..." style="margin-bottom:10px;">
+    <div id="bk-list">${listHtml}</div>
+    <div class="btnrow" style="margin-top:10px;">
+      <button type="button" class="btn" id="bk-add" ${bank.length ? "" : "disabled"}>إضافة المحدد</button>
+      <button type="button" class="btn ghost" id="bk-cancel">إلغاء</button>
+    </div>
+    <p class="muted" style="font-size:12.5px;">أي سؤال بتكتبه في كويز أو امتحان تقدر تحفظه هنا بعلامة "احفظ في البنك" — والحذف من البنك مبيأثرش على الكويزات اللي استخدمته قبل كده.</p>`;
+  card.querySelector("#bk-cancel").onclick = () => ov.remove();
+  card.querySelector("#bk-search").oninput = (e) => {
+    const t = e.target.value.trim();
+    card.querySelectorAll("[data-brow]").forEach((row) => {
+      const txt = row.querySelector("[data-btxt]").textContent;
+      row.style.display = !t || txt.includes(t) ? "" : "none";
+    });
+  };
+  card.querySelectorAll("[data-bdel]").forEach((b) => b.onclick = async () => {
+    if (!confirm("تحذف السؤال ده من البنك؟ (الكويزات اللي استخدمته مش هتتأثر)")) return;
+    try {
+      await fbDb.collection("questionBank").doc(b.dataset.bdel).delete();
+      const row = card.querySelector(`[data-brow="${b.dataset.bdel}"]`);
+      if (row) row.remove();
+      bank = bank.filter((x) => x.id !== b.dataset.bdel);
+      if (!bank.length) card.querySelector("#bk-add").disabled = true;
+    } catch (e) { alert("مشكلة: " + (e.message || e)); }
+  });
+  const addBtn = card.querySelector("#bk-add");
+  if (addBtn) addBtn.onclick = async () => {
+    const picked = Array.from(card.querySelectorAll("[data-bsel]:checked")).map((c) => bank.find((x) => x.id === c.dataset.bsel)).filter(Boolean);
+    if (!picked.length) { alert("علّم على سؤال واحد على الأقل."); return; }
+    picked.forEach((bq) => { if (bq.q) qs.push(qFromStored(bq.q)); });
+    try {
+      const batch = fbDb.batch();
+      picked.forEach((bq) => batch.update(fbDb.collection("questionBank").doc(bq.id), { useCount: (bq.useCount || 0) + 1 }));
+      await batch.commit();
+    } catch (_) {}
+    ov.remove();
+    renderTeacherLessons(stage);
+  };
+}
+
+/* ---------- الإعلانات لطلاب مرحلة ---------- */
+let teacherAnn = [];
+let annStageSel = "";
+
+async function renderTeacherAnnouncements() {
+  app.innerHTML = `<div class="spin">بنحمل الإعلانات...</div>`;
+  try {
+    const snap = await fbDb.collection("announcements").where("teacherId", "==", fbUser.uid).get();
+    teacherAnn = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt && a.createdAt ? b.createdAt.seconds - a.createdAt.seconds : 0));
+  } catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
+  const myStages = (fbProfile && fbProfile.stages) || [];
+  if (!annStageSel || !myStages.includes(annStageSel)) annStageSel = myStages[0] || "";
+  app.innerHTML = `
+    <div class="hdr">
+      <h1>الإعلانات 📢</h1>
+      <div class="fact">${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
+    </div>
+    ${teacherTabs("ann")}
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">إعلان جديد</h2>
+      <div class="fgrid">
+        <div><label class="flabel">المرحلة</label><select id="an-stage" class="inp">
+          ${myStages.map((st) => `<option value="${esc(st)}" ${annStageSel === st ? "selected" : ""}>المرحلة ${esc(STAGE_NAMES[st] || st)}</option>`).join("")}
+        </select></div>
+      </div>
+      <label class="flabel">نص الإعلان</label>
+      <textarea id="an-text" class="inp" rows="3" placeholder="مثال: مراجعة الوحدة الأولى يوم الخميس الساعة 5"></textarea>
+      <button type="button" class="btn" id="an-send">نشر الإعلان</button>
+      <p id="an-msg" class="msg"></p>
+      <p class="muted" style="font-size:12.5px; margin-top:6px;">الإعلان بيوصل لكل طلابك المقبولين في المرحلة المختارة. عرض الإعلان عند الطالب هيتفعل مع واجهة الطالب لما تجهز — دلوقتي بيتحفظ وبيطلع في قائمتك تحت.</p>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">الإعلانات السابقة (${teacherAnn.length})</h2>
+      ${teacherAnn.length ? teacherAnn.map((a) => `
+      <div class="card" style="margin:0 0 10px;">
+        <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(a.text || "")}</b><span class="chip">المرحلة ${esc(STAGE_NAMES[a.stage] || a.stage || "")}</span></div>
+        <div class="muted" style="font-size:12px; margin:4px 0;">${a.createdAt ? fmtTs(a.createdAt) : ""}</div>
+        <div class="btnrow"><button type="button" class="btn sm red" data-adel="${a.id}">حذف</button></div>
+      </div>`).join("") : `<p class="muted center">لسه مفيش إعلانات — اكتب أول إعلان فوق.</p>`}
+    </div>
+    ${closing()}`;
+  bindTeacherTabs();
+  document.getElementById("an-stage").onchange = (e) => annStageSel = e.target.value;
+  document.getElementById("an-send").onclick = async () => {
+    const text = document.getElementById("an-text").value.trim();
+    const m = document.getElementById("an-msg");
+    if (!text) { m.className = "msg bad"; m.textContent = "اكتب نص الإعلان الأول."; return; }
+    if (!annStageSel) { m.className = "msg bad"; m.textContent = "مفيش مرحلة مسجل فيها — راجع الأدمن."; return; }
+    const btn = document.getElementById("an-send");
+    btn.disabled = true;
+    try {
+      await fbDb.collection("announcements").add({
+        teacherId: fbUser.uid,
+        teacherName: (fbProfile && fbProfile.name) || "",
+        subject: (fbProfile && fbProfile.subject) || "",
+        stage: annStageSel,
+        text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      await renderTeacherAnnouncements();
+    } catch (e) {
+      btn.disabled = false;
+      m.className = "msg bad"; m.textContent = "مشكلة: " + (e.message || e);
+    }
+  };
+  document.querySelectorAll("[data-adel]").forEach((b) => b.onclick = async () => {
+    if (!confirm("تحذف الإعلان ده؟")) return;
+    try { await fbDb.collection("announcements").doc(b.dataset.adel).delete(); await renderTeacherAnnouncements(); }
+    catch (e) { alert("مشكلة: " + (e.message || e)); }
+  });
+  window.scrollTo(0, 0);
+}
+
+/* ---------- ملاحظات المعلم الخاصة على كل طالب ---------- */
+async function openStudentNotes(sid) {
+  const s = (teacherCache || []).find((x) => x.id === sid);
+  if (!s) return;
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `<div class="detailcard" style="max-height:85vh; overflow-y:auto; max-width:520px;">
+    <h3>📝 ملاحظات عن: ${esc(s.name || "")}</h3>
+    <p class="muted">بنحمل الملاحظات...</p>
+  </div>`;
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  let notes = [];
+  try {
+    const snap = await fbDb.collection("studentNotes").where("teacherId", "==", fbUser.uid).where("studentId", "==", sid).get();
+    notes = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt && a.createdAt ? b.createdAt.seconds - a.createdAt.seconds : 0));
+  } catch (e) {
+    ov.querySelector(".muted").textContent = "مشكلة في التحميل: " + (e.message || e);
+    return;
+  }
+  const card = ov.querySelector(".detailcard");
+  card.innerHTML = `
+    <h3>📝 ملاحظات عن: ${esc(s.name || "")}</h3>
+    <p class="muted" style="font-size:12.5px; margin-top:0;">الملاحظات دي خاصة بيك انت بس — الطالب ولا أي معلم تاني يقدر يشوفها.</p>
+    <div id="nt-list">
+    ${notes.length ? notes.map((n) => `
+      <div style="border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px;">
+        <div style="font-size:14px; white-space:pre-wrap;">${esc(n.text || "")}</div>
+        <div class="muted" style="font-size:12px;">${n.createdAt ? fmtTs(n.createdAt) : ""} · <a href="javascript:void(0)" data-ndel="${n.id}" style="color:#dc2626;">حذف</a></div>
+      </div>`).join("") : `<p class="muted center">مفيش ملاحظات على الطالب ده لسه.</p>`}
+    </div>
+    <label class="flabel">ملاحظة جديدة</label>
+    <textarea id="nt-text" class="inp" rows="2" placeholder="اكتب ملاحظة..."></textarea>
+    <p class="msg" id="nt-msg" style="margin:4px 0;"></p>
+    <div class="btnrow" style="margin-top:8px;">
+      <button type="button" class="btn" id="nt-save">حفظ الملاحظة</button>
+      <button type="button" class="btn ghost" id="nt-close">قفل</button>
+    </div>`;
+  card.querySelector("#nt-close").onclick = () => ov.remove();
+  card.querySelectorAll("[data-ndel]").forEach((b) => b.onclick = async () => {
+    try {
+      await fbDb.collection("studentNotes").doc(b.dataset.ndel).delete();
+      ov.remove();
+      openStudentNotes(sid);
+    } catch (e) { alert("مشكلة: " + (e.message || e)); }
+  });
+  card.querySelector("#nt-save").onclick = async () => {
+    const text = card.querySelector("#nt-text").value.trim();
+    const m = card.querySelector("#nt-msg");
+    if (!text) { m.className = "msg bad"; m.textContent = "اكتب الملاحظة الأول."; return; }
+    const btn = card.querySelector("#nt-save");
+    btn.disabled = true;
+    try {
+      await fbDb.collection("studentNotes").add({
+        teacherId: fbUser.uid,
+        studentId: sid,
+        text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      ov.remove();
+      openStudentNotes(sid);
+    } catch (e) {
+      btn.disabled = false;
+      m.className = "msg bad"; m.textContent = "مشكلة: " + (e.message || e);
+    }
+  };
 }

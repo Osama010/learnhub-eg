@@ -76,6 +76,7 @@ function route() {
   }
   if (fbRole === "teacher") {
     if (h === "#/teacher/reports") return renderTeacherReports();
+    if (h === "#/teacher/announcements") return renderTeacherAnnouncements();
     if (h.startsWith("#/teacher/lesson/")) {
       const lid = decodeURIComponent(h.slice("#/teacher/lesson/".length));
       return renderTeacherLessonView(lid);
