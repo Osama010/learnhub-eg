@@ -40,11 +40,23 @@ let studentData = { teachers: [], lessons: [], quizzes: [], exams: [], ann: [], 
 
 function studentTabs(active) {
   const t = (id, h, lbl) => `<button type="button" class="tab ${active === id ? "active" : ""}" data-sh="${h}">${lbl}</button>`;
-  return `<div class="tabs">${t("lessons", "#/student", "دروسي")}${t("quiz", "#/student/quizexams", "الكويزات والامتحانات")}${t("ann", "#/student/ann", "الإعلانات")}${t("grades", "#/student/grades", "درجاتي")}${t("profile", "#/student/profile", "حسابي")}</div>`;
+  return platNavHtml((fbProfile && fbProfile.name) || "", (fbProfile && fbProfile.avatar) || "", "#/student/profile")
+    + `<div class="tabs">${t("lessons", "#/student", "دروسي")}${t("quiz", "#/student/quizexams", "الكويزات والامتحانات")}${t("ann", "#/student/ann", "الإعلانات")}${t("grades", "#/student/grades", "درجاتي")}${t("profile", "#/student/profile", "حسابي")}</div>`;
 }
 
 function bindStudentTabs() {
   document.querySelectorAll("[data-sh]").forEach((b) => b.onclick = () => { location.hash = b.dataset.sh; });
+  bindPlatNav();
+}
+
+// اسم المدرس مع صورته الصغيرة (بتتعرض لطلابه من النسخة العامة)
+function sTeacherChip(tid, nameFallback) {
+  const t = (studentData.teachers || []).find((x) => x.id === tid) || {};
+  const nm = nameFallback || t.name || "";
+  const av = t.avatar
+    ? `<img src="${t.avatar}" alt="" style="width:22px; height:22px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-left:4px; border:1.5px solid var(--primary-soft);">`
+    : "";
+  return av + esc(nm);
 }
 
 async function studentLoadAll() {
@@ -206,10 +218,11 @@ function renderFirstLogin(email) {
     const p1 = document.getElementById("fl-pass1").value;
     const p2 = document.getElementById("fl-pass2").value;
     const m = document.getElementById("fl-msg");
+    const flm = (t) => { m.textContent = t; showToast(t, "bad"); };
     m.textContent = "";
-    if (!/^[0-9]{4,6}$/.test(pin)) return m.textContent = "اكتب الرقم السري صح.";
-    if (p1.length < 6) return m.textContent = "الباسورد لازم يكون 6 أحرف على الأقل.";
-    if (p1 !== p2) return m.textContent = "الباسوردين مش زي بعض.";
+    if (!/^[0-9]{4,6}$/.test(pin)) return flm("اكتب الرقم السري صح.");
+    if (p1.length < 6) return flm("الباسورد لازم يكون 6 أحرف على الأقل.");
+    if (p1 !== p2) return flm("الباسوردين مش زي بعض.");
     try {
       await studentFirstLogin(email, pin, p1);
       await resolveRole(fbAuth.currentUser);
@@ -220,11 +233,11 @@ function renderFirstLogin(email) {
       if (e && e.code === "auth/email-already-in-use") {
         try {
           await fbAuth.sendPasswordResetEmail(email.toLowerCase());
-          m.textContent = "عندك حساب قديم بنفس الإيميل. بعتلنك لينك على إيميلك تعمل بيه باسورد جديد، وبعدين ادخل عادي من صفحة الدخول.";
-        } catch (_) { m.textContent = authErrAr(e); }
+          flm("عندك حساب قديم بنفس الإيميل. بعتلنك لينك على إيميلك تعمل بيه باسورد جديد، وبعدين ادخل عادي من صفحة الدخول.");
+        } catch (_) { flm(authErrAr(e)); }
         return;
       }
-      m.textContent = e.code ? authErrAr(e) : (e.message || "حصلت مشكلة.");
+      flm(e.code ? authErrAr(e) : (e.message || "حصلت مشكلة."));
     }
   };
   window.scrollTo(0, 0);
@@ -254,8 +267,8 @@ async function renderStudentDash() {
     </div>
     ${studentTabs("lessons")}
     ${annVisible.slice(0, 2).map((a) => `
-    <div class="card" style="border-right:4px solid var(--primary);"><b>📢 ${esc(a.text || "")}</b>
-      <div class="muted" style="font-size:12px;">${esc(a.teacherName || sTeacherName(a.teacherId) || "")}${a.createdAt ? " · " + fmtTs(a.createdAt) : ""}</div>
+    <div class="card lcard" style="border-right:4px solid var(--primary);"><b>📢 ${esc(a.text || "")}</b>
+      <div class="muted" style="font-size:12px;">${sTeacherChip(a.teacherId, a.teacherName)}${a.createdAt ? " · " + fmtTs(a.createdAt) : ""}</div>
     </div>`).join("")}
     ${gkeys.length ? gkeys.map((k) => `
     <div class="card"><h2 style="font-size:18px; margin-top:0;">دروسك — ${esc(k)}</h2>
@@ -265,11 +278,15 @@ async function renderStudentDash() {
           const linked = (studentData.quizzes || []).filter((q) => q.lessonId === l.id && sVisible(q));
           const best = linked.map((q) => sAttemptFor(q.id, null)).filter(Boolean)
             .map((a) => (a.total > 0 ? Math.round((a.score / a.total) * 100) : 0)).sort((x, y) => y - x)[0];
-          return `<div class="card" style="margin:0;">
+          const isNew = (l.createdAt && l.createdAt.seconds && (Date.now() / 1000 - l.createdAt.seconds < 3 * 86400))
+            || (l.publishAt && l.publishAt.seconds && (Date.now() / 1000 - l.publishAt.seconds < 3 * 86400));
+          return `<div class="card lcard" style="margin:0;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
+              ${isNew ? `<span class="bdg new">جديد</span>` : ""}${l.videoUrl ? `<span class="bdg vid">🎬 فيديو</span>` : ""}${l.pdfUrl ? `<span class="bdg pdf">📄 PDF</span>` : ""}${!open ? `<span class="chip amber">🕒 ينزل ${fmtTs(l.publishAt)}</span>` : ""}
+            </div>
             <div style="font-size:12px; color:var(--primary-dark); font-weight:700;">الوحدة ${l.unit || "—"} · الدرس ${l.lessonNum || "—"}</div>
-            <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">${esc(l.title)}</b>${!open ? `<span class="chip amber">🕒 ينزل ${fmtTs(l.publishAt)}</span>` : ""}</div>
+            <b style="font-size:15px;">${esc(l.title)}</b>
             ${l.desc ? `<div class="muted" style="font-size:13px; margin-top:4px;">${esc(l.desc)}</div>` : ""}
-            <div class="muted" style="font-size:12px; margin:4px 0;">${l.videoUrl ? "🎬 فيديو" : ""}${l.videoUrl && l.pdfUrl ? " · " : ""}${l.pdfUrl ? "📄 PDF" : ""}${!l.videoUrl && !l.pdfUrl ? "من غير وسائط" : ""}</div>
             ${best != null ? `<div class="muted" style="font-size:12px; margin:4px 0;">أفضل نتيجة في كويز الدرس: ${best}% ✅</div>` : ""}
             <div class="btnrow">${open ? `<button type="button" class="btn sm" data-sl="${l.id}">مشاهدة الدرس</button>` : `<button type="button" class="btn sm ghost" disabled>مجدول</button>`}</div>
           </div>`;
@@ -581,7 +598,7 @@ async function renderStudentAnn() {
     ${list.length ? list.map((a) => `
     <div class="card">
       <div class="btnrow" style="justify-content:space-between;"><b style="font-size:15px;">📢 ${esc(a.text || "")}</b>${(a.grade || "") ? `<span class="chip">${esc(a.grade)}</span>` : `<span class="chip green">كل الصفوف</span>`}</div>
-      <div class="muted" style="font-size:12px; margin-top:4px;">${esc(a.teacherName || sTeacherName(a.teacherId) || "")}${a.createdAt ? " · " + fmtTs(a.createdAt) : ""}</div>
+      <div class="muted" style="font-size:12px; margin-top:4px;">${sTeacherChip(a.teacherId, a.teacherName)}${a.createdAt ? " · " + fmtTs(a.createdAt) : ""}</div>
     </div>`).join("") : `
     <div class="card center">
       <div style="font-size:44px;">📢</div>

@@ -17,6 +17,32 @@ async function adminLoad() {
   adminCache.subjects = sub.docs.map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9));
   adminCache.admins = adm.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // مزامنة النسخة العامة من بيانات المدرسين: الإيميل (لتحذير "مش مسجل" في صفحة الدخول)
+  // والصورة (بتظهر لطلاب المدرس) — تعبئة تلقائية للمدرسين الموجودين من قبل الميزة
+  try {
+    const pubs = await fbDb.collection("teachersPublic").get();
+    const pubMap = {};
+    pubs.docs.forEach((d) => { pubMap[d.id] = d.data(); });
+    const batch = fbDb.batch();
+    let dirty = 0;
+    (adminCache.teachers || []).forEach((t) => {
+      const p = pubMap[t.id];
+      const av = t.avatar || t.photoData || "";
+      if (!p) {
+        batch.set(fbDb.collection("teachersPublic").doc(t.id), {
+          name: t.name || "", subject: t.subject || "", stages: t.stages || [],
+          email: (t.email || "").toLowerCase(), avatar: av, active: t.active !== false,
+        });
+        dirty++;
+      } else {
+        const fix = {};
+        if ((p.email || "") !== (t.email || "").toLowerCase()) fix.email = (t.email || "").toLowerCase();
+        if ((p.avatar || "") !== av) fix.avatar = av;
+        if (Object.keys(fix).length) { batch.update(fbDb.collection("teachersPublic").doc(t.id), fix); dirty++; }
+      }
+    });
+    if (dirty) await batch.commit();
+  } catch (e) { console.warn("مزامنة النسخة العامة للمدرسين فشلت", e); }
   // أول تشغيل: سجّل الأدمن الأساسي في المجموعة لو مش موجود
   if (fbUser && fbUser.email === ADMIN_EMAIL && !adminCache.admins.some((a) => a.id === ADMIN_EMAIL)) {
     const doc = { email: ADMIN_EMAIL, name: "الأدمن الأساسي", addedAt: firebase.firestore.FieldValue.serverTimestamp(), addedBy: "النظام" };
@@ -26,7 +52,11 @@ async function adminLoad() {
 }
 
 function adminLayout(content, tab) {
+  const myEmail = ((fbUser && fbUser.email) || "").toLowerCase();
+  const me = (adminCache.admins || []).find((a) => a.id === myEmail);
+  const myName = (me && me.name) || (myEmail === ADMIN_EMAIL ? "الأدمن الأساسي" : "مشرف");
   app.innerHTML = `
+    ${platNavHtml(myName, "", "#/admin/profile")}
     <div class="hdr">
       <h1>لوحة تحكم الأدمن</h1>
       <div class="fact">${esc(fbUser && fbUser.email || ADMIN_EMAIL)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
@@ -38,10 +68,12 @@ function adminLayout(content, tab) {
       <button type="button" class="tab ${tab === "subjects" ? "active" : ""}" data-g="#/admin/subjects">المواد الدراسية</button>
       <button type="button" class="tab ${tab === "reports" ? "active" : ""}" data-g="#/admin/reports">التقارير</button>
       <button type="button" class="tab ${tab === "admins" ? "active" : ""}" data-g="#/admin/admins">المشرفين</button>
+      <button type="button" class="tab ${tab === "profile" ? "active" : ""}" data-g="#/admin/profile">حسابي</button>
     </div>
     ${content}
     ${closing()}`;
   document.querySelectorAll(".tab").forEach((b) => b.onclick = () => location.hash = b.dataset.g);
+  bindPlatNav();
   window.scrollTo(0, 0);
 }
 
@@ -51,7 +83,8 @@ async function renderAdmin(h) {
   app.innerHTML = `<div class="spin">بنحمل بيانات المنصة...</div>`;
   try { await adminLoad(); }
   catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
-  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : h === "#/admin/reports" ? "reports" : h === "#/admin/admins" ? "admins" : "stats";
+  const tab = h === "#/admin/teachers" ? "teachers" : h === "#/admin/students" ? "students" : h === "#/admin/subjects" ? "subjects" : h === "#/admin/reports" ? "reports" : h === "#/admin/admins" ? "admins" : h === "#/admin/profile" ? "profile" : "stats";
+  if (tab === "profile") return adminProfile();
   if (tab === "teachers") return adminTeachers();
   if (tab === "students") return adminStudents();
   if (tab === "subjects") return adminSubjects();
@@ -85,18 +118,18 @@ function adminStats() {
     </div>
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">طلاب كل مدرس</h2>
-      <table class="ttable">
+      <table class="ttable resp">
         <thead><tr><th>المدرس</th><th>المادة</th><th>المراحل (طلاب كل مرحلة)</th><th>عدد طلابه</th><th>مقبول</th><th>طلبات جديدة</th></tr></thead>
         <tbody>
           ${teachers.length ? teachers.map((t) => {
             const mine = students.filter((s) => (s.teacherIds || []).includes(t.id));
             return `<tr data-rv-t="${t.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
-              <td>${esc(t.name)}${t.active === false ? ' <span class="chip red">معطّل</span>' : ""}</td>
-              <td>${esc(t.subject || "—")}</td>
-              <td>${esc(teacherStagesText(t))}</td>
-              <td>${mine.length}</td>
-              <td>${mine.filter((s) => s.status === "approved").length}</td>
-              <td>${mine.filter((s) => s.status === "pending").length}</td>
+              <td data-h="المدرس">${esc(t.name)}${t.active === false ? ' <span class="chip red">معطّل</span>' : ""}</td>
+              <td data-h="المادة">${esc(t.subject || "—")}</td>
+              <td data-h="المراحل">${esc(teacherStagesText(t))}</td>
+              <td data-h="عدد طلابه">${mine.length}</td>
+              <td data-h="مقبول">${mine.filter((s) => s.status === "approved").length}</td>
+              <td data-h="طلبات جديدة">${mine.filter((s) => s.status === "pending").length}</td>
             </tr>`;
           }).join("") : `<tr><td colspan="6" class="center muted">لسه مفيش مدرسين</td></tr>`}
         </tbody>
@@ -111,8 +144,8 @@ function adminStats() {
             const tnames = (s.teacherIds || []).map((id) => (adminCache.teachers.find((t) => t.id === id) || {}).name || "—").join("، ");
             const prog = (s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0;
             return `<tr data-rv-s="${s.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
-              <td>${esc(s.name)}</td><td class="ltr">${esc(s.email || "—")}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td>
-              <td>${statusChip(s.status)}</td><td>${prog}%</td>
+              <td data-h="الطالب">${esc(s.name)}</td><td class="ltr" data-h="الإيميل">${esc(s.email || "—")}</td><td data-h="المدرس">${esc(tnames)}</td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td>
+              <td data-h="الحالة">${statusChip(s.status)}</td><td data-h="البرمجة">${prog}%</td>
             </tr>`;
           }).join("") : `<tr><td colspan="6" class="center muted">لسه مفيش طلاب</td></tr>`}
         </tbody>
@@ -304,6 +337,7 @@ function adminEditSubject(id) {
 function sjMsg(t, good) {
   const m = document.getElementById("sj-msg");
   if (m) { m.textContent = t || ""; m.className = "msg " + (good ? "good" : "bad"); }
+  if (t) showToast(t, good ? "good" : "bad");
 }
 
 async function adminAddSubject() {
@@ -457,14 +491,14 @@ function adminTeachers() {
     </div>
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">المدرسين (${teachers.length})</h2>
-      <table class="ttable">
+      <table class="ttable resp">
         <thead><tr><th>الاسم</th><th>المادة</th><th>المراحل (طلاب كل مرحلة)</th><th>الإيميل</th><th>طلابه</th><th>الحالة</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${teachers.length ? teachers.map((t) => {
             const mine = students.filter((s) => (s.teacherIds || []).includes(t.id)).length;
             return `<tr data-rv-t="${t.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
-              <td>${t.photoData ? `<img src="${t.photoData}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-left:8px;">` : ""}${esc(t.name)}</td><td>${esc(t.subject || "—")}</td><td>${esc(teacherStagesText(t))}</td><td class="ltr">${esc(t.email)}</td><td>${mine}</td>
-              <td>${t.active === false ? '<span class="chip red">معطّل</span>' : '<span class="chip green">نشط</span>'}</td>
+              <td data-h="الاسم">${t.photoData ? `<img src="${t.photoData}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-left:8px;">` : ""}${esc(t.name)}</td><td data-h="المادة">${esc(t.subject || "—")}</td><td data-h="المراحل">${esc(teacherStagesText(t))}</td><td class="ltr" data-h="الإيميل">${esc(t.email)}</td><td data-h="طلابه">${mine}</td>
+              <td data-h="الحالة">${t.active === false ? '<span class="chip red">معطّل</span>' : '<span class="chip green">نشط</span>'}</td>
               <td>
                 <div class="btnrow">
                   <button type="button" class="btn sm ghost" data-tv="${t.id}">عرض</button>
@@ -544,6 +578,7 @@ async function adminResetTeacher(id) {
 function taMsg(t, good) {
   const m = document.getElementById("ta-msg");
   if (m) { m.textContent = t || ""; m.className = "msg " + (good ? "good" : "bad"); }
+  if (t) showToast(t, good ? "good" : "bad");
 }
 
 async function adminSaveTeacher() {
@@ -563,7 +598,9 @@ async function adminSaveTeacher() {
       if (taPhotoData) newData.photoData = taPhotoData;
       const batch = fbDb.batch();
       batch.update(fbDb.collection("teachers").doc(editingTeacherId), newData);
-      batch.update(fbDb.collection("teachersPublic").doc(editingTeacherId), { name, subject, stages });
+      const pubUpd = { name, subject, stages, email };
+      if (taPhotoData) pubUpd.avatar = taPhotoData;
+      batch.update(fbDb.collection("teachersPublic").doc(editingTeacherId), pubUpd);
       await batch.commit();
       taMsg("اتحفظت التعديلات ✅", true);
       editingTeacherId = null;
@@ -589,8 +626,8 @@ async function adminSaveTeacher() {
       active: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    // نسخة عامة بالاسم والمادة والمراحل بس لصفحة التسجيل — من غير إيميل ولا تليفون ولا صورة
-    batch.set(fbDb.collection("teachersPublic").doc(uid), { name, subject, stages, active: true });
+    // نسخة عامة لصفحة التسجيل وتحذير "الإيميل مش مسجل" وصورة المدرس عند طلابه — من غير تليفون
+    batch.set(fbDb.collection("teachersPublic").doc(uid), { name, subject, stages, email, avatar: taPhotoData || "", active: true });
     await batch.commit();
     taMsg("اتضاف المدرس " + name + " ✅", true);
     adminCache.teachers = null;
@@ -666,15 +703,15 @@ function adminStudents() {
         </select>
         <input id="af-q" type="text" class="inp" placeholder="بحث بالاسم..." value="${esc(adminFilter.q)}">
       </div>
-      <table class="ttable">
+      <table class="ttable resp">
         <thead><tr><th>الطالب</th><th>الإيميل</th><th>المدرس</th><th>السنة</th><th>ولي الأمر</th><th>الحالة</th><th>البرمجة</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${students.length ? students.map((s) => {
             const tnames = (s.teacherIds || []).map((id) => (teachers.find((t) => t.id === id) || {}).name || "—").join("، ");
             const prog = (s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0;
             return `<tr data-rv-s="${s.id}" style="cursor:pointer" title="اضغط لعرض البيانات كاملة">
-              <td>${esc(s.name)}</td><td class="ltr">${esc(s.email || "—")}</td><td>${esc(tnames)}</td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td>
-              <td>${statusChip(s.status)}</td><td>${prog}%</td>
+              <td data-h="الطالب">${esc(s.name)}</td><td class="ltr" data-h="الإيميل">${esc(s.email || "—")}</td><td data-h="المدرس">${esc(tnames)}</td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td>
+              <td data-h="الحالة">${statusChip(s.status)}</td><td data-h="البرمجة">${prog}%</td>
               <td>
                 <div class="btnrow">
                   <button type="button" class="btn sm ghost" data-sv="${s.id}">عرض</button>
@@ -1006,6 +1043,7 @@ function downloadBlob(blob, filename) {
 function admMsg(t, good) {
   const m = document.getElementById("adm-msg");
   if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
+  if (t) showToast(t, good ? "good" : "bad");
 }
 
 function adminAdmins() {
@@ -1096,6 +1134,7 @@ async function adminDeleteAdmin(email) {
 function apcMsg(t, good) {
   const m = document.getElementById("apc-msg");
   if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
+  if (t) showToast(t, good ? "good" : "bad");
 }
 
 // تغيير رقم الأدمن السري (PIN) من تاب المشرفين
@@ -1117,4 +1156,84 @@ async function adminChangePin() {
     apcMsg("حصلت مشكلة: " + (e.message || e));
   }
   btn.disabled = false;
+}
+
+/* ---------- تاب حسابي (الأدمن) ----------
+   بيانات المشرف + تغيير الباسورد + تغيير رقم الأدمن السري من مكان واحد */
+function adminProfile() {
+  const myEmail = ((fbUser && fbUser.email) || "").toLowerCase();
+  const me = (adminCache.admins || []).find((a) => a.id === myEmail) || {};
+  const isSuper = myEmail === ADMIN_EMAIL;
+  const hasPasswordProvider = (fbUser && fbUser.providerData || []).some((p) => p.providerId === "password");
+  const content = `
+    <div class="card center" style="padding:28px;">
+      <span class="pavinit" style="width:84px; height:84px; font-size:38px;">${esc(((me.name || "م").trim() || "م")[0])}</span>
+      <h2 style="margin:10px 0 2px; font-size:20px;">${esc(me.name || "مشرف")}</h2>
+      <div class="muted ltr">${esc(myEmail)}</div>
+      <div style="margin-top:8px;">${isSuper ? '<span class="chip green">الأدمن الأساسي</span>' : '<span class="chip">مشرف</span>'}</div>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">🔒 الباسورد</h2>
+      ${hasPasswordProvider ? `
+        <div style="display:grid; gap:10px; max-width:340px;">
+          <input type="password" class="inp ltr" id="apr-p1" placeholder="الباسورد الجديد (٦ حروف على الأقل)">
+          <input type="password" class="inp ltr" id="apr-p2" placeholder="تأكيد الباسورد الجديد">
+          <div class="btnrow"><button type="button" class="btn sm" id="apr-pass-save">حفظ الباسورد</button></div>
+        </div>
+      ` : `
+        <p class="muted" style="font-size:13.5px;">حسابك بيدخل بجوجل من غير باسورد. تقدر تربط باسورد بالحساب عن طريق إيميل إعادة الضبط، وبعدها تقدر تدخل بالإيميل والباسورد برضه.</p>
+        <div class="btnrow"><button type="button" class="btn ghost sm" id="apr-pass-link">إرسال إيميل ربط باسورد</button></div>
+      `}
+      <p class="msg" id="apr-pass-msg"></p>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">🔐 رقم الأدمن السري (PIN)</h2>
+      <p class="muted" style="font-size:13px;">الرقم اللي اللوحة بتطلبه كل مرة دخول. بيتحفظ مشفّر ومحدش يقدر يقرأه.</p>
+      <div class="fgrid">
+        <div><label class="flabel">الرقم السري الجديد (من 4 لـ 6 أرقام)</label><input id="apr-pin1" type="password" inputmode="numeric" maxlength="6" class="inp ltr" autocomplete="off"></div>
+        <div><label class="flabel">تأكيد الرقم السري</label><input id="apr-pin2" type="password" inputmode="numeric" maxlength="6" class="inp ltr" autocomplete="off"></div>
+      </div>
+      <button type="button" class="btn sm" id="apr-pin-save">تغيير الرقم السري</button>
+      <p class="msg" id="apr-pin-msg"></p>
+    </div>`;
+  adminLayout(content, "profile");
+
+  const passMsg = document.getElementById("apr-pass-msg");
+  const setPassMsg = (t, good) => { passMsg.className = "msg " + (good ? "good" : "bad"); passMsg.textContent = t; if (t) showToast(t, good ? "good" : "bad"); };
+  const saveBtn = document.getElementById("apr-pass-save");
+  if (saveBtn) saveBtn.onclick = async () => {
+    const p1 = document.getElementById("apr-p1").value;
+    const p2 = document.getElementById("apr-p2").value;
+    if (p1.length < 6) return setPassMsg("الباسورد لازم يكون ٦ حروف على الأقل.");
+    if (p1 !== p2) return setPassMsg("الباسوردين مش متطابقين.");
+    try {
+      await fbAuth.currentUser.updatePassword(p1);
+      setPassMsg("تمام، الباسورد اتغير ✅", true);
+    } catch (e) {
+      setPassMsg((e && e.code === "auth/requires-recent-login")
+        ? "لازم تسجل دخول من جديد الأول عشان تغير الباسورد. اخرج وادخل تاني وجرب."
+        : "مشكلة: " + (e.message || e));
+    }
+  };
+  const linkBtn = document.getElementById("apr-pass-link");
+  if (linkBtn) linkBtn.onclick = async () => {
+    try {
+      await fbAuth.sendPasswordResetEmail(myEmail);
+      setPassMsg("اتبعت إيميل إعادة الضبط لـ " + myEmail + " — افتحه واختار باسوردك ✅", true);
+    } catch (e) { setPassMsg(authErrAr(e)); }
+  };
+
+  const pinMsg = document.getElementById("apr-pin-msg");
+  const setPinMsg = (t, good) => { pinMsg.className = "msg " + (good ? "good" : "bad"); pinMsg.textContent = t; if (t) showToast(t, good ? "good" : "bad"); };
+  document.getElementById("apr-pin-save").onclick = async () => {
+    const p1 = document.getElementById("apr-pin1").value.trim();
+    const p2 = document.getElementById("apr-pin2").value.trim();
+    if (!/^[0-9]{4,6}$/.test(p1)) return setPinMsg("الرقم السري من 4 لـ 6 أرقام.");
+    if (p1 !== p2) return setPinMsg("الرقمين مش زي بعض.");
+    try {
+      const pinHash = await sha256Hex(myEmail + ":" + p1);
+      await fbDb.collection("admins").doc(myEmail).update({ pinHash });
+      setPinMsg("تمام، الرقم السري اتغير ✅", true);
+    } catch (e) { setPinMsg("مشكلة: " + (e.message || e)); }
+  };
 }

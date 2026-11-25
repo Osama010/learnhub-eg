@@ -141,3 +141,83 @@ label.flabel { display: block; font-weight: 700; font-size: 13.5px; color: var(-
 .drow:last-of-type { border-bottom: none; }
 .drow .dl { color: var(--muted); font-weight: 600; flex-shrink: 0; }
 .drow .dv { font-weight: 700; text-align: left; word-break: break-word; }
+
+/* ---------- رسائل التنبيه في منتصف الشاشة ---------- */
+.toastwrap {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(15, 23, 42, .45);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.toastcard {
+  background: #fff; border-radius: 16px; padding: 22px 24px;
+  max-width: 420px; width: 100%; text-align: center;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, .25);
+  border-top: 5px solid var(--primary);
+}
+.toastcard.bad { border-top-color: var(--red); }
+.toastcard.good { border-top-color: var(--green); }
+.toastcard .ticon { font-size: 36px; }
+.toastcard .tmsg { font-size: 16px; font-weight: 800; margin: 8px 0 14px; line-height: 1.9; }
+.toastcard.bad .tmsg { color: var(--red); }
+.toastcard.good .tmsg { color: var(--green); }
+
+/* ---------- الشريط العلوي الثابت (المستر) ---------- */
+body { padding-top: 52px; }
+.pnav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--card); border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(47, 58, 69, 0.06);
+}
+.pnav .pnav-in {
+  max-width: 960px; margin: 0 auto; padding: 7px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.pnav .brand { font-weight: 800; font-size: 16px; color: var(--primary-dark); text-decoration: none; }
+.pnav .me {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: 0; cursor: pointer; font-family: inherit; padding: 2px 4px; border-radius: 999px;
+}
+.pnav .me:hover { background: var(--primary-soft); }
+.pnav .me .nm { font-size: 13.5px; font-weight: 700; color: var(--text); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pnav .me .av, .pav {
+  width: 34px; height: 34px; border-radius: 50%; object-fit: cover;
+  border: 2px solid var(--primary-soft); display: inline-block; vertical-align: middle;
+}
+.pnav .me .avinit, .pavinit {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; border: 2px solid var(--primary-soft); vertical-align: middle;
+}
+
+/* ---------- هوية المستر البصرية ---------- */
+.hero { text-align: center; padding: 26px 16px 6px; animation: fadeUp .45s ease; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.loginwrap { margin: -24px -16px -48px; padding: 8px 16px 48px; background: linear-gradient(180deg, #f0fdfa 0%, var(--bg) 45%); min-height: calc(100vh - 52px); }
+.logincard { border-radius: 20px; box-shadow: 0 8px 30px rgba(15, 23, 42, .08); border: 0; }
+.rolecard { border-radius: 18px; }
+.rolecard .ric {
+  width: 56px; height: 56px; margin: 0 auto 8px; border-radius: 50%;
+  background: var(--primary-soft); display: flex; align-items: center; justify-content: center;
+}
+.rolecard .ric.b { background: var(--blue-soft); }
+.rolecard .ric.a { background: var(--amber-soft); }
+.rolecard.active { box-shadow: 0 6px 18px rgba(13, 148, 136, .18); }
+.lcard { border: 0; border-radius: 18px; box-shadow: 0 2px 10px rgba(15, 23, 42, .06); }
+.bdg { display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 3px 10px; font-size: 11.5px; font-weight: 700; }
+.bdg.vid { background: var(--blue-soft); color: #1d4ed8; }
+.bdg.pdf { background: var(--amber-soft); color: var(--amber); }
+.bdg.new { background: var(--green-soft); color: var(--green); }
+.tab { border: 0; box-shadow: 0 1px 3px rgba(15, 23, 42, .05); }
+.fadein { animation: fadeUp .4s ease; }
+
+/* الجداول على الموبايل: اللي معاه data-h يتحول لكروت، والباقي بيتمرر أفقياً */
+@media (max-width: 640px) {
+  .ttable.resp { display: block; }
+  .ttable.resp thead { display: none; }
+  .ttable.resp tbody { display: block; }
+  .ttable.resp tr { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+  .ttable.resp td { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 0; padding: 5px 4px; text-align: left; }
+  .ttable.resp td::before { content: attr(data-h); color: var(--muted); font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .ttable.resp td .btnrow { justify-content: flex-end; }
+  .ttable:not(.resp) { display: block; overflow-x: auto; }
+}

@@ -88,20 +88,21 @@ let loginRole = "student";
 
 function renderLogin() {
   const roles = [
-    { id: "student", icon: "🎓", name: "طالب", desc: "دروسك واختباراتك" },
-    { id: "teacher", icon: "📚", name: "مدرس", desc: "طلابك وتقاريرك" },
-    { id: "admin", icon: "🛠️", name: "أدمن", desc: "إدارة المنصة" },
+    { id: "student", icon: "🎓", name: "طالب", desc: "دروسك واختباراتك", cls: "" },
+    { id: "teacher", icon: "📚", name: "مدرس", desc: "طلابك وتقاريرك", cls: "b" },
+    { id: "admin", icon: "🛠️", name: "أدمن", desc: "إدارة المنصة", cls: "a" },
   ];
-  app.innerHTML = `
-    <div class="hdr" style="margin-top:32px;">
-      <h1>منصة دروس البرمجة والذكاء الاصطناعي</h1>
-      <div class="fact">اختار نوع حسابك وسجّل دخولك</div>
+  app.innerHTML = `<div class="loginwrap">
+    <div class="hero">
+      ${LOGO_FULL_SVG}
+      <div style="color:#64748b; font-weight:700; font-size:18px; margin-top:2px;">منصة تعليمية متكاملة</div>
+      <div class="fact" style="margin-top:8px;">اختار نوع حسابك وسجّل دخولك</div>
     </div>
-    <div class="card" style="max-width:520px; margin:0 auto;">
+    <div class="card logincard" style="max-width:520px; margin:14px auto 0;">
       <div class="rolecards">
         ${roles.map((r) => `
           <button type="button" class="rolecard ${loginRole === r.id ? "active" : ""}" data-role="${r.id}">
-            <div class="ric">${r.icon}</div>
+            <div class="ric ${r.cls}">${r.icon}</div>
             <div class="rname">${r.name}</div>
             <div class="rdesc">${r.desc}</div>
           </button>`).join("")}
@@ -112,7 +113,7 @@ function renderLogin() {
         طالب جديد؟ <a href="#/register" style="color:var(--primary-dark); font-weight:700;">سجّل حسابك من هنا</a>
       </div>
     </div>
-    ${closing()}`;
+    ${closing()}</div>`;
   document.querySelectorAll(".rolecard").forEach((b) => {
     b.onclick = () => {
       loginRole = b.dataset.role;
@@ -167,13 +168,17 @@ async function doAdminForgot() {
   if (!email) return loginMsg("اكتب الإيميل الأول وبعدين اضغط نسيت الباسورد.");
   try {
     await fbAuth.sendPasswordResetEmail(email);
-    loginMsg("لو الإيميل ده مسجل مشرف ومرتبط بباسورد، هيوصله لينك إعادة الضبط على إيميله.");
+    loginMsg("لو الإيميل ده مسجل مشرف ومرتبط بباسورد، هيوصله لينك إعادة الضبط على إيميله.", true);
   } catch (e) {
     loginMsg(authErrAr(e));
   }
 }
 
-function loginMsg(t) { const m = document.getElementById("login-msg"); if (m) m.textContent = t || ""; }
+function loginMsg(t, good) {
+  const m = document.getElementById("login-msg");
+  if (m) { m.textContent = t || ""; m.className = "msg " + (good ? "good" : "bad"); }
+  if (t) showToast(t, good ? "good" : "bad");
+}
 
 /* ربط ذاتي لحساب طالب موجود في Auth لكن ملفه مش بنفس الـ uid:
    بيحصل لما الطالب يربط حسابه (أول دخول) وبعدين ملفه يتمسح ويتسجل من جديد —
@@ -251,6 +256,17 @@ async function doLogin(expectedRole) {
         if (lk.exists && lk.data().status === "approved" && lk.data().pinHash) {
           return renderFirstLogin(email.toLowerCase());
         }
+        // تحذير دقيق: الإيميل مش مسجل أصلاً كطالب (الفهرس العام مقروء قبل الدخول)
+        if (!lk.exists) {
+          return loginMsg("الإيميل ده مش مسجل عندنا كطالب. لو أول مرة تستخدم المنصة، سجّل حسابك من اللينك اللي تحت.");
+        }
+      } catch (_) {}
+    }
+    // تحذير دقيق للمدرس: ندور على إيميله في النسخة العامة من بيانات المدرسين
+    if (expectedRole === "teacher") {
+      try {
+        const q = await fbDb.collection("teachersPublic").where("email", "==", email.toLowerCase()).limit(1).get();
+        if (q.empty) return loginMsg("الإيميل ده مش مسجل كمدرس عندنا. حسابات المدرسين بيعملها الأدمن — كلّمه يضيفك.");
       } catch (_) {}
     }
     loginMsg(authErrAr(e));
@@ -293,12 +309,13 @@ async function renderRegister() {
       regTeachersCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     } catch (e) { regTeachersCache = []; }
   }
-  app.innerHTML = `
-    <div class="hdr" style="margin-top:32px;">
-      <h1>تسجيل طالب جديد</h1>
-      <div class="fact">بعد التسجيل طلبك يروح للمدرس يوافق عليه</div>
+  app.innerHTML = `<div class="loginwrap">
+    <div class="hero">
+      ${LOGO_FULL_SVG}
+      <div style="color:#64748b; font-weight:700; font-size:18px; margin-top:2px;">تسجيل طالب جديد</div>
+      <div class="fact" style="margin-top:8px;">بعد التسجيل طلبك يروح للمدرس يوافق عليه</div>
     </div>
-    <div class="card" style="max-width:520px; margin:0 auto;">
+    <div class="card logincard" style="max-width:520px; margin:14px auto 0;">
       <label class="flabel">الاسم بالكامل</label>
       <input id="rg-name" type="text" class="inp" placeholder="اكتب اسمك">
       <label class="flabel">الإيميل</label>
@@ -326,7 +343,7 @@ async function renderRegister() {
       <p class="muted" style="font-size:13px;">بعد ما المدرس يوافق، هتدخل بإيميلك ورقمك السري وتختار باسوردك بنفسك.</p>
       <div class="center muted" style="margin-top:8px;">عندك حساب؟ <a href="#/login" style="color:var(--primary-dark); font-weight:700;">سجّل دخولك</a></div>
     </div>
-    ${closing()}`;
+    ${closing()}</div>`;
   document.getElementById("rg-btn").onclick = doRegister;
   document.getElementById("rg-grade").onchange = filterRegTeachers;
   window.scrollTo(0, 0);
@@ -361,6 +378,7 @@ function filterRegTeachers() {
 function regMsg(t, good) {
   const m = document.getElementById("rg-msg");
   if (m) { m.textContent = t || ""; m.className = "msg " + (good ? "good" : "bad"); }
+  if (t) showToast(t, good ? "good" : "bad");
 }
 
 async function sha256Hex(t) {

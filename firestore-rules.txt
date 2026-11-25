@@ -38,10 +38,15 @@ service cloud.firestore {
             && request.resource.data.active == resource.data.active);
     }
 
-    // أسماء ومواد المدرسين للعرض العام في صفحة التسجيل — من غير إيميلات ولا تليفونات
+    // أسماء ومواد وصور المدرسين للعرض العام في صفحة التسجيل وعند طلابهم — من غير تليفونات.
+    // الإيميل موجود عشان تحذير "الإيميل مش مسجل" في صفحة دخول المدرس.
     match /teachersPublic/{teacherId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      // الأدمن يعدل أي حاجة؛ والمدرس يقدر يغير صورته هو بس — أي حقل تاني يفضل زي ما هو
+      allow update: if isAdmin()
+        || (isTeacher() && request.auth.uid == teacherId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["avatar"]));
     }
 
     // فهرس تسجيل عام آمن: مفتاحه الإيميل، وفيه هاش الرقم السري + الحالة + رقم ملف الطالب

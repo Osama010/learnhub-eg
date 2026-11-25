@@ -5,16 +5,19 @@
 let teacherCache = null;
 
 function teacherTabs(active) {
-  return `<div class="tabs">
+  const myAv = (fbProfile && (fbProfile.avatar || fbProfile.photoData)) || "";
+  return platNavHtml((fbProfile && fbProfile.name) || "", myAv, "#/teacher/profile") + `<div class="tabs">
     <button type="button" class="tab ${active === "students" ? "active" : ""}" data-g="#/teacher">طلابي</button>
     <button type="button" class="tab ${active === "lessons" ? "active" : ""}" data-g="#/teacher/lessons">الدروس والكويزات</button>
     <button type="button" class="tab ${active === "ann" ? "active" : ""}" data-g="#/teacher/announcements">الإعلانات</button>
     <button type="button" class="tab ${active === "reports" ? "active" : ""}" data-g="#/teacher/reports">التقارير</button>
+    <button type="button" class="tab ${active === "profile" ? "active" : ""}" data-g="#/teacher/profile">حسابي</button>
   </div>`;
 }
 
 function bindTeacherTabs() {
   document.querySelectorAll(".tab[data-g]").forEach((b) => b.onclick = () => location.hash = b.dataset.g);
+  bindPlatNav();
 }
 
 async function teacherLoad() {
@@ -109,22 +112,14 @@ async function renderTeacherDash() {
       <div class="statcard"><div class="num">${approved.length}</div><div class="lbl">طلابك</div></div>
       <div class="statcard"><div class="num">${pending.length}</div><div class="lbl">طلبات جديدة</div></div>
     </div>
-    <div class="card">
-      <h2 style="font-size:18px; margin-top:0;">حسابك</h2>
-      <div class="btnrow">
-        <button type="button" class="btn ghost" id="t-pass">تغيير الباسورد</button>
-        <span class="muted" style="font-size:13px;">هيوصلك إيميل بلينك تغيير الباسورد.</span>
-      </div>
-      <p class="msg" id="t-msg"></p>
-    </div>
     ${pending.length ? `
     <div class="card">
       <h2 style="font-size:18px; margin-top:0;">طلبات تسجيل جديدة (${pending.length})</h2>
-      <table class="ttable">
+      <table class="ttable resp">
         <thead><tr><th>الاسم</th><th>السنة</th><th>الموبايل</th><th>ولي الأمر</th><th>الإيميل</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${pending.map((s) => `<tr>
-            <td>${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a></td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.phone)}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td><td class="ltr">${esc(s.email)}</td>
+            <td data-h="الاسم">${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a></td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="الموبايل">${esc(s.phone)}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td><td class="ltr" data-h="الإيميل">${esc(s.email)}</td>
             <td>
               <div class="btnrow">
                 <button type="button" class="btn sm" data-ok="${s.id}">قبول</button>
@@ -141,14 +136,14 @@ async function renderTeacherDash() {
         <button type="button" class="btn sm ${!dashGradeFilter ? "" : "ghost"}" data-dgf="">كل الصفوف</button>
         ${[...new Set(((fbProfile && fbProfile.stages) || []).flatMap((st) => gradesOfStage(st)))].map((g) => `<button type="button" class="btn sm ${dashGradeFilter === g ? "" : "ghost"}" data-dgf="${esc(g)}">${esc(g.replace("الصف ", ""))}</button>`).join("")}
       </div>` : ""}
-      <table class="ttable">
+      <table class="ttable resp">
         <thead><tr><th>الاسم</th><th>السنة</th><th>ولي الأمر</th><th>تقدمه</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${approved.length ? approved.filter((s) => !dashGradeFilter || s.grade === dashGradeFilter).map((s) => {
             const avg = studentQuizAvg(s.id);
             const prog = avg !== null ? avg + "%" : ((s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0) + "%";
             return `<tr>
-              <td>${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a></td><td>${esc(s.grade || "—")}</td><td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td><td>${prog}</td>
+              <td data-h="الاسم">${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" style="color:var(--primary-dark); font-weight:700;">${esc(s.name)}</a></td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td><td data-h="تقدمه">${prog}</td>
               <td>
                 <div class="btnrow">
                   <a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك مدرسك من منصة الدروس.")}">واتساب</a>
@@ -163,18 +158,6 @@ async function renderTeacherDash() {
       </table>
     </div>
     ${closing()}`;
-  document.getElementById("t-pass").onclick = async () => {
-    try {
-      await fbAuth.sendPasswordResetEmail(fbUser.email);
-      const m = document.getElementById("t-msg");
-      m.textContent = "اتبعت إيميل تغيير الباسورد لـ " + fbUser.email + " ✅";
-      m.className = "msg good";
-    } catch (e) {
-      const m = document.getElementById("t-msg");
-      m.textContent = authErrAr(e);
-      m.className = "msg bad";
-    }
-  };
   bindTeacherTabs();
   document.querySelectorAll("[data-glink]").forEach((el) => el.onclick = () => location.hash = el.dataset.glink);
   document.querySelectorAll("[data-ok]").forEach((b) => b.onclick = () => teacherSetStatus(b.dataset.ok, "approved"));
@@ -340,6 +323,7 @@ function emptyQuizForm() {
 function lsMsg(t, good) {
   const m = document.getElementById("ls-msg");
   if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
+  if (t) showToast(t, good ? "good" : "bad");
 }
 
 const QTYPES = [["mcq", "اختيار من متعدد"], ["multi", "اختيار متعدد (أكتر من إجابة)"], ["tf", "صح أو غلط"], ["text", "إجابة قصيرة"], ["fill", "أكمل الفراغ"], ["match", "توصيل"], ["num", "إجابة رقمية"]];
@@ -814,6 +798,7 @@ function renderLessonFormPage(stage, subject) {
 function qzMsg(t, good) {
   const m = document.getElementById("qz-msg");
   if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
+  if (t) showToast(t, good ? "good" : "bad");
 }
 
 function renderQuizFormPage(stage, subject) {
@@ -1104,6 +1089,7 @@ function examStatus(e) {
 function exMsg(t, good) {
   const m = document.getElementById("ex-msg");
   if (m) { m.className = "msg " + (good ? "good" : "bad"); m.textContent = t; }
+  if (t) showToast(t, good ? "good" : "bad");
 }
 
 function examResultsHtml(e) {
@@ -1731,4 +1717,140 @@ async function openStudentNotes(sid) {
       m.className = "msg bad"; m.textContent = "مشكلة: " + (e.message || e);
     }
   };
+}
+
+/* ---------- تاب حسابي (المدرس) ----------
+   صورته (بتظهر لطلابه جنب اسمه)، إحصائياته، بياناته للقراءة، وتغيير الباسورد.
+   الصورة بتتصغّر في المتصفح وتتحفظ في ملفه (teachers) والنسخة العامة (teachersPublic)
+   عشان تظهر للطلاب — زي صورة الطالب بالظبط. */
+function tMyAvatar(size) {
+  const av = (fbProfile && (fbProfile.avatar || fbProfile.photoData)) || "";
+  const nm = ((fbProfile && fbProfile.name) || "").trim();
+  if (av) return `<img src="${av}" alt="" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; display:inline-block; vertical-align:middle; border:2px solid var(--primary-soft);">`;
+  return `<span style="width:${size}px; height:${size}px; border-radius:50%; background:var(--primary); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:${Math.round(size * 0.45)}px; font-weight:800; vertical-align:middle;">${esc(nm ? nm[0] : "؟")}</span>`;
+}
+
+async function renderTeacherProfile() {
+  if (!fbUser) return renderLogin();
+  app.innerHTML = `<div class="spin">بنحمل حسابك...</div>`;
+  try { await teacherLoadLessons(); }
+  catch (e) { app.innerHTML = `<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>`; return; }
+  const t = fbProfile || {};
+  const approved = (teacherCache || []).filter((s) => s.status === "approved");
+  const row = (lbl, val, ltr) => `<div class="btnrow" style="justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:8px;"><span class="muted">${lbl}</span><b ${ltr ? 'class="ltr"' : ""}>${esc(val)}</b></div>`;
+  app.innerHTML = `
+    <div class="hdr">
+      <h1 style="display:flex; align-items:center; gap:10px;">${tMyAvatar(44)} حسابي</h1>
+      <div class="fact">${esc(fbUser.email)} · <a href="javascript:signOut()" style="color:var(--primary-dark);">خروج</a></div>
+    </div>
+    ${teacherTabs("profile")}
+    <div class="card center" style="padding:28px;">
+      ${tMyAvatar(120)}
+      <h2 style="margin:10px 0 2px; font-size:20px;">${esc(t.name || "")}</h2>
+      <div class="muted">${esc(t.subject || "")}${(t.stages || []).length ? " · " + esc(t.stages.join("، ")) : ""}</div>
+      <div class="btnrow" style="justify-content:center; margin-top:12px;">
+        <button type="button" class="btn sm" id="tp-pick">📷 ${(t.avatar || t.photoData) ? "تغيير الصورة" : "إضافة صورة"}</button>
+        ${(t.avatar || t.photoData) ? `<button type="button" class="btn sm ghost" id="tp-del">حذف الصورة</button>` : ""}
+      </div>
+      <input type="file" id="tp-file" accept="image/*" style="display:none;">
+      <div class="muted" style="font-size:12px; margin-top:6px;">صورتك بتظهر لطلابك جنب اسمك — أي صورة من موبايلك تنفع، بتتصغّر لوحدها.</div>
+      <p class="msg" id="tp-msg"></p>
+    </div>
+    <div class="statcards">
+      <div class="statcard"><div class="num">${approved.length}</div><div class="lbl">طالب مقبول</div></div>
+      <div class="statcard"><div class="num">${(teacherLessons || []).length}</div><div class="lbl">درس</div></div>
+      <div class="statcard"><div class="num">${(teacherQuizzes || []).length}</div><div class="lbl">كويز</div></div>
+      <div class="statcard"><div class="num">${(teacherExams || []).length}</div><div class="lbl">امتحان</div></div>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">بياناتك</h2>
+      <div style="display:grid; gap:10px; margin-top:10px;">
+        ${row("الاسم", t.name || "—")}
+        ${row("المادة", t.subject || "—")}
+        ${row("المراحل", (t.stages || []).join("، ") || "—")}
+        ${row("الإيميل", fbUser.email || "—", true)}
+        ${row("الموبايل", t.phone || "—", true)}
+      </div>
+      <p class="muted" style="font-size:12.5px; margin-top:12px;">الاسم والمادة والمراحل بيتحدثوا من الأدمن — لو في حاجة غلط كلّمه.</p>
+    </div>
+    <div class="card">
+      <h2 style="font-size:18px; margin-top:0;">🔒 الباسورد</h2>
+      <div class="btnrow">
+        <button type="button" class="btn ghost sm" id="tp-pass">تغيير الباسورد</button>
+        <span class="muted" style="font-size:13px;">هيوصلك إيميل بلينك تغيير الباسورد.</span>
+      </div>
+      <p class="msg" id="tp-pass-msg"></p>
+    </div>
+    ${closing()}`;
+  bindTeacherTabs();
+  const msg = document.getElementById("tp-msg");
+  document.getElementById("tp-pick").onclick = () => document.getElementById("tp-file").click();
+  document.getElementById("tp-file").onchange = (e) => tAvatarSave(e.target.files && e.target.files[0], msg);
+  const del = document.getElementById("tp-del");
+  if (del) del.onclick = async () => {
+    if (!confirm("متأكد إنك عايز تحذف صورتك؟")) return;
+    try {
+      const batch = fbDb.batch();
+      batch.update(fbDb.collection("teachers").doc(fbUser.uid), {
+        avatar: firebase.firestore.FieldValue.delete(),
+        photoData: firebase.firestore.FieldValue.delete(),
+      });
+      batch.update(fbDb.collection("teachersPublic").doc(fbUser.uid), { avatar: firebase.firestore.FieldValue.delete() });
+      await batch.commit();
+      fbProfile.avatar = null;
+      fbProfile.photoData = null;
+      renderTeacherProfile();
+    } catch (e) { msg.className = "msg bad"; msg.textContent = "مشكلة في الحذف: " + (e.message || e); showToast("مشكلة في الحذف: " + (e.message || e), "bad"); }
+  };
+  document.getElementById("tp-pass").onclick = async () => {
+    const m = document.getElementById("tp-pass-msg");
+    try {
+      await fbAuth.sendPasswordResetEmail(fbUser.email);
+      m.className = "msg good";
+      m.textContent = "اتبعت إيميل تغيير الباسورد لـ " + fbUser.email + " ✅";
+      showToast("اتبعت إيميل تغيير الباسورد لـ " + fbUser.email, "good");
+    } catch (e) {
+      m.className = "msg bad";
+      m.textContent = authErrAr(e);
+      showToast(authErrAr(e), "bad");
+    }
+  };
+  window.scrollTo(0, 0);
+}
+
+// تصغير صورة المدرس وحفظها في ملفه وفي النسخة العامة (بتظهر لطلابه)
+function tAvatarSave(file, msg) {
+  if (!file) return;
+  if (!file.type || !file.type.startsWith("image/")) {
+    msg.className = "msg bad"; msg.textContent = "اختار ملف صورة.";
+    showToast("اختار ملف صورة.", "bad");
+    return;
+  }
+  msg.className = "msg"; msg.textContent = "بنصغّر الصورة ونحفظها...";
+  const reader = new FileReader();
+  reader.onerror = () => { msg.className = "msg bad"; msg.textContent = "مشكلة في قراءة الصورة."; };
+  reader.onload = () => {
+    const img = new Image();
+    img.onerror = () => { msg.className = "msg bad"; msg.textContent = "الملف ده مش صورة صالحة."; };
+    img.onload = async () => {
+      try {
+        const size = 256;
+        const c = document.createElement("canvas");
+        c.width = size; c.height = size;
+        const ctx = c.getContext("2d");
+        const min = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, size, size);
+        const dataUrl = c.toDataURL("image/jpeg", 0.82);
+        const batch = fbDb.batch();
+        batch.update(fbDb.collection("teachers").doc(fbUser.uid), { avatar: dataUrl });
+        batch.update(fbDb.collection("teachersPublic").doc(fbUser.uid), { avatar: dataUrl });
+        await batch.commit();
+        fbProfile.avatar = dataUrl;
+        showToast("اتحفظت صورتك ✅", "good");
+        renderTeacherProfile();
+      } catch (e) { msg.className = "msg bad"; msg.textContent = "مشكلة في الحفظ: " + (e.message || e); showToast("مشكلة في الحفظ: " + (e.message || e), "bad"); }
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
 }

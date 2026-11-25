@@ -63,6 +63,64 @@ function videoEmbed(url) {
   return null;
 }
 
+/* ---------- رسائل التنبيه في منتصف الشاشة ----------
+   كل التحذيرات والرسائل المهمة بتظهر في كارت في نص الشاشة:
+   الأخطاء حمرا وبتفضل قدام المستخدم لحد ما يدوس تمام،
+   ورسائل النجاح خضرا وبتختفي لوحدها بعد ثواني. */
+function showToast(msg, type) {
+  const old = document.querySelector(".toastwrap");
+  if (old) old.remove();
+  const w = document.createElement("div");
+  w.className = "toastwrap";
+  const icon = type === "good" ? "✅" : "⚠️";
+  w.innerHTML = `<div class="toastcard ${type === "good" ? "good" : "bad"}">
+    <div class="ticon">${icon}</div>
+    <div class="tmsg"></div>
+    <button type="button" class="btn" style="min-width:120px;">تمام</button>
+  </div>`;
+  w.querySelector(".tmsg").textContent = msg || "";
+  const close = () => { if (w.parentNode) w.remove(); };
+  w.querySelector("button").onclick = close;
+  w.onclick = (e) => { if (e.target === w) close(); };
+  document.body.appendChild(w);
+  if (type === "good") setTimeout(close, 3500);
+}
+
+/* التقاط أي خطأ غير متوقع في الصفحة: يظهر كرسالة مفهومة في النص
+   بدل ما الصفحة تضرب، والتفاصيل الفنية بتتسجل في الكونسول للمراجعة */
+window.addEventListener("error", (e) => {
+  console.error("خطأ غير متوقع:", e.error || e.message);
+  showToast("حصل خطأ غير متوقع في الصفحة. حدّث الصفحة وجرّب تاني.", "bad");
+});
+window.addEventListener("unhandledrejection", (e) => {
+  console.error("عملية فشلت من غير التقاط:", e.reason);
+  showToast("حصلت مشكلة في الاتصال أو التحميل. جرّب تاني.", "bad");
+});
+
+/* ---------- الشريط العلوي الثابت ----------
+   اسم المنصة يمين، وشمال صورة المستخدم واسمه — الدوس عليهم يفتح حسابي.
+   بيتحط فوق صفحات كل الأدوار بنفس الشكل. */
+// أيقونة كاب التخرج (لوجو المستر) — SVG مضمّن للشريط العلوي
+var LOGO_ICON_SVG = `<svg width="26" height="17" viewBox="0 0 164 100" xmlns="http://www.w3.org/2000/svg" style="display:block;"><polygon points="82,4 160,42 82,80 4,42" fill="#f59e0b"/><line x1="160" y1="42" x2="160" y2="76" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/><circle cx="160" cy="84" r="9" fill="#f59e0b"/></svg>`;
+
+// اللوجو الكامل (كاب + المستر + خط كهرمان) لصفحتي الدخول والتسجيل
+var LOGO_FULL_SVG = `<svg width="240" height="150" viewBox="0 0 480 300" xmlns="http://www.w3.org/2000/svg"><polygon points="352,10 434,52 352,94 270,52" fill="#f59e0b"/><line x1="434" y1="52" x2="434" y2="104" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/><circle cx="434" cy="113" r="10" fill="#f59e0b"/><text x="240" y="222" text-anchor="middle" font-family="Cairo, sans-serif" font-weight="900" font-size="118" fill="#0f766e">المستر</text><rect x="130" y="248" width="220" height="10" rx="5" fill="#f59e0b"/></svg>`;
+
+function platNavHtml(name, avatarUrl, profileHash) {
+  const nm = String(name || "").trim();
+  const av = avatarUrl
+    ? `<img class="av" src="${avatarUrl}" alt="">`
+    : `<span class="avinit">${esc(nm ? nm[0] : "؟")}</span>`;
+  return `<div class="pnav"><div class="pnav-in">
+    <a class="brand" href="#/login" style="display:flex; align-items:center; gap:7px;">${LOGO_ICON_SVG}<span style="font-weight:900; font-size:19px; color:#0f766e;">المستر</span></a>
+    <button type="button" class="me" data-prof="${profileHash}"><span class="nm">${esc(nm)}</span>${av}</button>
+  </div></div>`;
+}
+
+function bindPlatNav() {
+  document.querySelectorAll(".pnav .me").forEach((b) => b.onclick = () => { location.hash = b.dataset.prof; });
+}
+
 /* ---------- الراوتر ---------- */
 function route() {
   const h = location.hash || "#/login";
@@ -75,6 +133,7 @@ function route() {
     return renderAdmin("#/admin");
   }
   if (fbRole === "teacher") {
+    if (h === "#/teacher/profile") return renderTeacherProfile();
     if (h === "#/teacher/reports") return renderTeacherReports();
     if (h === "#/teacher/announcements") return renderTeacherAnnouncements();
     if (h.startsWith("#/teacher/lesson/")) {
