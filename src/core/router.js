@@ -27,6 +27,9 @@ import { renderTeacherReports } from "../features/teacher/reports.js";
 import { renderAboutPage, renderTeacherSubExpired, renderTeacherSuspended } from "../shared/pwa.js";
 import { rolePortal } from "../domain/student.js";
 import { renderTeacherBulk } from "../features/teacher/bulk-message.js";
+import { renderTeacherFollow } from "../features/teacher/follow.js";
+import { renderTeacherParentReport } from "../features/teacher/parent-report.js";
+import { renderTeacherCertificate } from "../features/teacher/certificate.js";
 
 /* ---------- الراوتر ---------- */
 function renderWrongPortal() {
@@ -62,6 +65,9 @@ export function route() {
     if (h === "#/teacher/transfer") return renderTeacherTransfer();
     if (h === "#/teacher/announcements") return renderTeacherAnnouncements();
     if (h === "#/teacher/bulk") return renderTeacherBulk();
+    if (h === "#/teacher/follow") return renderTeacherFollow();
+    if (h.startsWith("#/teacher/preport/")) return renderTeacherParentReport(decodeURIComponent(h.slice("#/teacher/preport/".length)));
+    if (h.startsWith("#/teacher/cert/")) return renderTeacherCertificate(decodeURIComponent(h.slice("#/teacher/cert/".length)));
     if (h.startsWith("#/teacher/lesson/")) {
       const lid = decodeURIComponent(h.slice("#/teacher/lesson/".length));
       return renderTeacherLessonView(lid);

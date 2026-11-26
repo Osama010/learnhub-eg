@@ -1,0 +1,44 @@
+<!-- قوالب الواجهة لموديول features/teacher/parent-report.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.renderPReport |  -->
+<div class="spin">بنجهز التقرير...</div>
+<!-- @@ teacher.renderPReport_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ teacher.renderPReport_3 | closing,esc,mode,rep,recipientPickHtml,teacherName,teacherTabs,text,to,valid,waLink -->
+
+    <style>@media print { body * { visibility: hidden !important; } #pr-print, #pr-print * { visibility: visible !important; } #pr-print { position: absolute; top: 0; right: 0; left: 0; padding: 18px; } .no-print { display: none !important; } }</style>
+    <div class="hdr no-print">
+      <h1>تقرير ولي الأمر 📄</h1>
+    </div>
+    <div class="no-print">${teacherTabs("follow")}</div>
+    <div class="card no-print">
+      <div class="fgrid">
+        <div><label class="flabel">الإرسال إلى</label>${recipientPickHtml("pr-mode", mode)}</div>
+      </div>
+      <div class="btnrow">
+        ${valid ? `<a class="btn green" target="_blank" rel="noopener" href="${waLink(to, text)}">إرسال واتساب${mode === "parent" ? " لولي الأمر" : " للطالب"}</a>` : `<span class="muted">مفيش رقم ${mode === "parent" ? "لولي الأمر" : "للطالب"} مسجل لـ ${esc(rep.name)}</span>`}
+        <button type="button" class="btn" id="pr-print">طباعة / حفظ PDF</button>
+        <a class="btn" href="#/teacher/follow">رجوع</a>
+      </div>
+      <p class="muted u-fs125px-mt6px">الواتساب بيبعت ملخص نصي. للـ PDF اختار "حفظ كـ PDF" من شاشة الطباعة.</p>
+    </div>
+    <div class="card" id="pr-print">
+      <h2 class="u-fs18px-mt0">تقرير متابعة: ${esc(rep.name)}</h2>
+      <p class="muted u-fs125px-m006px">${rep.grade ? esc(rep.grade) + " · " : ""}${teacherName ? "مدرس " + esc(teacherName) + " · " : ""}${esc(rep.date)}</p>
+      <table class="ttable">
+        <tbody>
+          <tr><td>الكويزات</td><td>${rep.quizCount ? rep.quizCount + " محاولة · المتوسط " + rep.quizAvg + "%" : "لسه ما حلش كويزات"}</td></tr>
+          <tr><td>الامتحانات</td><td>${rep.examCount ? rep.examCount + " محاولة · المتوسط " + rep.examAvg + "%" : "لسه ما حلش امتحانات"}</td></tr>
+          <tr><td>آخر دخول</td><td>${esc(rep.lastLabel)}</td></tr>
+          <tr><td>لسه ما اتحلش</td><td>${rep.missed.length ? rep.missed.map((m) => esc(m)).join("، ") : "مفيش"}</td></tr>
+        </tbody>
+      </table>
+      ${rep.recent.length ? `<h3 style="font-size:15px; margin:14px 0 4px;">آخر المحاولات</h3>
+      <table class="ttable"><thead><tr><th>العنوان</th><th>النوع</th><th>النتيجة</th><th>التاريخ</th></tr></thead>
+      <tbody>${rep.recent.map((a) => `<tr><td>${esc(a.title)}</td><td>${esc(a.kind)}</td><td>${a.pct}%</td><td>${esc(a.date)}</td></tr>`).join("")}</tbody></table>` : ""}
+    </div>
+<!-- @@ teacher.renderPReport_4 | closing,teacherTabs -->
+
+    <div class="hdr"><h1>تقرير ولي الأمر 📄</h1></div>
+    ${teacherTabs("follow")}
+    <p class="msg bad">الطالب مش موجود في طلابك.</p>
+    <a class="btn" href="#/teacher/follow">رجوع</a>

@@ -15,6 +15,7 @@ import { activeBroadcastText, subFmtDate, subInfo } from "../../domain/subscript
 import { termName } from "../../domain/term.js";
 import { useCases } from "../../main/compose.js";
 import { broadcastUntil, filterAdminLog, studentStatusCounts, validateBroadcastText } from "./log.presenter.js";
+import { adminBackupCardHtml, bindAdminBackup } from "./backup.js";
 
 /* ---------- تاب السجل ----------
    كل حركات الأدمن الحساسة (إضافة/إيقاف/حذف/نقل/دفعات/إعلانات) مرتبة بالأحدث.
@@ -25,7 +26,8 @@ export function adminLogPage() {
   const ACTIONS = ["إضافة مدرس", "تعديل مدرس", "إيقاف مدرس مؤقتًا", "إلغاء إيقاف مدرس", "حذف مدرس نهائيًا", "قبول طالب", "حذف طالب نهائيًا", "نقل جماعي", "تغيير الترم", "إضافة مادة", "حذف مادة", "تسجيل دفعة", "نشر إعلان", "إيقاف إعلان"];
   const list = filterAdminLog(adminCache.log, logFilter);
   const content = T("admin.adminLogPage", { ACTIONS, esc, fmtTs, list, logFilter });
-  adminLayout(content, "log");
+  adminLayout(content + adminBackupCardHtml(), "log");
+  bindAdminBackup();
   const lf = (id, key) => { const el = document.getElementById(id); if (el) el.onchange = (e) => { logFilter[key] = e.target.value; adminLogPage(); }; };
   lf("lf-action", "action"); lf("lf-from", "from"); lf("lf-to", "to");
 }

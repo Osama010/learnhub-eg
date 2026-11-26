@@ -1,0 +1,3 @@
+<!-- قوالب الواجهة لموديول features/teacher/recipient.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.recipientPick | RECIPIENT_MODES,esc,id,mode -->
+<select id="${esc(id)}" class="inp">${RECIPIENT_MODES.map((m) => `<option value="${esc(m.id)}" ${mode === m.id ? "selected" : ""}>${esc(m.label)}</option>`).join("")}</select>

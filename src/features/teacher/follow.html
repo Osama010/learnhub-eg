@@ -1,0 +1,40 @@
+<!-- قوالب الواجهة لموديول features/teacher/follow.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.renderFollow |  -->
+<div class="spin">بنحمل بيانات الطلاب...</div>
+<!-- @@ teacher.renderFollow_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ teacher.renderFollow_3 | INACT_DAYS,STAGE_NAMES,backupCardHtml,closing,esc,followDays,followGrade,followMode,followStage,gradeSelectHtml,myStages,recipientPickHtml,teacherTabs -->
+
+    <div class="hdr">
+      <h1>متابعة الطلاب 👀</h1>
+    </div>
+    ${teacherTabs("follow")}
+    <div class="card">
+      <h2 class="u-fs18px-mt0">الطلاب المتأخرين عن النشاط</h2>
+      <div class="fgrid">
+        <div><label class="flabel">المرحلة</label><select id="fl-stage" class="inp">
+          ${myStages.map((st) => `<option value="${esc(st)}" ${followStage === st ? "selected" : ""}>المرحلة ${esc(STAGE_NAMES[st] || st)}</option>`).join("")}
+        </select></div>
+        <div><label class="flabel">الصف (اختياري)</label>${gradeSelectHtml("fl-grade", followStage, followGrade)}</div>
+        <div><label class="flabel">ما دخلوش من</label><select id="fl-days" class="inp">
+          ${INACT_DAYS.map((d) => `<option value="${d}" ${followDays === d ? "selected" : ""}>${d} يوم أو أكتر</option>`).join("")}
+        </select></div>
+        <div><label class="flabel">الإرسال إلى</label>${recipientPickHtml("fl-mode", followMode)}</div>
+      </div>
+      <p class="muted u-fs125px-mt6px">النشاط بيتحسب من آخر يوم دخل فيه الطالب أو آخر محاولة كويز/امتحان. الزرار بيفتح واتساب برسالة تذكير جاهزة وانت تبعت. من الصف تقدر تفتح تقرير ولي الأمر أو تطلع شهادة.</p>
+    </div>
+    <div id="fl-list"></div>
+    ${backupCardHtml()}
+<!-- @@ teacher.followListHtml | esc,followDays,followMode,rows,sum,waLink -->
+<div class="card">
+  <h2 class="u-fs18px-mt0">المتأخرين (${sum.late} من ${sum.total})</h2>
+  <p class="muted u-fs125px-m006px">${sum.never ? "ما دخلوش خالص: " + sum.never + " · " : ""}جاهز للتذكير: ${sum.sendable}</p>
+  ${rows.length ? `<table class="ttable">
+    <thead><tr><th>الطالب</th><th>آخر نشاط</th><th>إجراءات</th></tr></thead>
+    <tbody>${rows.map((r) => `<tr>
+      <td>${esc(r.name)}${r.grade ? `<br><span class="muted u-fs125px">${esc(r.grade)}</span>` : ""}</td>
+      <td>${esc(r.label)}</td>
+      <td><div class="btnrow u-m0" style="gap:6px;">${r.valid ? `<a class="btn sm green" target="_blank" rel="noopener" href="${waLink(r.to, r.text)}" title="${r.parent ? "لولي الأمر" : "للطالب"}">واتساب</a>` : `<span class="muted u-fs125px">مفيش رقم</span>`}<a class="btn sm" href="#/teacher/preport/${encodeURIComponent(r.id)}">تقرير</a><a class="btn sm" href="#/teacher/cert/${encodeURIComponent(r.id)}">شهادة</a></div></td>
+    </tr>`).join("")}</tbody>
+  </table>` : `<p class="muted">✅ مفيش طلاب متأخرين ${followDays} يوم أو أكتر في الاختيار ده.</p>`}
+</div>

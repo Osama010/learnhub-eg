@@ -3,7 +3,7 @@
 <div class="spin">بنحمل الطلاب...</div>
 <!-- @@ teacher.renderBulk_2 | e,esc -->
 <p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
-<!-- @@ teacher.renderBulk_3 | BULK_TEMPLATES,STAGE_NAMES,bulkGrade,bulkStage,bulkText,closing,esc,gradeSelectHtml,myStages,teacherTabs -->
+<!-- @@ teacher.renderBulk_3 | BULK_TEMPLATES,STAGE_NAMES,bulkMode,recipientPickHtml,bulkGrade,bulkStage,bulkText,closing,esc,gradeSelectHtml,myStages,teacherTabs -->
 
     <div class="hdr">
       <h1>رسالة لصف 💬</h1>
@@ -16,6 +16,7 @@
           ${myStages.map((st) => `<option value="${esc(st)}" ${bulkStage === st ? "selected" : ""}>المرحلة ${esc(STAGE_NAMES[st] || st)}</option>`).join("")}
         </select></div>
         <div><label class="flabel">الصف (اختياري)</label>${gradeSelectHtml("bk-grade", bulkStage, bulkGrade)}</div>
+        <div><label class="flabel">الإرسال إلى</label>${recipientPickHtml("bk-mode", bulkMode)}</div>
         <div><label class="flabel">قالب جاهز</label><select id="bk-tpl" class="inp">
           <option value="">— اختار قالب —</option>
           ${BULK_TEMPLATES.map((t) => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}
@@ -23,11 +24,11 @@
       </div>
       <label class="flabel">نص الرسالة</label>
       <textarea id="bk-text" class="inp" rows="4" placeholder="اكتب رسالتك. استخدم {اسم} عشان اسم الطالب يتحط تلقائي.">${esc(bulkText)}</textarea>
-      <p class="muted u-fs125px-mt6px">واتساب مابيسمحش بالإرسال الجماعي الآلي. هتلاقي تحت زرار لكل ولي أمر، بتدوس عليه فيفتح واتساب بالرسالة جاهزة وانت تبعت. الرقم المستخدم هو رقم ولي الأمر، ولو مش مسجل فرقم الطالب.</p>
+      <p class="muted u-fs125px-mt6px">واتساب مابيسمحش بالإرسال الجماعي الآلي. هتلاقي تحت زرار لكل ولي أمر، بتدوس عليه فيفتح واتساب بالرسالة جاهزة وانت تبعت. الرقم المستخدم هو رقم اللي اخترته في الإرسال إلى (ولي الأمر أو الطالب)، ومفيش تبديل تلقائي لو الرقم مش مسجل.</p>
       <p id="bk-msg" class="msg"></p>
     </div>
     <div id="bk-list"></div>
-<!-- @@ teacher.bulkListHtml | esc,rows,selected,sum,waLink -->
+<!-- @@ teacher.bulkListHtml | bulkMode,esc,rows,selected,sum,waLink -->
 <div class="card">
   <div class="btnrow u-justspacebetween">
     <h2 class="u-fs18px-mt0">الطلاب (${sum.chosen} من ${sum.total})</h2>
@@ -40,7 +41,7 @@
       <td><input type="checkbox" data-bsel="${esc(r.id)}" ${selected.has(r.id) ? "checked" : ""}></td>
       <td>${esc(r.name)}${r.grade ? ` <span class="muted u-fs125px">${esc(r.grade)}</span>` : ""}</td>
       <td class="ltr">${esc(r.to || "غير مسجل")}</td>
-      <td>${!selected.has(r.id) ? `<span class="muted u-fs125px">غير مختار</span>` : r.valid ? `<a class="btn sm green" target="_blank" rel="noopener" data-bdone="${esc(r.id)}" href="${waLink(r.to, r.text)}">${r.done ? "✅ اتبعت — ابعت تاني" : "واتساب" + (r.parent ? " لولي الأمر" : " للطالب")}</a>` : `<span class="muted u-fs125px">مفيش رقم</span>`}</td>
+      <td>${!selected.has(r.id) ? `<span class="muted u-fs125px">غير مختار</span>` : r.valid ? `<a class="btn sm green" target="_blank" rel="noopener" data-bdone="${esc(r.id)}" title="${bulkMode === "parent" ? "لولي الأمر" : "للطالب"}" href="${waLink(r.to, r.text)}">${r.done ? "✅ اتبعت" : "واتساب"}</a>` : `<span class="muted u-fs125px">مفيش رقم</span>`}</td>
     </tr>`).join("")}</tbody>
   </table>` : `<p class="muted">مفيش طلاب مقبولين في الاختيار ده.</p>`}
 </div>

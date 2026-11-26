@@ -1,0 +1,87 @@
+<!-- قوالب الواجهة لموديول features/teacher/certificate.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.renderCert |  -->
+<div class="spin">بنجهز الشهادة...</div>
+<!-- @@ teacher.renderCert_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ teacher.renderCert_3 | CERT_FIELDS,CERT_REASONS,certForm,closing,esc,mode,recipientPickHtml,student,teacherTabs -->
+
+    <style>
+      .cert-wrap { width: 100%; }
+      .cert-sheet { container-type: inline-size; position: relative; width: 100%; aspect-ratio: 297 / 210; box-sizing: border-box; overflow: hidden; direction: rtl; color: #1b2f4b;
+        font-family: "Amiri", "Noto Naskh Arabic", "Traditional Arabic", "Scheherazade New", "Times New Roman", serif;
+        background: radial-gradient(ellipse at center, #fffefa 0%, #fff8e6 70%, #f6ecce 100%); border: 1.1cqw solid #1b2f4b; border-radius: 3px;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .cert-sheet::before { content: ""; position: absolute; inset: 1.4cqw; border: .3cqw solid #b8892b; pointer-events: none; }
+      .cert-sheet::after { content: ""; position: absolute; inset: 2.2cqw; border: .12cqw solid #d9b45a; pointer-events: none; }
+      .cert-corner { position: absolute; width: 9cqw; height: 9cqw; }
+      .cert-corner.tr { top: 1.6cqw; right: 1.6cqw; } .cert-corner.tl { top: 1.6cqw; left: 1.6cqw; transform: scaleX(-1); }
+      .cert-corner.br { bottom: 1.6cqw; right: 1.6cqw; transform: scaleY(-1); } .cert-corner.bl { bottom: 1.6cqw; left: 1.6cqw; transform: scale(-1, -1); }
+      .cert-in { position: absolute; inset: 4.2cqw 8cqw 4.4cqw; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; }
+      .cert-brand { font-size: 1.9cqw; letter-spacing: .1cqw; color: #8a6417; font-weight: 700; }
+      .cert-title { font-size: 6.4cqw; line-height: 1.15; margin: 0; font-weight: 700; color: #8a6417; text-shadow: .1cqw .1cqw 0 #f3e2a9; }
+      .cert-orn { width: 24cqw; height: 1.8cqw; }
+      .cert-intro { font-size: 2.2cqw; margin: 0; color: #3b4d68; }
+      .cert-name { font-size: 5.6cqw; line-height: 1.3; font-weight: 700; color: #1b2f4b; padding: 0 5cqw .3cqw; border-bottom: .25cqw solid #b8892b; min-width: 30cqw; }
+      .cert-grade { font-size: 2cqw; margin: 0; color: #6a7a92; }
+      .cert-line { font-size: 2.7cqw; line-height: 1.7; margin: 0; max-width: 68cqw; color: #26364f; }
+      .cert-foot { width: 100%; box-sizing: border-box; padding: 0 7cqw; display: flex; align-items: flex-end; justify-content: space-between; }
+      .cert-col { width: 26cqw; text-align: center; font-size: 1.9cqw; }
+      .cert-slot { position: relative; height: 3.6cqw; display: flex; align-items: flex-end; justify-content: center; }
+      .cert-sigtxt { position: absolute; bottom: 1.3cqw; left: 50%; font-family: "T4KSign", "Amiri", serif; font-size: 4.4cqw; line-height: 1.2; color: #14284b; white-space: nowrap; transform-origin: center bottom; }
+      .cert-flour { position: absolute; bottom: .1cqw; left: 50%; margin-left: -7cqw; height: 1.3cqw; }
+      .cert-rule { border-top: .2cqw solid #1b2f4b; margin-top: .4cqw; }
+      .cert-sign { padding-top: .5cqw; font-weight: 700; height: 2.6cqw; line-height: 2.6cqw; overflow: hidden; }
+      .cert-sub { color: #6a7a92; font-size: 1.6cqw; margin-top: .2cqw; }
+      .cert-date-v { font-weight: 700; }
+      .cert-seal { width: 11cqw; height: 13.9cqw; flex: none; filter: drop-shadow(0 .3cqw .4cqw rgba(60, 40, 0, .35)); margin-bottom: -.6cqw; }
+      @media print { @page { size: A4 landscape; margin: 0; } html, body { margin: 0 !important; background: #fff !important; height: 210mm !important; overflow: hidden !important; } body * { visibility: hidden !important; } #ct-sheet, #ct-sheet * { visibility: visible !important; } #ct-sheet { position: fixed !important; top: 0; left: 0; width: 297mm !important; height: 210mm !important; aspect-ratio: auto; border-radius: 0; } }
+    </style>
+    <div class="hdr"><h1>شهادة لطالب 🏅</h1></div>
+    <div class="no-print">${teacherTabs("follow")}</div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">بيانات الشهادة: ${esc(student.name || "")}</h2>
+      <p class="muted u-fs125px-m006px">كل جزء في الشهادة بتعدله بنفسك، والمعاينة تحت بتتغير على طول.</p>
+      <div class="fgrid">
+        ${CERT_FIELDS.filter((f) => !f.multi).map((f) => `<div><label class="flabel">${esc(f.label)}</label><input id="ct-${f.key}" class="inp" maxlength="${f.max}" value="${esc(certForm[f.key] || "")}"></div>`).join("")}
+      </div>
+      <label class="flabel">سبب جاهز (بيملا نص الشهادة وتعدله بعدها)</label>
+      <select id="ct-reason" class="inp">
+        <option value="">— اختار سبب —</option>
+        ${CERT_REASONS.map((r) => `<option value="${esc(r.id)}">${esc(r.label)}</option>`).join("")}
+      </select>
+      ${CERT_FIELDS.filter((f) => f.multi).map((f) => `<label class="flabel">${esc(f.label)}</label><textarea id="ct-${f.key}" class="inp" rows="2" maxlength="${f.max}">${esc(certForm[f.key] || "")}</textarea>`).join("")}
+      <p id="ct-msg" class="msg bad"></p>
+      <div class="btnrow"><button type="button" class="btn" id="ct-print">طباعة / حفظ PDF</button><button type="button" class="btn" id="ct-reset">رجوع للقيم الأصلية</button><a class="btn" href="#/teacher/follow">رجوع</a></div>
+      <p class="muted u-fs125px-mt6px">اختار "حفظ كـ PDF" من شاشة الطباعة (الورقة أفقي). الشهادة بتتعمل في المتصفح ومش بتتحفظ على السيرفر.</p>
+      <h3 class="u-fs18px-mt0">إرسال الشهادة PDF على واتساب</h3>
+      <label class="flabel">المستلم</label>
+      ${recipientPickHtml("ct-mode", mode)}
+      <p id="ct-who" class="muted u-fs125px-m006px"></p>
+      <div class="btnrow"><button type="button" class="btn" id="ct-share">إرسال PDF (مشاركة)</button><button type="button" class="btn" id="ct-dl">تحميل PDF</button><a class="btn" id="ct-chat" href="#" target="_blank" rel="noopener">فتح المحادثة</a></div>
+      <p class="muted u-fs125px-mt6px">واتساب مبيسمحش بإرفاق ملف من رابط، فالإرسال مش أوتوماتيك. على الموبايل زرار "إرسال PDF" بيفتح قايمة المشاركة: اختار واتساب والمحادثة وابعت. على الكمبيوتر حمّل الـ PDF وافتح المحادثة وارفقه بنفسك.</p>
+    </div>
+    <div class="card" id="ct-preview"></div>
+<!-- @@ teacher.certSheetHtml | cert,esc,signStyle -->
+<div class="cert-wrap"><div class="cert-sheet" id="ct-sheet">
+      <svg viewBox="0 0 60 60" class="cert-corner tr" aria-hidden="true"><path d="M2 58 V8 Q2 2 8 2 H58" fill="none" stroke="#b8892b" stroke-width="1.6"/><path d="M9 58 V15 Q9 9 15 9 H58" fill="none" stroke="#d9b45a" stroke-width=".8"/><path d="M15 36 Q15 15 36 15" fill="none" stroke="#b8892b" stroke-width="1.2"/><circle cx="22" cy="22" r="2.6" fill="#b8892b"/><path d="M2 2 L10 2 L2 10 Z" fill="#1b2f4b"/></svg><svg viewBox="0 0 60 60" class="cert-corner tl" aria-hidden="true"><path d="M2 58 V8 Q2 2 8 2 H58" fill="none" stroke="#b8892b" stroke-width="1.6"/><path d="M9 58 V15 Q9 9 15 9 H58" fill="none" stroke="#d9b45a" stroke-width=".8"/><path d="M15 36 Q15 15 36 15" fill="none" stroke="#b8892b" stroke-width="1.2"/><circle cx="22" cy="22" r="2.6" fill="#b8892b"/><path d="M2 2 L10 2 L2 10 Z" fill="#1b2f4b"/></svg><svg viewBox="0 0 60 60" class="cert-corner br" aria-hidden="true"><path d="M2 58 V8 Q2 2 8 2 H58" fill="none" stroke="#b8892b" stroke-width="1.6"/><path d="M9 58 V15 Q9 9 15 9 H58" fill="none" stroke="#d9b45a" stroke-width=".8"/><path d="M15 36 Q15 15 36 15" fill="none" stroke="#b8892b" stroke-width="1.2"/><circle cx="22" cy="22" r="2.6" fill="#b8892b"/><path d="M2 2 L10 2 L2 10 Z" fill="#1b2f4b"/></svg><svg viewBox="0 0 60 60" class="cert-corner bl" aria-hidden="true"><path d="M2 58 V8 Q2 2 8 2 H58" fill="none" stroke="#b8892b" stroke-width="1.6"/><path d="M9 58 V15 Q9 9 15 9 H58" fill="none" stroke="#d9b45a" stroke-width=".8"/><path d="M15 36 Q15 15 36 15" fill="none" stroke="#b8892b" stroke-width="1.2"/><circle cx="22" cy="22" r="2.6" fill="#b8892b"/><path d="M2 2 L10 2 L2 10 Z" fill="#1b2f4b"/></svg>
+      <div class="cert-in">
+        <div class="cert-brand">منصة المستر التعليمية</div>
+        <h2 class="cert-title">${esc(cert.title)}</h2>
+        <svg viewBox="0 0 220 16" class="cert-orn" aria-hidden="true"><path d="M0 8 H88" stroke="#b8892b" stroke-width="1"/><path d="M132 8 H220" stroke="#b8892b" stroke-width="1"/><path d="M110 1 L117 8 L110 15 L103 8 Z" fill="#b8892b"/><circle cx="96" cy="8" r="2.4" fill="#d9b45a"/><circle cx="124" cy="8" r="2.4" fill="#d9b45a"/></svg>
+        ${cert.intro ? `<p class="cert-intro">${esc(cert.intro)}</p>` : ""}
+        <div class="cert-name">${esc(cert.name)}</div>
+        ${cert.grade ? `<p class="cert-grade">${esc(cert.grade)}</p>` : ""}
+        <p class="cert-line">${esc(cert.line)}</p>
+        <div class="cert-foot">
+          <div class="cert-col"><div class="cert-slot">${cert.sign ? `<div class="cert-sigtxt" style="transform: translateX(-50%) rotate(${signStyle(cert.sign).slant}deg)">${esc(cert.sign)}</div><svg viewBox="0 0 100 8" class="cert-flour" style="width: ${signStyle(cert.sign).flourish * 0.26}%" aria-hidden="true"><path d="M2 6 Q25 1 50 4 T98 2" fill="none" stroke="#1b2f4b" stroke-width="1.2" stroke-linecap="round"/></svg>` : ""}</div><div class="cert-rule"></div><div class="cert-sign">${cert.teacher ? esc(cert.teacher) : ""}</div><div class="cert-sub">${cert.subject ? "مدرس " + esc(cert.subject) : "المدرس"}</div></div>
+          <svg viewBox="0 0 100 126" class="cert-seal" aria-hidden="true"><defs><linearGradient id="cg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d77c"/><stop offset=".5" stop-color="#c99a2e"/><stop offset="1" stop-color="#8a6417"/></linearGradient><linearGradient id="cg2" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#fbe9a6"/><stop offset="1" stop-color="#b5832a"/></linearGradient></defs><polygon points="30,84 18,124 36,116 46,126 52,88" fill="#1b2f4b"/><polygon points="70,84 82,124 64,116 54,126 48,88" fill="#9c2f3a"/><polygon points="50.0,5.0 54.4,8.7 59.6,6.1 63.0,10.7 68.7,9.3 71.0,14.6 76.8,14.4 77.9,20.1 83.6,21.2 83.4,27.0 88.7,29.3 87.3,35.0 91.9,38.4 89.3,43.6 93.0,48.0 89.3,52.4 91.9,57.6 87.3,61.0 88.7,66.7 83.4,69.0 83.6,74.8 77.9,75.9 76.8,81.6 71.0,81.4 68.7,86.7 63.0,85.3 59.6,89.9 54.4,87.3 50.0,91.0 45.6,87.3 40.4,89.9 37.0,85.3 31.3,86.7 29.0,81.4 23.2,81.6 22.1,75.9 16.4,74.8 16.6,69.0 11.3,66.7 12.7,61.0 8.1,57.6 10.7,52.4 7.0,48.0 10.7,43.6 8.1,38.4 12.7,35.0 11.3,29.3 16.6,27.0 16.4,21.2 22.1,20.1 23.2,14.4 29.0,14.6 31.3,9.3 37.0,10.7 40.4,6.1 45.6,8.7" fill="url(#cg1)"/><circle cx="50" cy="48" r="33" fill="url(#cg2)" stroke="#8a6417" stroke-width="1"/><circle cx="50" cy="48" r="28" fill="none" stroke="#fff6d6" stroke-width=".8" stroke-dasharray="1.6 1.6"/><polygon points="50.0,31.0 54.1,42.3 66.2,42.7 56.7,50.2 60.0,61.8 50.0,55.0 40.0,61.8 43.3,50.2 33.8,42.7 45.9,42.3" fill="#1b2f4b"/></svg>
+          <div class="cert-col"><div class="cert-slot cert-date-v">${esc(cert.date)}</div><div class="cert-rule"></div><div class="cert-sign"></div><div class="cert-sub">التاريخ</div></div>
+        </div>
+      </div>
+    </div></div>
+<!-- @@ teacher.renderCert_4 | closing,teacherTabs -->
+
+    <div class="hdr"><h1>شهادة لطالب 🏅</h1></div>
+    ${teacherTabs("follow")}
+    <p class="msg bad">الطالب مش موجود في طلابك.</p>
+    <a class="btn" href="#/teacher/follow">رجوع</a>

@@ -54,5 +54,11 @@
  "features/student/profile",
  "features/student/teachers",
  "features/student/analytics",
- "features/teacher/bulk-message"
+ "features/teacher/bulk-message",
+ "features/teacher/recipient",
+ "features/teacher/follow",
+ "features/teacher/parent-report",
+ "features/teacher/certificate",
+ "features/teacher/backup",
+ "features/admin/backup"
 ]

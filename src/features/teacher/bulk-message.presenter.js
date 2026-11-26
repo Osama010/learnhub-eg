@@ -1,28 +1,28 @@
 /* Presenter رسالة لصف (رسائل جماعية بزرار لكل ولي أمر): دوال صافية. */
 import { eligibleStudents } from "./late-students.presenter.js";
+import { normMode, phoneFor, phoneOk } from "./recipient.presenter.js";
 
-/** قوالب جاهزة. {اسم} بيتبدل باسم الطالب. */
+/** قوالب جاهزة بصيغتين: لولي الأمر (p) وللطالب (s). {اسم} بيتبدل باسم الطالب. */
 export const BULK_TEMPLATES = [
-  { id: "general", label: "رسالة عامة", text: "أهلاً بحضرتك، معاك مدرس {اسم}. " },
-  { id: "session", label: "تذكير بحصة", text: "أهلاً بحضرتك، بنفكركم إن {اسم} عنده حصة قريب. من فضلكم تأكدوا إنه جاهز وحاضر في ميعاده." },
-  { id: "exam", label: "تذكير بامتحان", text: "أهلاً بحضرتك، بنفكركم إن {اسم} عنده امتحان قريب. يا ريت يراجع كويس ويحل الكويزات المتاحة." },
-  { id: "praise", label: "تهنئة وتشجيع", text: "أهلاً بحضرتك، حبيت أبلغكم إن {اسم} مستواه كويس وبيتحسن. استمروا في المتابعة." },
+  { id: "general", label: "رسالة عامة", p: "أهلاً بحضرتك، معاك مدرس {اسم}. ", s: "أهلاً {اسم}، معاك مدرسك. " },
+  { id: "session", label: "تذكير بحصة", p: "أهلاً بحضرتك، بنفكركم إن {اسم} عنده حصة قريب. من فضلكم تأكدوا إنه جاهز وحاضر في ميعاده.", s: "أهلاً {اسم}، فكرك إن عندك حصة قريب. كون جاهز وحاضر في ميعادك." },
+  { id: "exam", label: "تذكير بامتحان", p: "أهلاً بحضرتك، بنفكركم إن {اسم} عنده امتحان قريب. يا ريت يراجع كويس ويحل الكويزات المتاحة.", s: "أهلاً {اسم}، فكرك إن عندك امتحان قريب. راجع كويس وحل الكويزات المتاحة." },
+  { id: "praise", label: "تهنئة وتشجيع", p: "أهلاً بحضرتك، حبيت أبلغكم إن {اسم} مستواه كويس وبيتحسن. استمروا في المتابعة.", s: "أهلاً {اسم}، مستواك كويس وبيتحسن. كمل كده!" },
 ];
 
-/** نص القالب بالـ id (أو فاضي). */
-export const templateText = (id) => { const t = BULK_TEMPLATES.find((x) => x.id === id); return t ? t.text : ""; };
+/** نص القالب بالـ id حسب المستلم (أو فاضي). */
+export const templateText = (id, mode) => { const t = BULK_TEMPLATES.find((x) => x.id === id); return t ? (normMode(mode) === "student" ? t.s : t.p) : ""; };
 
 /** الطلاب المستهدفين: المقبولين في المرحلة (والصف لو متحدد). */
 export const bulkTargets = (students, stage, grade) => eligibleStudents(students, stage, grade);
 
-/** الرقم المستهدف: ولي الأمر لو مسجل وإلا الطالب. */
-export function recipientOf(x) {
-  const parent = !!x.parentPhone;
-  return { parent, to: String(x.parentPhone || x.phone || "").trim() };
+/** المستلم حسب اختيار المدرس: الرقم المختار بس (من غير بديل). */
+export function recipientOf(x, mode) {
+  return { parent: normMode(mode) === "parent", to: phoneFor(x, mode) };
 }
 
-/** رقم صالح (10 أرقام على الأقل بعد تنضيف الرموز). */
-export const hasValidPhone = (to) => String(to || "").replace(/\D/g, "").length >= 10;
+/** رقم صالح. */
+export const hasValidPhone = phoneOk;
 
 /** تبديل {اسم} باسم الطالب. */
 export const personalize = (text, x) => String(text || "").split("{اسم}").join((x && x.name) || "نجلكم");
@@ -35,10 +35,10 @@ export function bulkKey(text) {
 }
 
 /** صفوف العرض: لكل طالب الرقم والنص الجاهز وهل اتعلّم "تم". */
-export function bulkRows(students, text, doneIds) {
+export function bulkRows(students, text, doneIds, mode) {
   const done = new Set(doneIds || []);
   return students.map((x) => {
-    const { parent, to } = recipientOf(x);
+    const { parent, to } = recipientOf(x, mode);
     return { id: x.id, name: x.name || "—", grade: x.grade || "", parent, to, valid: hasValidPhone(to), text: personalize(text, x), done: done.has(x.id) };
   });
 }
