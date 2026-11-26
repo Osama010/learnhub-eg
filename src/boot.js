@@ -1,6 +1,7 @@
 /* تشغيل التطبيق: بيربط كل الموديولات، وبعدين الراوتر وفايربيز وعامل الخدمة. */
 import { route } from "./core/router.js";
 import { initFirebase } from "./core/session.js";
+import "./features/teacher/bulk-message.js";
 import "./features/auth/login.js";
 import "./features/auth/email-verify.js";
 import "./features/auth/register.js";

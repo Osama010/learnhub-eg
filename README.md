@@ -84,3 +84,9 @@ sw.js                   service worker
 - `check-b8..b16`: سلوك الشاشات (الاختبارات القديمة بنفس النتايج).
 - `check-usecases.js`: الـ use cases على repositories في الذاكرة + عقود الـ ports + الـ presenters.
 - `check-infra.js`: كل دوال الـ infrastructure على Firestore وهمي بيحاكي الـ SDK (`tests/lib/fake-firestore.js`)، ومعاه الـ use cases على تنفيذ Firebase الحقيقي. بيفشل لو دالة اتنسيت من الاختبار.
+
+## رسالة لصف (الرسائل الجماعية)
+- الشاشة: `src/features/teacher/bulk-message.js` + `bulk-message.html` (تاب "رسالة لصف" في لوحة المدرس، المسار `#/teacher/bulk`).
+- المنطق الصافي في `bulk-message.presenter.js` (الاستهداف بالمرحلة/الصف، الرقم، {اسم}، الملخص). الشاشة بتقرأ طلاب المدرس من نفس `teacherLoad` من غير أي كتابة، فمفيش use case ولا تغيير في قواعد Firestore.
+- الإرسال يدوي: زرار واتساب لكل ولي أمر (`waLink`). علامة "اتبعت" بتتحفظ في `localStorage` على الجهاز بس.
+- الاختبارات: في `tests/check-usecases.js` (أقسام "رسالة لصف").

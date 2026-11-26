@@ -53,5 +53,6 @@
  "features/student/grades",
  "features/student/profile",
  "features/student/teachers",
- "features/student/analytics"
+ "features/student/analytics",
+ "features/teacher/bulk-message"
 ]

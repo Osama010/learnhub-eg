@@ -26,6 +26,7 @@ import { renderTeacherLessons } from "../features/teacher/lessons.js";
 import { renderTeacherReports } from "../features/teacher/reports.js";
 import { renderAboutPage, renderTeacherSubExpired, renderTeacherSuspended } from "../shared/pwa.js";
 import { rolePortal } from "../domain/student.js";
+import { renderTeacherBulk } from "../features/teacher/bulk-message.js";
 
 /* ---------- الراوتر ---------- */
 function renderWrongPortal() {
@@ -60,6 +61,7 @@ export function route() {
     if (h === "#/teacher/analytics") return renderTeacherAnalytics();
     if (h === "#/teacher/transfer") return renderTeacherTransfer();
     if (h === "#/teacher/announcements") return renderTeacherAnnouncements();
+    if (h === "#/teacher/bulk") return renderTeacherBulk();
     if (h.startsWith("#/teacher/lesson/")) {
       const lid = decodeURIComponent(h.slice("#/teacher/lesson/".length));
       return renderTeacherLessonView(lid);
