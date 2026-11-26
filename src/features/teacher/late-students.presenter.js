@@ -12,7 +12,7 @@ export function reminderFor(x, kindLabel, title) {
   const parent = !!x.parentPhone;
   const to = x.parentPhone || x.phone || "";
   const text = parent
-    ? "أهلاً بحضرتك، معاك مدرس " + (x.name || "نجلكم") + ". بنفكركم إن " + (x.name || "الطالب") + " لسه ما حلش " + kindLabel + ": " + (title || "") + ". لو سمحتوا فكروه يحله."
+    ? "أهلاً بحضرتك، معاك مدرس الطالب " + (x.name || "نجلكم") + ". بنفكركم إن " + (x.name || "الطالب") + " لسه ما حلش " + kindLabel + ": " + (title || "") + ". لو سمحتوا فكروه يحله."
     : "أهلاً " + (x.name || "") + "، معاك مدرسك. فكرك إنك لسه ما حليتش " + kindLabel + ": " + (title || "") + ". متنساش تحله.";
   return { parent, to, text };
 }
