@@ -3,7 +3,7 @@ import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { aboutTeaserHtml, bindAboutTeaser, loadAboutSettings } from "../about/about.js";
 import { renderLogin } from "../auth/login.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { sBadgesCardHtml, sMyWeeklyRank, sRankCardHtml } from "./activity.js";
 import { sAvatarHtml } from "./profile.js";
 import { bindStudentTabs, sAttemptFor, sReminderHtml, sSecStateGet, sSecStateSet, sSubjColor, sSubjIcon, sSubjProgressHtml, sSuspendedSet, sTeacherChip, sTeacherLocked, sTeacherName, sTerm, sTermTab, sVisible, set_sTermTab, studentData, studentLoadAll, studentTabs } from "./shell.js";

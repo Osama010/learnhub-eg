@@ -3,7 +3,7 @@ import { esc } from "../../core/utils.js";
 import { adminCache, adminLayout } from "./shell.js";
 import { teacherStagesText } from "./subjects.js";
 import { STAGES } from "./subjects.presenter.js";
-import { downloadBlob } from "../landing/landing.js";
+import { downloadBlob } from "../../shared/common.js";
 import { bailIfSignedOut } from "../../shared/toast.js";
 import { GRADES } from "../../domain/student.js";
 import { adminReportCsv, buildAdminReport } from "./reports.presenter.js";

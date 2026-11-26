@@ -5,7 +5,7 @@ import { adminCache, adminLayout, adminLoad, adminLogAction } from "./shell.js";
 import { teacherStagesText } from "./subjects.js";
 import { STAGES } from "./subjects.presenter.js";
 import { adminShowStudent, adminShowTeacher, editingTeacherId, set_editingTeacherId } from "./teachers.js";
-import { statusChip } from "../landing/landing.js";
+import { statusChip } from "../../shared/common.js";
 import { subChip } from "../../shared/subscriptions.js";
 import { appSettings, termCurrent } from "../../shared/terms.js";
 import { bailIfSignedOut, showToast } from "../../shared/toast.js";

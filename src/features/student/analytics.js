@@ -2,7 +2,7 @@ import { fbProfile, fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { renderLogin } from "../auth/login.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { sMyWeeklyRank, sStreak } from "./activity.js";
 import { bindStudentTabs, sIsWatched, sTeacherLocked, sTeacherName, sVisible, studentData, studentLoadAll, studentTabs } from "./shell.js";
 import { AN_CSS, anAvg, anPct, anTrendSvg, anTs } from "../../shared/analytics-kit.js";

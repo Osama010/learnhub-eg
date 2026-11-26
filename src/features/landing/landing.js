@@ -1,18 +1,14 @@
 
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
-import { aboutGet, aboutPhotoHtml, aboutRich, loadAboutSettings, loadFooterSettings, aboutState } from "../about/about.js";
+import { aboutGet, aboutPhotoHtml, aboutRich, loadAboutSettings, loadFooterSettings } from "../about/about.js";
 import { loadStatsSettings, statsGet, t4kObserveReveal } from "./stats.js";
+import { closing } from "../../shared/common.js";
 import { themeCycle, themeIcon } from "../../shared/theme.js";
+import { LANDING_FEATURES, activeTeachers, initialOf, readMoreLabel, splitParas, splitSkills } from "./landing.presenter.js";
 import { listActiveTeachersPublic } from "../../main/data.js";
 
 /* ---------- صفحة الهبوط (الرابط الرئيسي لو مفيش جلسة) ---------- */
-const LANDING_FEATURES = [
-  ["📚", "دروس منظمة", "شروحات مرتبة حسب السنة والمادة"],
-  ["📝", "كويزات وامتحانات", "تدريب فوري ونتيجة على طول"],
-  ["🏆", "نقاط وترتيب", "تحفيز أسبوعي لكل طالب"],
-  ["📱", "على الموبايل", "ثبّتها كتطبيق وادخل بضغطة"],
-];
 export async function renderLanding() {
   app.innerHTML = T("app.renderLanding");
   let teachers = [];
@@ -21,15 +17,14 @@ export async function renderLanding() {
     (async () => {
       try {
         const snap = await listActiveTeachersPublic();
-        teachers = snap
-          .filter((t) => (t.subType || "free") === "free" || !t.subEnd || !t.subEnd.toDate || t.subEnd.toDate() >= new Date());
+        teachers = activeTeachers(snap, new Date());
       } catch (_) { teachers = []; }
     })(),
   ]);
   const a = aboutGet(), st = statsGet();
-  const skills = String(a.skills || "").split(/[،,]/).map((x) => x.trim()).filter(Boolean);
-  const paras = String(a.longBio || "").split(/\n+/).map((p) => p.trim()).filter(Boolean);
-  const initial = (n) => esc(String(n || "م").replace(/^(مستر|أ\.?|د\.?)\s*/, "").trim()[0] || "م");
+  const skills = splitSkills(a.skills);
+  const paras = splitParas(a.longBio);
+  const initial = (n) => esc(initialOf(n));
   const tcard = (t, i) => T("app.tcard", { esc, i, initial, t });
   app.innerHTML = T("app.renderLanding_2", { LANDING_FEATURES, a, aboutPhotoHtml, aboutRich, closing, esc, paras, skills, st, tcard, teachers, themeIcon });
   document.querySelectorAll("[data-themebtn]").forEach((b) => b.onclick = () => themeCycle());
@@ -42,29 +37,8 @@ export async function renderLanding() {
     const l = document.getElementById("lp-long");
     const open = l.style.display === "none";
     l.style.display = open ? "block" : "none";
-    more.textContent = open ? "إخفاء النبذة" : "اقرأ النبذة كاملة";
+    more.textContent = readMoreLabel(open);
   };
   window.scrollTo(0, 0);
   t4kObserveReveal(app);
-}
-
-
-export function downloadBlob(blob, filename) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
-}
-
-export function closing() {
-  return T("app.closing", { esc, footerText: aboutState.footerText });
-}
-
-export function statusChip(st) {
-  if (st === "approved") return T("app.statusChip");
-  if (st === "rejected") return T("app.statusChip_2");
-  if (st === "suspended") return T("app.statusChip_3");
-  return T("app.statusChip_4");
 }

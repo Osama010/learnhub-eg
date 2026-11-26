@@ -1,7 +1,7 @@
 import { fbProfile, fbRole, set_fbRole, signOut } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app } from "../../core/utils.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { renderParentPhoneGate } from "./first-login.js";
 import { renderStudentDash } from "./home.js";
 import { bailIfSignedOut } from "../../shared/toast.js";

@@ -2,7 +2,7 @@ import { fbProfile, fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { renderLogin } from "../auth/login.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { bindTeacherTabs, teacherTabs } from "./dashboard.js";
 import { qzMsg } from "./forms.js";
 import { lateStudentsHtml } from "./late-students.js";

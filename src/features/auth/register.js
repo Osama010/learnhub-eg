@@ -2,7 +2,7 @@ import { routeByRole } from "../../core/router.js";
 import { fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { themeCycle, themeIcon } from "../../shared/theme.js";
 import { LOGO_FULL_SVG } from "../../shared/topbar.js";
 import { listActiveTeachersPublic } from "../../main/data.js";

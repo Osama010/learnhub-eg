@@ -1,6 +1,6 @@
 import { T } from "../../core/templates.js";
 import { fbUser } from "../../core/session.js";
-import { downloadBlob } from "../landing/landing.js";
+import { downloadBlob } from "../../shared/common.js";
 import { adminCache } from "./shell.js";
 import { showToast } from "../../shared/toast.js";
 import { backupJson, backupName, backupStudentsCsv, buildAdminBackup } from "../teacher/backup.presenter.js";

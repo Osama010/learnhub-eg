@@ -1,8 +1,8 @@
-import { fbAuth, fbProfile, fbUser } from "../../core/session.js";
+import { fbProfile, fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { renderLogin } from "../auth/login.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { sLevelCardHtml } from "./levels.js";
 import { sAvatarHtml } from "./profile.js";
 import { bindStudentTabs, studentData, studentLoadAll, studentTabs } from "./shell.js";

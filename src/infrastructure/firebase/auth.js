@@ -1,5 +1,8 @@
 /* مصادقة Firebase Auth */
-import { fbAuth } from "./client.js";
+import { fbAuth, openFirebaseClient } from "./client.js";
+/** فتح الجلسة (تهيئة Firebase) والاشتراك في تغيّر حالة الدخول: دول اللي بتعتمد عليهم core/session من غير ما تعرف Firebase. */
+export const openSession = (config) => openFirebaseClient(config);
+export const onAuthChange = (cb) => fbAuth.onAuthStateChanged(cb);
 export const sendPasswordReset = (email) => fbAuth.sendPasswordResetEmail(email);
 export const signInWithPassword = (email, pass) => fbAuth.signInWithEmailAndPassword(email, pass);
 export const signInWithGoogle = (provider) => fbAuth.signInWithPopup(provider);

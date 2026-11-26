@@ -2,7 +2,7 @@ import { fbProfile, fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { renderLogin } from "../auth/login.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { t4kConfetti } from "../landing/stats.js";
 import { sPingActivity } from "./activity.js";
 import { bindStudentTabs, sExamState, sQuizBlocked, sTeacherLocked, sTeacherName, sUnavailable, sVisible, studentData, studentLoadAll, studentTabs } from "./shell.js";

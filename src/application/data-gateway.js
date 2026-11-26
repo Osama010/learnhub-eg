@@ -31,6 +31,8 @@ export const DATA_GATEWAY = [
   "createLesson",
   "createTeacherRequest",
   "currentAuthUser",
+  "onAuthChange",
+  "openSession",
   "deleteAnnouncement",
   "deleteBankItem",
   "deleteExam",

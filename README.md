@@ -76,14 +76,12 @@ sw.js                   service worker
 - المفروض ده كله بيتفحص تلقائي: `node tests/check-arch.js` (الاتجاهات + presenters صافية + مفيش firebase في الشاشات + الـ imports سليمة + sw.js).
 
 ### حدود معروفة
-- شاشات رفيعة من غير presenter (مفيهاش منطق): `student/library`, `student/lesson`, `student/profile`، وكمان `landing/landing.js` و`teacher/forms.js`.
-- متغيرات الجلسة `fbUser/fbProfile/fbRole` لسه بتتستورد من `core/session.js` (live bindings) ومش متحقنة. `core/session.js` هو الاستثناء الوحيد اللي بيكلم Firebase Auth.
-- لسه ما اتجربش على Firebase الحقيقي بعد الدخول.
-
-### الاختبارات
-- `check-b8..b16`: سلوك الشاشات (الاختبارات القديمة بنفس النتايج).
-- `check-usecases.js`: الـ use cases على repositories في الذاكرة + عقود الـ ports + الـ presenters.
-- `check-infra.js`: كل دوال الـ infrastructure على Firestore وهمي بيحاكي الـ SDK (`tests/lib/fake-firestore.js`)، ومعاه الـ use cases على تنفيذ Firebase الحقيقي. بيفشل لو دالة اتنسيت من الاختبار.
+- `core/session.js` مابقاش بيكلم Firebase Auth: بيستخدم `openSession` و`onAuthChange` و`signOutUser` من `main/data.js` (جزء من DataGateway)، والتنفيذ في `infrastructure/firebase/auth.js`.
+- العناصر المشتركة `closing` و`downloadBlob` و`statusChip` في `shared/common.js` وحالة النبذة في `shared/about-state.js`، فمفيش شاشة بتستورد من شاشة تانية.
+- كل الشاشات ليها presenter ما عدا شاشات ربط DOM بس: `teacher/forms.js` و`admin/backup.js` و`teacher/quiz-editor.js`.
+- محرر أسئلة الكويز اتفصل من `teacher/lessons.js` لـ `teacher/quiz-editor.js`.
+- متغيرات الجلسة `fbUser/fbProfile/fbRole` لسه بتتستورد من `core/session.js` (live bindings) ومش متحقنة.
+- لسه: `shared/pwa.js` و`shared/toast.js` و`core/session.js` بيستوردوا شاشات (الدخول/النبذة/PIN).
 
 ## رسالة لصف (الرسائل الجماعية)
 - الشاشة: `src/features/teacher/bulk-message.js` + `bulk-message.html` (تاب "رسالة لصف" في لوحة المدرس، المسار `#/teacher/bulk`).

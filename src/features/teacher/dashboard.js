@@ -1,9 +1,9 @@
-import { authErrAr, fbAuth, fbProfile, fbUser } from "../../core/session.js";
+import { authErrAr, fbProfile, fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { aboutTeaserHtml, bindAboutTeaser, loadAboutSettings } from "../about/about.js";
 import { renderLogin } from "../auth/login.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { dashGradeFilter, set_dashGradeFilter, lessonsState } from "./lessons.js";
 import { openStudentNotes } from "./notes.js";
 import { broadcastBannerHtml } from "../../shared/subscriptions.js";

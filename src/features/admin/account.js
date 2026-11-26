@@ -1,7 +1,8 @@
 import { fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { esc } from "../../core/utils.js";
-import { aboutGet, aboutState } from "../about/about.js";
+import { aboutGet } from "../about/about.js";
+import { aboutState } from "../../shared/about-state.js";
 import { adminCache, adminLayout, adminLogAction } from "./shell.js";
 import { loadStatsSettings, set_statsCfg, statsCfg, statsGet } from "../landing/stats.js";
 import { bailIfSignedOut, showToast } from "../../shared/toast.js";

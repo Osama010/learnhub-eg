@@ -1,9 +1,10 @@
 import { route } from "../../core/router.js";
-import { BASE, PORTAL, PORTAL_INFO, authErrAr, fbAuth, fbProfile, fbRole, resolveRole, set_fbRole } from "../../core/session.js";
+import { BASE, PORTAL, PORTAL_INFO, authErrAr, fbProfile, fbRole, resolveRole, set_fbRole } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app } from "../../core/utils.js";
-import { loadFooterSettings, aboutState } from "../about/about.js";
-import { closing } from "../landing/landing.js";
+import { loadFooterSettings } from "../about/about.js";
+import { aboutState } from "../../shared/about-state.js";
+import { closing } from "../../shared/common.js";
 import { renderFirstLogin } from "../student/first-login.js";
 import { bindPwaCard, pwaInstallCard } from "../../shared/pwa.js";
 import { themeCycle, themeIcon } from "../../shared/theme.js";

@@ -1,6 +1,6 @@
 import { T } from "../core/templates.js";
 import { app, esc } from "../core/utils.js";
-import { closing } from "../features/landing/landing.js";
+import { closing } from "./common.js";
 import { openConfirmOverlay } from "./terms.js";
 import { showToast } from "./toast.js";
 import { GRADES } from "../domain/student.js";

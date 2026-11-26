@@ -1,11 +1,11 @@
 import { route } from "../../core/router.js";
-import { authErrAr, fbAuth, fbProfile, fbUser, resolveRole } from "../../core/session.js";
+import { authErrAr, fbProfile, fbUser, resolveRole } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { clearLookupPinAfterLink, renderLogin } from "../auth/login.js";
 import { useCases } from "../../main/compose.js";
 import { EMAIL_IN_USE_MSG, PARENT_PHONE_MSG, presentParentPhone, validateFirstLogin } from "./first-login.presenter.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { renderStudentHome } from "./gate.js";
 import { showToast } from "../../shared/toast.js";
 import { currentAuthUser, sendPasswordReset } from "../../main/data.js";

@@ -3,7 +3,7 @@ import { T } from "../core/templates.js";
 import { app } from "../core/utils.js";
 import { aboutPageHtml, loadAboutSettings, loadFooterSettings } from "../features/about/about.js";
 import { renderLogin } from "../features/auth/login.js";
-import { closing } from "../features/landing/landing.js";
+import { closing } from "./common.js";
 import { bindPlatNav, platNavHtml } from "./theme.js";
 import { bailIfSignedOut } from "./toast.js";
 import { subFmtDate, subInfo } from "../domain/subscription.js";

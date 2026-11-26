@@ -1,4 +1,4 @@
-import { authErrAr, fbAuth } from "../../core/session.js";
+import { authErrAr } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { esc } from "../../core/utils.js";
 import { adminCache, adminLayout, adminLoad, adminLogAction, makePayment, renderAdmin } from "./shell.js";

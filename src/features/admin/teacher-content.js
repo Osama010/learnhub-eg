@@ -3,7 +3,7 @@ import { app, esc } from "../../core/utils.js";
 import { adminCache, adminLayout, adminLoad, adminLogAction } from "./shell.js";
 import { teacherStagesText } from "./subjects.js";
 import { adminShowStudent } from "./teachers.js";
-import { downloadBlob, statusChip } from "../landing/landing.js";
+import { downloadBlob, statusChip } from "../../shared/common.js";
 import { openConfirmOverlay } from "../../shared/terms.js";
 import { bailIfSignedOut, showToast } from "../../shared/toast.js";
 import { confirmDeleteStudent, renderTransferPage, waLink } from "../../shared/transfer.js";

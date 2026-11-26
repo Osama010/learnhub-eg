@@ -1,10 +1,11 @@
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { bindTeacherTabs, teacherTabs } from "./dashboard.js";
 import { teacherSaveExam } from "./exams.js";
 import { teacherSaveLesson, teacherSaveQuiz } from "./lesson-preview.js";
-import { bindQuizEditor, bindTermPicker, emptyExamForm, emptyLessonForm, emptyQuizForm, gradeSelectHtml, quizBuilderHtml, renderTeacherLessons, termPickerHtml, lessonsState } from "./lessons.js";
+import { bindTermPicker, emptyExamForm, emptyLessonForm, emptyQuizForm, gradeSelectHtml, renderTeacherLessons, termPickerHtml, lessonsState } from "./lessons.js";
+import { bindQuizEditor, quizBuilderHtml } from "./quiz-editor.js";
 import { openBankPicker } from "./question-bank.js";
 import { bailIfSignedOut, showToast } from "../../shared/toast.js";
 import { qNew } from "../../domain/quiz.js";

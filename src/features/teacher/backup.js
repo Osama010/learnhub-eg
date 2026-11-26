@@ -1,6 +1,6 @@
 import { T } from "../../core/templates.js";
 import { fbProfile, fbUser } from "../../core/session.js";
-import { downloadBlob } from "../landing/landing.js";
+import { downloadBlob } from "../../shared/common.js";
 import { teacherCache, teacherLoad, teacherLoadLessons } from "./dashboard.js";
 import { lessonsState } from "./lessons.js";
 import { showToast } from "../../shared/toast.js";

@@ -1,3 +1,4 @@
+import { aboutState } from "../../shared/about-state.js";
 import { BASE } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { esc } from "../../core/utils.js";
@@ -10,10 +11,6 @@ import { isDataReady } from "../../main/data.js";
    بيتخزنوا في مستندين منفصلين تمامًا: settings/about للنبذة و settings/footer للجملة —
    تعديل أي واحد مبيلمسش التاني. القيم الافتراضية مأخوذة حرفيًا من سايت دروس البرمجة.
    settings/footer قراءته عامة عشان الجملة تظهر في صفحة الدخول قبل تسجيل الدخول. */
-export const aboutState = {
-  footerText: "فكرة وإعداد: مهندس اسامه حسن عسس", // الافتراضي لحد ما settings/footer يتقري
-  cfg: null, // بيتملى من settings/about (null = لسه ما اتقريش)
-};
 
 const aboutDefaultPhoto = () => BASE + "assets/photos/osama.jpg"; /* دالة عشان BASE يتقري وقت الاستخدام مش وقت التحميل */ // صورته من سايت الدروس — افتراضي لو مفيش صورة مخصصة
 

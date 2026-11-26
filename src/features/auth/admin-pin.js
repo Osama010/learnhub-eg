@@ -5,7 +5,7 @@ import { renderAdmin } from "../admin/shell.js";
 import { renderLogin } from "./login.js";
 import { useCases } from "../../main/compose.js";
 import { pinFailure, validateNewAdminPin } from "./admin-pin.presenter.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 
 /* ---------- حماية جلسة الأدمن: رقم سري (PIN) + خروج تلقائي عند الخمول ----------
    بعد دخول الأدمن (بجوجل أو بالباسورد) لازم يكتب رقمه السري قبل ما اللوحة تفتح.

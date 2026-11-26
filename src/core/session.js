@@ -2,8 +2,7 @@ import { route } from "./router.js";
 import { clearAdminPinSession } from "../features/auth/admin-pin.js";
 import { loadAppSettings } from "../shared/terms.js";
 import { roleFromRecords } from "../domain/role.js";
-import { getAdmin, getStudent, getTeacher } from "../main/data.js";
-import { fbAuth, openFirebaseClient } from "../infrastructure/firebase/client.js";
+import { getAdmin, getStudent, getTeacher, onAuthChange, openSession, signOutUser } from "../main/data.js";
 
 /* ---------- المصادقة والأدوار ----------
    الأدوار: admin (الأدمن - صاحب المنصة) | teacher (مدرس سجله الأدمن) | student (طالب)
@@ -21,15 +20,14 @@ export const PORTAL_INFO = {
   admin: { icon: "🛠️", title: "لوحة الإدارة", sub: "دخول إدارة المنصة" },
 };
 
-export { fbAuth } from "../infrastructure/firebase/client.js";
 export let fbUser = null;
 export let fbReady = false;
 export let fbRole = null;      // admin | teacher | student | null
 export let fbProfile = null;   // بيانات المدرس أو الطالب
 
 export function initFirebase() {
-  openFirebaseClient(FIREBASE_CONFIG);
-  fbAuth.onAuthStateChanged(async (u) => {
+  openSession(FIREBASE_CONFIG);
+  onAuthChange(async (u) => {
     fbReady = true;
     fbUser = u;
     fbRole = null;
@@ -69,7 +67,7 @@ export function signOut() {
   fbRole = null;
   fbProfile = null;
   if (location.hash !== "#/login") location.hash = "#/login";
-  fbAuth.signOut();
+  signOutUser();
 }
 
 export function authErrAr(e) {

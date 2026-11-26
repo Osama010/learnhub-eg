@@ -1,7 +1,7 @@
 import { T } from "../../core/templates.js";
 import { esc } from "../../core/utils.js";
 import { adminCache, adminLayout } from "./shell.js";
-import { downloadBlob } from "../landing/landing.js";
+import { downloadBlob } from "../../shared/common.js";
 import { AN_CSS, anAvg, anPct } from "../../shared/analytics-kit.js";
 import { bailIfSignedOut } from "../../shared/toast.js";
 import { listCreatedSince, countByStage } from "../../main/data.js";

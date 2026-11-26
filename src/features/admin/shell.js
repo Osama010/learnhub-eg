@@ -12,7 +12,7 @@ import { adminSubjects } from "./subjects.js";
 import { adminStudents, adminTransferPage, renderAdminTeacherContent } from "./teacher-content.js";
 import { adminTeachers } from "./teachers.js";
 import { adminPinOk, renderAdminPinGate } from "../auth/admin-pin.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { bindPlatNav, platNavHtml } from "../../shared/theme.js";
 import { bailIfSignedOut } from "../../shared/toast.js";
 import { addAdminLog, listSubjects, listAdmins, listLibraryNewestFirst, listPayments, listAdminLog, getBroadcast, setAdmin } from "../../main/data.js";

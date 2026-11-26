@@ -2,7 +2,7 @@ import { fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { renderLogin } from "../auth/login.js";
-import { closing } from "../landing/landing.js";
+import { closing } from "../../shared/common.js";
 import { qImgHtml } from "./quiz-runner.js";
 import { bindStudentTabs, studentData, studentLoadAll, studentTabs } from "./shell.js";
 import { bailIfSignedOut } from "../../shared/toast.js";
