@@ -1,0 +1,41 @@
+<!-- قوالب الواجهة لموديول shared/pwa.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.pwaInstallCard |  -->
+<div class="card u-mw520px-m14pxauto0-b2pxsolidvaramber">
+      <b class="u-fs15px">ثبّت «المستر» على موبايلك</b>
+      <p class="muted u-fs125px-m6px010px">أيقونة على الشاشة الرئيسية تفتح المنصة بضغطة واحدة — من غير متجر ومن غير تحميل.</p>
+      <div class="btnrow"><button type="button" class="btn sm" id="pwa-install">تثبيت التطبيق</button>
+      <button type="button" class="btn sm ghost" id="pwa-dismiss">ليس الآن</button></div>
+    </div>
+<!-- @@ app.pwaInstallCard_2 |  -->
+<div class="card u-mw520px-m14pxauto0-b2pxsolidvaramber">
+      <b class="u-fs15px">ثبّت «المستر» على موبايلك</b>
+      <p class="muted u-fs125px-m6px010px">من متصفح سفاري: دوس زرار المشاركة (مربع طالع منه سهم لفوق) واختار «إضافة إلى الشاشة الرئيسية» — هتطلعلك أيقونة المستر جنب تطبيقاتك.</p>
+      <div class="btnrow"><button type="button" class="btn sm ghost" id="pwa-dismiss">فهمت</button></div>
+    </div>
+<!-- @@ app.renderTeacherSuspended | closing -->
+
+    <div class="card center u-mw520px-m60pxauto">
+      <div class="u-fs44px">⛔</div>
+      <h1 class="u-fs22px-m8px0">تم إيقاف حسابك مؤقتًا</h1>
+      <p class="muted">حسابك متوقف مؤقتًا من إدارة المنصة، ومحتواك مخفي عن طلابك دلوقتي. كلّم إدارة المنصة.</p>
+      <div class="btnrow u-justcenter"><button type="button" class="btn ghost" id="so">خروج</button></div>
+    </div>
+    ${closing()}
+<!-- @@ app.renderTeacherSubExpired | closing,si,subFmtDate -->
+
+    <div class="card center u-mw520px-m60pxauto">
+      <div class="u-fs44px">⌛</div>
+      <h1 class="u-fs22px-m8px0">اشتراكك في المنصة انتهى</h1>
+      <p class="muted">اشتراكك ${si.end ? `(${si.label}) انتهى في <b class="ltr">${subFmtDate(si.end)}</b>` : "انتهى"}.
+      حسابك متوقف دلوقتي ومحتواك مخفي عن طلابك لحد ما تجدد. كلّم إدارة المنصة عشان التجديد،
+      وأول ما يتجدد كل حاجة هترجع زي ما هي.</p>
+      <div class="btnrow u-justcenter"><button type="button" class="btn ghost" id="so">خروج</button></div>
+    </div>
+    ${closing()}
+<!-- @@ app.renderAboutPage | aboutPageHtml,av,closing,nm,platNavHtml,profHash -->
+
+    ${platNavHtml(nm, av, profHash)}
+    <div class="btnrow u-m4px012px"><button type="button" class="btn ghost small" id="ab-back">→ رجوع</button></div>
+    <h1 class="u-m0012px">👤 نبذة عن المهندس</h1>
+    ${aboutPageHtml()}
+    ${closing()}

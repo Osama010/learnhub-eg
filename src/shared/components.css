@@ -1,0 +1,66 @@
+/* عدادات وجداول ونوافذ منبثقة ورسائل التنبيه */
+/* كروت عدادات ملونة (كارت اشتراكات المدرسين في لوحة الأدمن) */
+.statcard.amber .num { color: var(--amber); }
+.statcard.red .num { color: var(--red); }
+@media (max-width: 560px) { .statcards { grid-template-columns: 1fr 1fr; } }
+.tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab {
+  border: 1.5px solid var(--line); background: var(--card); color: var(--muted);
+  border-radius: 999px; padding: 8px 18px; font-family: inherit; font-size: 14px;
+  font-weight: 700; cursor: pointer;
+}
+.tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.ttable { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ttable th, .ttable td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+.ttable th { color: var(--muted); font-size: 12.5px; font-weight: 700; }
+.trow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.trow:last-child { border-bottom: none; }
+.trow .grow { flex: 1; min-width: 160px; }
+.trow .nm { font-weight: 800; }
+.trow .sub { color: var(--muted); font-size: 13px; }
+.topnav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.topnav .who { font-weight: 800; font-size: 15px; }
+.topnav .who span { color: var(--muted); font-weight: 600; font-size: 13px; }
+.closing { text-align: center; color: var(--muted); font-size: 13px; margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.filters select {
+  padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line);
+  font-family: inherit; font-size: 13.5px; background: var(--inpbg); color: var(--text);
+}
+.center { text-align: center; }
+.muted { color: var(--muted); font-size: 14px; }
+.spin { text-align: center; padding: 40px 0; color: var(--muted); }
+.teachercheck { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.teachercheck label {
+  border: 1.5px solid var(--line); border-radius: 999px; padding: 7px 14px;
+  font-size: 13.5px; font-weight: 700; cursor: pointer; background: var(--inpbg); color: var(--text);
+}
+.teachercheck input { accent-color: var(--primary); margin-left: 5px; }
+
+/* نافذة عرض البيانات الكاملة */
+.overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.detailcard { background: var(--card); border-radius: 16px; padding: 22px; max-width: 480px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(15,23,42,.18); }
+.detailcard h3 { margin: 0 0 12px; font-size: 18px; }
+.drow { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.drow:last-of-type { border-bottom: none; }
+.drow .dl { color: var(--muted); font-weight: 600; flex-shrink: 0; }
+.drow .dv { font-weight: 700; text-align: left; word-break: break-word; }
+
+/* ---------- رسائل التنبيه في منتصف الشاشة ---------- */
+.toastwrap {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(15, 23, 42, .45);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.toastcard {
+  background: var(--card); border-radius: 16px; padding: 22px 24px;
+  max-width: 420px; width: 100%; text-align: center;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, .25);
+  border-top: 5px solid var(--primary);
+}
+.toastcard.bad { border-top-color: var(--red); }
+.toastcard.good { border-top-color: var(--green); }
+.toastcard .ticon { font-size: 36px; }
+.toastcard .tmsg { font-size: 16px; font-weight: 800; margin: 8px 0 14px; line-height: 1.9; }
+.toastcard.bad .tmsg { color: var(--red); }
+.toastcard.good .tmsg { color: var(--green); }

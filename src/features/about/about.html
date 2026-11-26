@@ -1,0 +1,41 @@
+<!-- قوالب الواجهة لموديول features/about/about.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.aboutPhotoHtml | a,esc,init,size,src -->
+<span style="position:relative; display:inline-block; flex:none; width:${size}px; height:${size}px;">
+    <span class="pavinit" style="width:${size}px; height:${size}px; font-size:${Math.round(size / 2.6)}px; border:3px solid #f59e0b;">${init}</span>
+    <img src="${esc(src)}" alt="${esc(a.name)}" onerror="this.remove()" style="position:absolute; inset:0; width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; border:3px solid #f59e0b; background:var(--card, #fff);">
+  </span>
+<!-- @@ app.aboutRich | esc,m -->
+<a href="${esc(m[2])}" target="_blank" rel="noopener" class="u-cvarprimarydark-fw700">${esc(m[1])}</a>
+<!-- @@ app.aboutPageHtml | a,waLink -->
+<a class="btn sm" style="background:#16a34a; color:#fff;" target="_blank" rel="noopener" href="${waLink(a.whatsapp, "أهلاً مهندس أسامة، معاك من منصة المستر.")}">تواصل واتساب</a>
+<!-- @@ app.aboutPageHtml_2 | a,esc -->
+<a class="btn sm" style="background:#2563eb; color:#fff;" target="_blank" rel="noopener" href="${esc(a.facebook)}">صفحة الفيسبوك</a>
+<!-- @@ app.aboutPageHtml_3 | a,esc -->
+<a class="btn sm" style="background:#dc2626; color:#fff;" target="_blank" rel="noopener" href="${esc(a.youtube)}">قناة Tech for Kids على يوتيوب</a>
+<!-- @@ app.aboutPageHtml_4 | a,esc -->
+<a class="btn sm" style="background:#0284c7; color:#fff;" target="_blank" rel="noopener" href="${esc(a.telegram)}">تيليجرام</a>
+<!-- @@ app.aboutPageHtml_5 | a,esc -->
+<a class="btn sm" style="background:#0a66c2; color:#fff;" target="_blank" rel="noopener" href="${esc(a.linkedin)}">لينكدإن</a>
+<!-- @@ app.aboutPageHtml_6 | a,aboutPhotoHtml,aboutRich,btns,esc,paras,skills -->
+<div class="card" style="max-width:760px; margin:0 auto 14px;">
+    <div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap;">
+      ${aboutPhotoHtml(a, 104)}
+      <div style="flex:1; min-width:220px;">
+        <h1 style="margin:0; font-size:23px; color:var(--primary-dark);">${esc(a.name)}</h1>
+        <div style="color:#b45309; font-weight:700; font-size:13.5px; margin-top:4px;">${esc(a.title)}</div>
+      </div>
+    </div>
+    ${a.shortBio ? `<p style="font-size:15px; line-height:2; margin:16px 0 0;">${aboutRich(a.shortBio)}</p>` : ""}
+    ${skills.length ? `<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;">${skills.map((x) => `<span class="chip gray">${esc(x)}</span>`).join("")}</div>` : ""}
+    ${paras.length ? `<hr style="border:none; border-top:1px dashed var(--line, #cbd5e1); margin:18px 0;">${paras.map((p) => `<p style="font-size:14.5px; line-height:2; margin:0 0 12px;">${aboutRich(p)}</p>`).join("")}` : ""}
+    ${btns.length ? `<div class="btnrow" style="margin-top:16px; flex-wrap:wrap;">${btns.join("")}</div>` : ""}
+  </div>
+<!-- @@ app.aboutTeaserHtml | a,aboutPhotoHtml,esc -->
+<div class="card lcard" style="border-right:4px solid #f59e0b; display:flex; gap:12px; align-items:center;">
+    ${aboutPhotoHtml(a, 52)}
+    <div style="flex:1; min-width:150px;">
+      <b class="u-fs145px">${esc(a.name)}</b>
+      <div class="muted u-fs125px-mt2px">${esc(a.title)}</div>
+    </div>
+    <button type="button" class="btn sm ghost" data-aboutmore>اقرأ المزيد</button>
+  </div>

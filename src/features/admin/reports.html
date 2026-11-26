@@ -1,0 +1,90 @@
+<!-- قوالب الواجهة لموديول features/admin/reports.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.typeBtn | id,label,reportState -->
+<button type="button" class="tab ${reportState.type === id ? "active" : ""}" data-rt="${id}">${label}</button>
+<!-- @@ admin.adminReports | esc,reportState -->
+<input id="rf-q" type="text" class="inp" placeholder="بحث بالاسم أو الإيميل..." value="${esc(reportState.q)}">
+<!-- @@ admin.adminReports_2 | GRADES,esc,reportState,teachers -->
+
+      <select id="rf-teacher" class="inp"><option value="">كل المدرسين</option>
+        ${teachers.map((t) => `<option value="${t.id}" ${reportState.teacher === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
+      <select id="rf-status" class="inp"><option value="">كل الحالات</option>
+        <option value="pending" ${reportState.status === "pending" ? "selected" : ""}>تحت المراجعة</option>
+        <option value="approved" ${reportState.status === "approved" ? "selected" : ""}>مقبول</option>
+        <option value="rejected" ${reportState.status === "rejected" ? "selected" : ""}>مرفوض</option></select>
+      <select id="rf-grade" class="inp"><option value="">كل السنوات</option>
+        ${GRADES.map((g) => `<option ${reportState.grade === g ? "selected" : ""}>${g}</option>`).join("")}</select>
+      <input id="rf-from" type="date" class="inp" value="${esc(reportState.from)}" title="من تاريخ">
+      <input id="rf-to" type="date" class="inp" value="${esc(reportState.to)}" title="إلى تاريخ">
+      
+<!-- @@ admin.adminReports_3 | esc,reportState,subjectNames -->
+
+      <select id="rf-subject" class="inp"><option value="">كل المواد</option>
+        ${subjectNames.map((n) => `<option ${reportState.subject === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
+      <select id="rf-status" class="inp"><option value="">كل الحالات</option>
+        <option value="active" ${reportState.status === "active" ? "selected" : ""}>نشط</option>
+        <option value="inactive" ${reportState.status === "inactive" ? "selected" : ""}>معطّل</option></select>
+      <select id="rf-sub" class="inp"><option value="">كل الاشتراكات</option>
+        <option value="free" ${reportState.sub === "free" ? "selected" : ""}>مجاني</option>
+        <option value="active" ${reportState.sub === "active" ? "selected" : ""}>اشتراك نشط</option>
+        <option value="expiring" ${reportState.sub === "expiring" ? "selected" : ""}>قرب ينتهي</option>
+        <option value="expired" ${reportState.sub === "expired" ? "selected" : ""}>منتهي</option></select>
+      
+<!-- @@ admin.adminReports_4 | esc,reportState,teachers -->
+
+      <select id="rf-teacher" class="inp"><option value="">كل المدرسين</option>
+        ${teachers.map((t) => `<option value="${t.id}" ${reportState.teacher === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
+      <input id="rf-month" type="month" class="inp" value="${esc(reportState.month)}" title="الشهر">
+      
+<!-- @@ admin.adminReports_5 | STAGES,reportState -->
+
+      <select id="rf-stage" class="inp"><option value="">كل المراحل</option>
+        ${STAGES.map((s) => `<option ${reportState.stage === s ? "selected" : ""}>${s}</option>`).join("")}</select>
+      <select id="rf-kind" class="inp"><option value="">أساسية + إضافية</option>
+        <option value="core" ${reportState.kind === "core" ? "selected" : ""}>أساسية بس</option>
+        <option value="extra" ${reportState.kind === "extra" ? "selected" : ""}>إضافية بس</option></select>
+      
+<!-- @@ admin.adminReports_6 | esc,filtersHtml,rep,typeBtn -->
+
+    <div class="tabs">${typeBtn("students", "تقرير الطلاب")}${typeBtn("teachers", "تقرير المدرسين")}${typeBtn("payments", "تقرير المدفوعات")}${typeBtn("subjects", "تقرير المواد")}</div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">${rep.title} (${rep.rows.length})</h2>
+      <div class="filterrow">${filtersHtml}</div>
+      <div class="btnrow u-mb12px">
+        <button type="button" class="btn" id="rp-print">🖨️ طباعة / PDF</button>
+        <button type="button" class="btn ghost" id="rp-csv">تصدير CSV</button>
+        <button type="button" class="btn ghost" id="rp-xls">تصدير Excel</button>
+        <button type="button" class="btn ghost" id="rp-clear">مسح الفلاتر</button>
+      </div>
+      <div class="u-overauto">
+      <table class="ttable">
+        <thead><tr>${rep.columns.map((c) => `<th>${c}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${rep.rows.length ? rep.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${rep.columns.length}" class="center muted">مفيش بيانات بالفلاتر دي</td></tr>`}
+        </tbody>
+      </table>
+      </div>
+      <p class="muted u-fs125px">الطباعة والتصدير بيطلعوا اللي قدامك بالفلاتر الحالية. امسح الفلاتر لو عايز التقرير الكامل.</p>
+    </div>
+<!-- @@ admin.printReport | escP,rep -->
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${escP(rep.title)}</title>
+  <style>
+    body { font-family: "Cairo", "Segoe UI", Tahoma, sans-serif; direction: rtl; padding: 24px; color: #1e293b; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .meta { color: #64748b; font-size: 12.5px; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #cbd5e1; padding: 7px 10px; text-align: right; }
+    th { background: #f1f5f9; }
+    .foot { margin-top: 18px; color: #64748b; font-size: 12px; text-align: center; }
+    @media print { body { padding: 0; } }
+  </style></head><body>
+  <h1>${escP(rep.title)} — منصة learnhub-eg</h1>
+  <div class="meta">تاريخ التقرير: ${escP(new Date().toLocaleString("ar-EG"))} · عدد السجلات: ${rep.rows.length}${rep.filtersDesc.length ? " · الفلاتر: " + escP(rep.filtersDesc.join(" | ")) : " · كل البيانات بدون فلاتر"}</div>
+  <table><thead><tr>${rep.columns.map((c) => `<th>${escP(c)}</th>`).join("")}</tr></thead>
+  <tbody>${rep.rows.map((r) => `<tr>${r.map((c) => `<td>${escP(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+  <div class="foot">فكرة وإعداد: مهندس اسامه حسن عسس</div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+  </body></html>
+<!-- @@ admin.exportReport | escP,rep -->
+<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>
+      <table border="1"><thead><tr>${rep.columns.map((c) => `<th>${escP(c)}</th>`).join("")}</tr></thead>
+      <tbody>${rep.rows.map((r) => `<tr>${r.map((c) => `<td>${escP(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>

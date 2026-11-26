@@ -1,0 +1,24 @@
+<!-- قوالب الواجهة لموديول features/teacher/notes.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.openStudentNotes | esc,s -->
+<div class="detailcard" style="max-height:85vh; overflow-y:auto; max-width:520px;">
+    <h3>📝 ملاحظات عن: ${esc(s.name || "")}</h3>
+    <p class="muted">بنحمل الملاحظات...</p>
+  </div>
+<!-- @@ teacher.openStudentNotes_2 | esc,fmtTs,notes,s -->
+
+    <h3>📝 ملاحظات عن: ${esc(s.name || "")}</h3>
+    <p class="muted u-fs125px-mt0">الملاحظات دي خاصة بيك انت بس — الطالب ولا أي معلم تاني يقدر يشوفها.</p>
+    <div id="nt-list">
+    ${notes.length ? notes.map((n) => `
+      <div style="border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px;">
+        <div style="font-size:14px; white-space:pre-wrap;">${esc(n.text || "")}</div>
+        <div class="muted u-fs12px">${n.createdAt ? fmtTs(n.createdAt) : ""} · <a href="javascript:void(0)" data-ndel="${n.id}" style="color:#dc2626;">حذف</a></div>
+      </div>`).join("") : `<p class="muted center">مفيش ملاحظات على الطالب ده لسه.</p>`}
+    </div>
+    <label class="flabel">ملاحظة جديدة</label>
+    <textarea id="nt-text" class="inp" rows="2" placeholder="اكتب ملاحظة..."></textarea>
+    <p class="msg u-m4px0" id="nt-msg"></p>
+    <div class="btnrow u-mt8px">
+      <button type="button" class="btn" id="nt-save">حفظ الملاحظة</button>
+      <button type="button" class="btn ghost" id="nt-close">قفل</button>
+    </div>

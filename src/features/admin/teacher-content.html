@@ -1,0 +1,174 @@
+<!-- قوالب الواجهة لموديول features/admin/teacher-content.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.renderAdminTeacherContent |  -->
+<div class="spin">بنحمل محتوى المدرس...</div>
+<!-- @@ admin.renderAdminTeacherContent_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ admin.renderAdminTeacherContent_3 | ann,atcStats,attempts,esc,exams,fmtTs,lessonHasPdf,lessonHasVideo,lessonStats,mine,quizzes,sortedLessons,t,teacherStagesText -->
+
+    <div class="u-mb10px"><button type="button" class="btn ghost sm" id="atc-back">→ رجوع للمدرسين</button></div>
+    <div class="card u-bord4pxsolidvarprimary">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+        <div>
+          <h2 style="font-size:18px; margin:0 0 4px;">👁️ محتوى: ${esc(t.name || "")}</h2>
+          <div class="muted u-fs13px">${esc(t.subject || "—")} — ${esc(teacherStagesText(t))} · ${mine} طالب ${t.active === false ? '<span class="chip red">موقوف</span>' : '<span class="chip green">نشط</span>'}</div>
+          <div class="muted" style="font-size:12.5px; margin-top:4px;">صفحة قراءة فقط — مفيش تعديل من هنا.</div>
+        </div>
+        <button type="button" class="btn" id="atc-dl">📥 تحميل المحتوى</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">الدروس (${sortedLessons.length})</h2>
+      ${sortedLessons.length ? `<div class="grid3" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px;">${sortedLessons.map((l) => {
+        const st = lessonStats(l);
+        return `<div class="card card-sub u-m0">
+          <div class="u-fs12px-cvarprimarydark-fw700">الوحدة ${l.unit || "—"} · الدرس ${l.lessonNum || "—"} · ${l.term === 2 ? "الترم الثاني" : "الترم الأول"}</div>
+          <b class="u-fs145px">${esc(l.title || "")}</b>
+          <div class="muted u-fs12px-mt4px">${lessonHasVideo(l) ? "🎬 فيديو " : ""}${lessonHasPdf(l) ? "📄 PDF " : ""}${st.avg ? `· ⭐ ${st.avg} (${st.count} تقييم)` : ""}</div>
+        </div>`;
+      }).join("")}</div>` : `<p class="muted center">مفيش دروس</p>`}
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">الكويزات (${quizzes.length})</h2>
+      ${quizzes.length ? `<table class="ttable resp"><thead><tr><th>العنوان</th><th>الصف</th><th>الأسئلة</th><th>المحاولات</th><th>المتوسط</th></tr></thead><tbody>
+        ${quizzes.map((q) => { const st = atcStats(attempts, q.id, false); return `<tr>
+          <td data-h="العنوان">${esc(q.title || "")}</td><td data-h="الصف">${esc(q.grade || "كل الصفوف")}</td>
+          <td data-h="الأسئلة">${(q.questions || []).length}</td><td data-h="المحاولات">${st.count}</td>
+          <td data-h="المتوسط">${st.avg != null ? `<span class="chip ${st.avg >= 60 ? "green" : "amber"}">${st.avg}%</span>` : "—"}</td></tr>`; }).join("")}
+      </tbody></table>` : `<p class="muted center">مفيش كويزات</p>`}
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">الامتحانات (${exams.length})</h2>
+      ${exams.length ? `<table class="ttable resp"><thead><tr><th>العنوان</th><th>الحالة</th><th>المحاولات</th><th>المتوسط</th></tr></thead><tbody>
+        ${exams.map((e) => { const st = atcStats(attempts, e.id, true); return `<tr>
+          <td data-h="العنوان">${esc(e.title || "")}</td><td data-h="الحالة">${e.closed ? '<span class="chip red">مقفول</span>' : '<span class="chip green">مفتوح</span>'}</td>
+          <td data-h="المحاولات">${st.count}</td>
+          <td data-h="المتوسط">${st.avg != null ? `<span class="chip ${st.avg >= 60 ? "green" : "amber"}">${st.avg}%</span>` : "—"}</td></tr>`; }).join("")}
+      </tbody></table>` : `<p class="muted center">مفيش امتحانات</p>`}
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">الإعلانات (${ann.length})</h2>
+      ${ann.length ? ann.slice().sort((a, b) => (b.createdAt && a.createdAt ? b.createdAt.seconds - a.createdAt.seconds : 0)).map((a) => `
+        <div class="card card-sub" style="margin:0 0 8px;"><b>📢 ${esc(a.text || "")}</b>
+        <div class="muted u-fs12px">${a.createdAt ? fmtTs(a.createdAt) : ""}</div></div>`).join("") : `<p class="muted center">مفيش إعلانات</p>`}
+    </div>
+<!-- @@ admin.adminTeacherDownloadModal | esc,t -->
+
+    <b class="u-fs17px">📥 تحميل محتوى ${esc(t.name || "")}</b>
+    <p class="muted" style="font-size:13px; margin:8px 0 12px;">اختار صيغة التحميل:</p>
+    <div style="display:grid; gap:10px;">
+      <button type="button" class="card card-sub" id="dl-csv" style="margin:0; text-align:right; cursor:pointer; border-right:4px solid var(--green, #16a34a);">
+        <b>📊 ملف Excel (CSV)</b>
+        <div class="muted u-fs125px-mt3px">قائمة بكل الدروس والكويزات والامتحانات مع روابط الفيديو والـ PDF ونتائج الطلاب — بتتفتح في Excel أو جوجل شيتس.</div>
+      </button>
+      <button type="button" class="card card-sub" id="dl-json" style="margin:0; text-align:right; cursor:pointer; border-right:4px solid var(--primary);">
+        <b>🗄️ نسخة احتياطية كاملة (JSON)</b>
+        <div class="muted u-fs125px-mt3px">كل البيانات بالأسئلة والإجابات والإعلانات ونتائج الطلاب — تصلح كأرشيف كامل أو لنقل المحتوى.</div>
+      </button>
+      <button type="button" class="card card-sub" id="dl-print" style="margin:0; text-align:right; cursor:pointer; border-right:4px solid var(--amber, #d97706);">
+        <b>🖨️ صفحة طباعة / PDF</b>
+        <div class="muted u-fs125px-mt3px">نسخة منسقة للطباعة أو الحفظ كـ PDF من المتصفح.</div>
+      </button>
+    </div>
+    <p class="muted" style="font-size:12px; margin-top:10px;">ملحوظة: الفيديوهات على يوتيوب والـ PDF على جوجل درايف — التحميل بيشمل الروابط والبيانات، مش الملفات نفسها.</p>
+    <div class="btnrow u-mt12px"><button type="button" class="btn ghost" id="dl-no">إلغاء</button></div>
+<!-- @@ admin.tbl | cols,escP,rows -->
+<table><thead><tr>${cols.map((c) => `<th>${escP(c)}</th>`).join("")}</tr></thead>
+    <tbody>${rows.length ? rows.map((r) => `<tr>${r.map((c) => `<td>${escP(c)}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${cols.length}" style="text-align:center; color:#64748b;">مفيش بيانات</td></tr>`}</tbody></table>
+<!-- @@ admin.adminTeacherPrint | ann,atcStats,attempts,escP,exams,fmtTs,lessons,quizzes,studentCount,t,tbl -->
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>محتوى ${escP(t.name || "")}</title>
+  <style>
+    body { font-family: "Cairo", "Segoe UI", Tahoma, sans-serif; direction: rtl; padding: 24px; color: #1e293b; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    h2 { font-size: 16px; margin: 18px 0 6px; }
+    .meta { color: #64748b; font-size: 12.5px; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+    th, td { border: 1px solid #cbd5e1; padding: 7px 10px; text-align: right; }
+    th { background: #f1f5f9; }
+    .foot { margin-top: 18px; color: #64748b; font-size: 12px; text-align: center; }
+    @media print { body { padding: 0; } }
+  </style></head><body>
+  <h1>محتوى المدرس: ${escP(t.name || "")} — منصة learnhub-eg</h1>
+  <div class="meta">${escP(t.subject || "")} · ${studentCount} طالب · تاريخ التحميل: ${escP(new Date().toLocaleString("ar-EG"))}</div>
+  <h2>الدروس (${lessons.length})</h2>
+  ${tbl(["الوحدة", "الدرس", "العنوان", "الصف", "رابط الفيديو", "رابط PDF"], lessons.slice().sort((a, b) => (a.unit || 0) - (b.unit || 0) || (a.lessonNum || 0) - (b.lessonNum || 0)).map((l) => [l.unit || "", l.lessonNum || "", l.title || "", l.grade || "كل الصفوف", l.videoUrl || "—", l.pdfUrl || "—"]))}
+  <h2>الكويزات (${quizzes.length})</h2>
+  ${tbl(["العنوان", "الصف", "الأسئلة", "المحاولات", "المتوسط"], quizzes.map((x) => { const st = atcStats(attempts, x.id, false); return [x.title || "", x.grade || "كل الصفوف", String((x.questions || []).length), String(st.count), st.avg != null ? st.avg + "%" : "—"]; }))}
+  <h2>الامتحانات (${exams.length})</h2>
+  ${tbl(["العنوان", "الحالة", "الأسئلة", "المحاولات", "المتوسط"], exams.map((x) => { const st = atcStats(attempts, x.id, true); return [x.title || "", x.closed ? "مقفول" : "مفتوح", String((x.quiz || []).length), String(st.count), st.avg != null ? st.avg + "%" : "—"]; }))}
+  <h2>الإعلانات (${ann.length})</h2>
+  ${tbl(["الإعلان", "التاريخ"], ann.map((a) => [a.text || "", a.createdAt ? fmtTs(a.createdAt) : ""]))}
+  <h2>نتائج الطلاب (${attempts.length})</h2>
+  ${tbl(["الطالب", "الدرجة", "النسبة", "التاريخ"], attempts.map((a) => [a.studentName || "", `${a.score} من ${a.total}`, a.total > 0 ? Math.round((a.score / a.total) * 100) + "%" : "—", a.updatedAt ? fmtTs(a.updatedAt) : "—"]))}
+  <div class="foot">فكرة وإعداد: مهندس اسامه حسن عسس</div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+  </body></html>
+<!-- @@ admin.adminStudents | adminFilter,all,esc,statusChip,students,teachers,waLink -->
+
+    <div class="card">
+      <div class="btnrow" style="justify-content:space-between; align-items:center; flex-wrap:wrap;">
+        <h2 class="u-fs18px-m0">الطلاب (${students.length} من ${all.length})</h2>
+        <button type="button" class="btn ghost small" id="st-transfer">📦 نقل جماعي بين الصفوف</button>
+      </div>
+      <div class="filterrow u-mt10px">
+        <select id="af-t" class="inp">
+          <option value="">كل المدرسين</option>
+          ${teachers.map((t) => `<option value="${t.id}" ${adminFilter.teacher === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}
+        </select>
+        <select id="af-s" class="inp">
+          <option value="">كل الحالات</option>
+          <option value="pending" ${adminFilter.status === "pending" ? "selected" : ""}>تحت المراجعة</option>
+          <option value="approved" ${adminFilter.status === "approved" ? "selected" : ""}>مقبول</option>
+          <option value="rejected" ${adminFilter.status === "rejected" ? "selected" : ""}>مرفوض</option>
+          <option value="suspended" ${adminFilter.status === "suspended" ? "selected" : ""}>موقوف</option>
+        </select>
+        <input id="af-q" type="text" class="inp" placeholder="بحث بالاسم..." value="${esc(adminFilter.q)}">
+      </div>
+      <table class="ttable resp">
+        <thead><tr><th>الطالب</th><th>الإيميل</th><th>المدرس</th><th>السنة</th><th>ولي الأمر</th><th>الحالة</th><th>البرمجة</th><th>إجراءات</th></tr></thead>
+        <tbody>
+          ${students.length ? students.map((s) => {
+            const tnames = (s.teacherIds || []).map((id) => (teachers.find((t) => t.id === id) || {}).name || "—").join("، ");
+            const prog = (s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0;
+            return `<tr data-rv-s="${s.id}" class="u-curpointer" title="اضغط لعرض البيانات كاملة">
+              <td data-h="الطالب">${esc(s.name)}</td><td class="ltr" data-h="الإيميل">${esc(s.email || "—")}</td><td data-h="المدرس">${esc(tnames)}</td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td>
+              <td data-h="الحالة">${statusChip(s.status)}</td><td data-h="البرمجة">${prog}%</td>
+              <td>
+                <div class="btnrow">
+                  <button type="button" class="btn sm ghost" data-sv="${s.id}">عرض</button>
+                  <button type="button" class="btn sm ghost" data-se="${s.id}">تعديل</button>
+                  ${s.phone ? `<a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك الأدمن من منصة الدروس.")}">واتساب</a>` : ""}
+                  ${s.status !== "approved" && s.status !== "suspended" ? `<button type="button" class="btn sm ghost" data-ap="${s.id}">قبول</button>` : ""}
+                  ${s.status === "approved" ? `<button type="button" class="btn sm" style="background:var(--amber);" data-ss="${s.id}">⛔ إيقاف</button>` : ""}
+                  ${s.status === "suspended" ? `<button type="button" class="btn sm" style="background:var(--green);" data-us="${s.id}">▶️ إلغاء الإيقاف</button>` : ""}
+                  <button type="button" class="btn sm red" data-sd="${s.id}">حذف نهائي</button>
+                </div>
+              </td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="8" class="center muted">مفيش نتايج</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+<!-- @@ admin.adminEditStudent | GRADES,esc,linked,s -->
+<div class="detailcard">
+    <h3>تعديل بيانات: ${esc(s.name)}</h3>
+    <label class="flabel">الاسم</label>
+    <input id="es-name" type="text" class="inp" value="${esc(s.name)}">
+    <label class="flabel">الإيميل</label>
+    <input id="es-email" type="email" class="inp ltr" value="${esc(s.email || "")}" ${linked ? "disabled" : ""}>
+    <p class="muted u-fs125px">${linked
+      ? "الإيميل مش بيتغير بعد ما الطالب عمل حساب دخول."
+      : "تغيير الإيميل بينقل تسجيله للإيميل الجديد، وهيدخل بيه برقمه السري عادي."}</p>
+    <label class="flabel">السنة الدراسية</label>
+    <select id="es-grade" class="inp">
+      ${GRADES.map((g) => `<option ${s.grade === g ? "selected" : ""}>${g}</option>`).join("")}
+    </select>
+    <label class="flabel">الموبايل (واتساب)</label>
+    <input id="es-phone" type="tel" class="inp ltr" value="${esc(s.phone || "")}">
+    <label class="flabel">موبايل ولي الأمر (واتساب)</label>
+    <input id="es-parent-phone" type="tel" class="inp ltr" value="${esc(s.parentPhone || "")}" placeholder="01xxxxxxxxx">
+    <div class="btnrow u-justcenter-mt14px">
+      <button type="button" class="btn" id="es-save">حفظ</button>
+      <button type="button" class="btn ghost" id="es-cancel">إلغاء</button>
+    </div>
+    <p class="msg" id="es-msg"></p>
+  </div>

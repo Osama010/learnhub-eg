@@ -1,0 +1,49 @@
+<!-- قوالب الواجهة لموديول features/auth/register.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ auth.renderRegister |  -->
+<div class="spin">بنجهز فورم التسجيل...</div>
+<!-- @@ auth.renderRegister_2 | GRADES,LOGO_FULL_SVG,closing,esc,regTeachersCache,themeIcon -->
+<div class="loginwrap">
+    <button type="button" class="themebtn u-posifixed-top14px-left14px-zind60" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+    <div class="hero">
+      ${LOGO_FULL_SVG}
+      <div class="u-cvarmuted-fw700-fs18px-mt2px">تسجيل طالب جديد</div>
+      <div class="fact u-mt8px">بعد التسجيل طلبك يروح للمدرس يوافق عليه</div>
+    </div>
+    <div class="card logincard u-mw520px-m14pxauto0">
+      <label class="flabel">الاسم بالكامل</label>
+      <input id="rg-name" type="text" class="inp" placeholder="اكتب اسمك">
+      <label class="flabel">الإيميل</label>
+      <input id="rg-email" type="email" class="inp ltr" placeholder="student@example.com">
+      <label class="flabel">السنة الدراسية</label>
+      <select id="rg-grade" class="inp">
+        <option value="">اختار السنة الدراسية</option>
+        ${GRADES.map((g) => `<option>${g}</option>`).join("")}
+      </select>
+      <label class="flabel">رقم الموبايل (واتساب)</label>
+      <input id="rg-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx">
+      <label class="flabel">رقم موبايل ولي الأمر (واتساب) — إجباري</label>
+      <input id="rg-parent-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx">
+      <label class="flabel">رقم سري (4 أرقام) — هتحتاجه أول مرة تدخل</label>
+      <input id="rg-pin" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="مثال: 2580">
+      <label class="flabel">اختار مدرس واحد على الأقل</label>
+      <div class="teachercheck" id="rg-teachers">
+        ${regTeachersCache.length
+          ? regTeachersCache.map((t) => `<label class="rg-t-row" data-stages="${(t.stages || []).join(",")}"><input type="checkbox" class="rg-t" value="${t.id}"> ${esc(t.name)}${t.subject ? " — " + esc(t.subject) : ""}</label>`).join("")
+          : `<span class="muted">لسه مفيش مدرسين على المنصة</span>`}
+      </div>
+      <p class="muted" id="rg-t-note" style="font-size:12.5px; display:none;">مفيش مدرسين للمرحلة دي لسه، جرّب مرحلة تانية أو كلّم الأدمن.</p>
+      <button type="button" class="btn u-w100pc" id="rg-btn">سجّل الطلب</button>
+      <p class="msg bad" id="rg-msg"></p>
+      <p class="muted u-fs13px">بعد ما المدرس يوافق، هتدخل بإيميلك ورقمك السري وتختار باسوردك بنفسك.</p>
+      <div class="center muted u-mt8px">عندك حساب؟ <a href="#/login" class="u-cvarprimarydark-fw700">سجّل دخولك</a></div>
+    </div>
+    ${closing()}</div>
+<!-- @@ auth.doRegister | closing -->
+
+      <div class="card center u-mw520px-m60pxauto">
+        <div class="u-fs44px">✅</div>
+        <h1 class="u-fs22px-m8px0">طلبك اتسجل</h1>
+        <p class="muted">طلبك وصل للمدرس. أول ما يوافق، ارجع لصفحة الدخول وادخل بإيميلك ورقمك السري، وهتختار باسوردك بنفسك.</p>
+        <div class="btnrow u-justcenter-mt12px"><a class="btn" href="#/login">صفحة الدخول</a></div>
+      </div>
+      ${closing()}

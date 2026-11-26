@@ -1,0 +1,75 @@
+<!-- قوالب الواجهة لموديول features/admin/account.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.adminProfile | aboutGet,esc,footerText,isSuper,me,myEmail,statsGet -->
+
+    <div class="card center u-p28px">
+      <span class="pavinit" style="width:84px; height:84px; font-size:38px;">${esc(((me.name || "م").trim() || "م")[0])}</span>
+      <h2 class="u-m10px02px-fs20px">${esc(me.name || "مشرف")}</h2>
+      <div class="muted ltr">${esc(myEmail)}</div>
+      <div class="u-mt8px">${isSuper ? '<span class="chip green">الأدمن الأساسي</span>' : '<span class="chip">مشرف</span>'}</div>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">👤 نبذة عن المهندس</h2>
+      <p class="muted u-fs13px">المحتوى ده بيظهر في تاب «نبذة عن المهندس» وفي الكارت الصغير آخر الصفحات (طالب / مدرس / أدمن). اكتب [النص](الرابط) جوه النبذة عشان يتحوّل للينك، وكل سطر جديد في النبذة الطويلة بيبقى فقرة.</p>
+      <div class="fgrid">
+        <div><label class="flabel">الاسم</label><input id="ab-name" class="inp" value="${esc(aboutGet().name)}"></div>
+        <div><label class="flabel">اللقب</label><input id="ab-title" class="inp" value="${esc(aboutGet().title)}"></div>
+      </div>
+      <label class="flabel">نبذة قصيرة (بتظهر فوق الصفحة)</label>
+      <textarea id="ab-short" class="inp" rows="3">${esc(aboutGet().shortBio)}</textarea>
+      <label class="flabel">النبذة الطويلة (كل سطر = فقرة)</label>
+      <textarea id="ab-long" class="inp ltr" rows="7" style="text-align:right;">${esc(aboutGet().longBio)}</textarea>
+      <label class="flabel">المهارات (افصل بينها بفاصلة)</label>
+      <input id="ab-skills" class="inp" value="${esc(aboutGet().skills)}">
+      <div class="fgrid">
+        <div><label class="flabel">رقم واتساب</label><input id="ab-wa" class="inp ltr" value="${esc(aboutGet().whatsapp)}"></div>
+        <div><label class="flabel">لينك فيسبوك</label><input id="ab-fb" class="inp ltr" value="${esc(aboutGet().facebook)}"></div>
+      </div>
+      <div class="fgrid">
+        <div><label class="flabel">لينك يوتيوب</label><input id="ab-yt" class="inp ltr" value="${esc(aboutGet().youtube)}"></div>
+        <div><label class="flabel">تيليجرام (اختياري)</label><input id="ab-tg" class="inp ltr" value="${esc(aboutGet().telegram)}"></div>
+      </div>
+      <label class="flabel">لينكدإن (اختياري)</label><input id="ab-li" class="inp ltr" value="${esc(aboutGet().linkedin)}">
+      <label class="flabel">الصورة الشخصية (اختياري — لو فاضية بتظهر الصورة الافتراضية)</label>
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <div id="ab-photo-prev">${aboutGet().photo ? `<img src="${aboutGet().photo}" alt="" class="u-w72px-h72px-bord50pc-objecover-b3pxsolidf59e0b">` : `<span class="muted u-fs13px">الصورة الافتراضية</span>`}</div>
+        <input id="ab-photo" type="file" accept="image/*" class="inp" style="max-width:260px;">
+        ${aboutGet().photo ? `<button type="button" class="btn ghost sm" id="ab-photodel">إزالة الصورة المخصصة</button>` : ""}
+      </div>
+      <div class="btnrow" style="margin-top:14px;"><button type="button" class="btn" id="ab-save">حفظ النبذة</button></div>
+      <p class="msg" id="ab-msg"></p>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">📊 أرقام الصفحة الرئيسية</h2>
+      <p class="muted u-fs13px">الأرقام الكبيرة اللي بتعد في صفحة الهبوط. بتكتبها بنفسك (مش بتتحسب من الداتا) وبتظهر للزوار من غير تسجيل دخول.</p>
+      <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px;">
+        <div><label class="flabel">عدد المدرسين</label><input id="st-teachers" type="number" min="0" class="inp ltr" value="${esc(statsGet().teachers)}"></div>
+        <div><label class="flabel">عدد الدروس</label><input id="st-lessons" type="number" min="0" class="inp ltr" value="${esc(statsGet().lessons)}"></div>
+        <div><label class="flabel">عدد الطلاب</label><input id="st-students" type="number" min="0" class="inp ltr" value="${esc(statsGet().students)}"></div>
+      </div>
+      <div class="btnrow u-mt10px"><button type="button" class="btn" id="st-save">حفظ الأرقام</button></div>
+      <p class="msg" id="st-msg"></p>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">📝 جملة أسفل الصفحات</h2>
+      <p class="muted u-fs13px">بتظهر في أسفل كل صفحات المنصة (حتى صفحة الدخول). منفصلة تمامًا عن النبذة — تعديلها مبيأثرش على النبذة والعكس.</p>
+      <label class="flabel">النص</label>
+      <input id="ft-text" class="inp" value="${esc(footerText)}">
+      <div class="closing" id="ft-prev" style="margin-top:10px; border:1px dashed var(--line, #cbd5e1); border-radius:10px;">${esc(footerText)}</div>
+      <p class="muted u-fs12px-mt4px">معاينة شكل الجملة زي ما بتظهر في أسفل الصفحة.</p>
+      <div class="btnrow u-mt10px"><button type="button" class="btn" id="ft-save">حفظ جملة الأسفل</button></div>
+      <p class="msg" id="ft-msg"></p>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">🔐 رقم الأدمن السري (PIN)</h2>
+      <p class="muted u-fs13px">الرقم اللي اللوحة بتطلبه كل مرة دخول. بيتحفظ مشفّر ومحدش يقدر يقرأه.</p>
+      <div class="fgrid">
+        <div><label class="flabel">الرقم السري الجديد (من 4 لـ 6 أرقام)</label><input id="apr-pin1" type="password" inputmode="numeric" maxlength="6" class="inp ltr" autocomplete="off"></div>
+        <div><label class="flabel">تأكيد الرقم السري</label><input id="apr-pin2" type="password" inputmode="numeric" maxlength="6" class="inp ltr" autocomplete="off"></div>
+      </div>
+      <button type="button" class="btn sm" id="apr-pin-save">تغيير الرقم السري</button>
+      <p class="msg" id="apr-pin-msg"></p>
+    </div>
+<!-- @@ admin.adminProfile_2 | abPhotoData -->
+<img src="${abPhotoData}" alt="" class="u-w72px-h72px-bord50pc-objecover-b3pxsolidf59e0b">
+<!-- @@ admin.adminProfile_3 |  -->
+<span class="muted u-fs13px">الصورة الافتراضية</span>

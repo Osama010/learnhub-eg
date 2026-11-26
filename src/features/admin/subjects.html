@@ -1,0 +1,90 @@
+<!-- قوالب الواجهة لموديول features/admin/subjects.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.sjGradeOptions |  -->
+<option value="">كل صفوف المرحلة</option>
+<!-- @@ admin.sjGradeOptions_2 | esc,g,val -->
+<option value="${esc(g)}" ${val === g ? "selected" : ""}>${esc(g)}</option>
+<!-- @@ admin.adminSubjects | STAGES,esc,gradesOfStage,sjGradeOptions,subjectReportRows,subjects -->
+
+    <div class="card">
+      <h2 class="u-fs18px-mt0">إضافة مادة</h2>
+      <div class="filterrow">
+        <input id="sj-name" type="text" class="inp" placeholder="اسم المادة، مثال: اللغة الألمانية">
+        <select id="sj-stage" class="inp">
+          ${STAGES.map((s) => `<option>${s}</option>`).join("")}
+        </select>
+        <select id="sj-grade" class="inp">${sjGradeOptions(STAGES[0], "")}</select>
+        <button type="button" class="btn" id="sj-add">إضافة</button>
+      </div>
+      <p class="muted u-fs125px">قايمة الصفوف بتتغير حسب المرحلة المختارة. "كل صفوف المرحلة" للمادة العامة على المرحلة كلها.</p>
+      <p class="msg" id="sj-msg"></p>
+    </div>
+    ${subjects.length ? `
+    <div class="card">
+      <h2 class="u-fs18px-mt0">تقرير المواد</h2>
+      <table class="ttable">
+        <thead><tr><th>المادة</th><th>المرحلة</th><th>الصف</th><th>عدد المدرسين</th><th>عدد الطلاب</th><th>متوسط تقدم الطلاب</th></tr></thead>
+        <tbody>
+          ${subjectReportRows().map((r) => `<tr>
+            <td>${esc(r.s.name)}</td>
+            <td>ال${esc(r.s.stage)}ة</td>
+            <td>${esc(r.s.grade || "كل الصفوف")}</td>
+            <td>${r.teachers}</td>
+            <td>${r.students}</td>
+            <td>${r.avg}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+      <p class="muted u-fs125px">المدرس بيتربط بالمادة من خانة "المادة" في بياناته، فلازم اسم المادة عنده يكون نفس الاسم هنا بالظبط.</p>
+    </div>` : ""}
+    ${subjects.length === 0 ? `
+    <div class="card center">
+      <p class="muted">لسه مفيش مواد متسجلة. تقدر تضيف المواد الأساسية لكل المراحل بضغطة واحدة:</p>
+      <button type="button" class="btn" id="sj-seed">إضافة المواد الأساسية لكل المراحل</button>
+    </div>` : ""}
+    ${STAGES.map((stage) => {
+      const stageSubs = subjects.filter((s) => s.stage === stage);
+      const subTable = (list, emptyTxt) => `
+        <table class="ttable">
+          <thead><tr><th>المادة</th><th>النوع</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            ${list.length ? list.map((s) => `<tr>
+              <td>${esc(s.name)}</td>
+              <td>${s.core ? '<span class="chip green">أساسية</span>' : '<span class="chip amber">إضافية</span>'}</td>
+              <td>
+                <div class="btnrow">
+                  <button type="button" class="btn sm ghost" data-se-sub="${s.id}">تعديل</button>
+                  <button type="button" class="btn sm red" data-sd-sub="${s.id}">حذف</button>
+                </div>
+              </td>
+            </tr>`).join("") : `<tr><td colspan="3" class="center muted">${emptyTxt}</td></tr>`}
+          </tbody>
+        </table>`;
+      return `
+      <div class="card">
+        <h2 class="u-fs18px-mt0">المرحلة ال${stage}ة (${stageSubs.length})</h2>
+        ${gradesOfStage(stage).map((g) => {
+          const list = stageSubs.filter((s) => (s.grade || "") === g);
+          return `<h3 class="u-m14px08px-fs15px">${esc(g)} <span class="muted u-fw400">(${list.length} مواد)</span></h3>
+          ${subTable(list, "مفيش مواد متسجلة للصف ده لسه")}`;
+        }).join("")}
+        <h3 class="u-m14px08px-fs15px">كل صفوف المرحلة <span class="muted u-fw400">(مادة عامة)</span></h3>
+        ${subTable(stageSubs.filter((s) => !s.grade), "مفيش مواد عامة على المرحلة كلها")}
+      </div>`;
+    }).join("")}
+<!-- @@ admin.adminEditSubject | STAGES,esc,s,sjGradeOptions -->
+<div class="detailcard">
+    <h3>تعديل المادة</h3>
+    <label class="flabel">اسم المادة</label>
+    <input id="ej-name" type="text" class="inp" value="${esc(s.name)}">
+    <label class="flabel">المرحلة</label>
+    <select id="ej-stage" class="inp">
+      ${STAGES.map((st) => `<option ${s.stage === st ? "selected" : ""}>${st}</option>`).join("")}
+    </select>
+    <label class="flabel">الصف</label>
+    <select id="ej-grade" class="inp">${sjGradeOptions(s.stage, s.grade || "")}</select>
+    <div class="btnrow u-justcenter-mt14px">
+      <button type="button" class="btn" id="ej-save">حفظ</button>
+      <button type="button" class="btn ghost" id="ej-cancel">إلغاء</button>
+    </div>
+    <p class="msg" id="ej-msg"></p>
+  </div>

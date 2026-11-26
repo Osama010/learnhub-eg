@@ -1,0 +1,28 @@
+<!-- قوالب الواجهة لموديول features/auth/admin-pin.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ auth.renderAdminPinGate | closing,email,esc,hasPin,loadErr -->
+
+    <div class="hdr u-mt32px">
+      <h1>حماية لوحة الأدمن</h1>
+      <div class="fact">${esc(email)} · <a href="javascript:signOut()" class="u-cvarprimarydark">خروج</a></div>
+    </div>
+    <div class="card" style="max-width:460px; margin:0 auto;">
+      ${loadErr ? `<p class="msg bad">مشكلة في التحقق من حسابك: ${esc(loadErr.message || loadErr)}</p>` : hasPin ? `
+        <div class="center u-fs40px">🔒</div>
+        <h2 class="u-fs18px-mt0">اكتب رقم الأدمن السري</h2>
+        <p class="muted u-fs13px">رقم حماية إضافي غير حساب جوجل، عشان محدش يفتح اللوحة من جهاز عليه حسابك محفوظ.</p>
+        <label class="flabel">الرقم السري (PIN)</label>
+        <input id="apg-pin" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="••••" autocomplete="off">
+        <button type="button" class="btn u-w100pc" id="apg-btn">دخول اللوحة</button>
+      ` : `
+        <div class="center u-fs40px">🔐</div>
+        <h2 class="u-fs18px-mt0">اختار رقم الأدمن السري (أول مرة)</h2>
+        <p class="muted u-fs13px">هتكتب الرقم ده كل مرة تدخل فيها لوحة الأدمن بعد تسجيل الدخول، عشان محدش يفتح اللوحة من جهاز عليه حسابك محفوظ. تقدر تغيّره بعدين من تاب المشرفين.</p>
+        <label class="flabel">الرقم السري (من 4 لـ 6 أرقام)</label>
+        <input id="apg-pin1" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="مثال: 246810" autocomplete="off">
+        <label class="flabel">تأكيد الرقم السري</label>
+        <input id="apg-pin2" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="نفس الرقم تاني" autocomplete="off">
+        <button type="button" class="btn u-w100pc" id="apg-btn">حفظ ودخول اللوحة</button>
+      `}
+      <p id="apg-msg" class="msg bad"></p>
+    </div>
+    ${closing()}

@@ -1,0 +1,67 @@
+<!-- قوالب الواجهة لموديول features/landing/landing.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.renderLanding |  -->
+<div class="spin">ثانية واحدة...</div>
+<!-- @@ app.tcard | esc,i,initial,t -->
+<div class="lp-t rv" style="transition-delay:${Math.min(i, 8) * 70}ms;">
+      <div class="lp-av">${t.avatar ? `<img src="${esc(t.avatar)}" alt="" onerror="this.remove()">` : ""}<span>${initial(t.name)}</span></div>
+      <div class="lp-tn">${esc(t.name)}</div>
+      <div class="lp-ts">${esc(t.subject || "")}</div>
+      <button type="button" class="btn sm" data-pickt="${esc(t.id)}">سجّل مع المدرس ده</button>
+    </div>
+<!-- @@ app.renderLanding_2 | LANDING_FEATURES,a,aboutPhotoHtml,aboutRich,closing,esc,paras,skills,st,tcard,teachers,themeIcon -->
+<div class="landing">
+    <button type="button" class="themebtn u-posifixed-top14px-left14px-zind60" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+    <section class="lp-hero">
+      <i class="lp-b" style="width:140px; height:140px; top:18px; right:6%;"></i>
+      <i class="lp-b" style="width:80px; height:80px; bottom:34px; left:9%; animation-delay:1.8s;"></i>
+      <i class="lp-b" style="width:46px; height:46px; top:44%; left:30%; animation-delay:3.2s;"></i>
+      <div class="lp-logo">🎓</div>
+      <h1>منصة المستر</h1>
+      <p>دروس وكويزات وامتحانات مع أفضل المدرسين، في مكان واحد</p>
+      <div class="lp-btns">
+        <a class="lp-btn" href="student/">دخول الطالب</a>
+        <a class="lp-btn o" href="student/#/register">إنشاء حساب</a>
+      </div>
+    </section>
+    <div class="lp-wrap">
+      <section class="card lp-stats rv">
+        <div><b data-count="${esc(st.teachers)}">0</b><span>مدرس</span></div>
+        <div><b data-count="${esc(st.lessons)}">0</b><span>درس</span></div>
+        <div><b data-count="${esc(st.students)}">0</b><span>طالب</span></div>
+      </section>
+      <section class="card rv">
+        <h2 class="lp-h">مدرسينا</h2>
+        ${teachers.length ? `<div class="lp-grid">${teachers.map(tcard).join("")}</div>` : `<p class="muted center">المدرسين هيظهروا هنا قريب.</p>`}
+      </section>
+      <section class="card rv">
+        <h2 class="lp-h">ليه المنصة؟</h2>
+        <div class="lp-feat">${LANDING_FEATURES.map((f, i) => `<div class="rv" style="transition-delay:${i * 80}ms;"><i>${f[0]}</i><b>${f[1]}</b><span>${f[2]}</span></div>`).join("")}</div>
+      </section>
+      <section class="card rv">
+        <h2 class="lp-h">عن المهندس</h2>
+        <div class="lp-eng">
+          ${aboutPhotoHtml(a, 84)}
+          <div style="flex:1; min-width:180px;">
+            <b class="u-fs16px">${esc(a.name)}</b>
+            <div class="muted" style="font-size:13px; margin:2px 0 6px;">${esc(a.title)}</div>
+            <div style="font-size:14px; line-height:1.7;">${esc(a.shortBio)}</div>
+          </div>
+        </div>
+        ${skills.length ? `<div class="lp-chips">${skills.map((x) => `<span>${esc(x)}</span>`).join("")}</div>` : ""}
+        ${paras.length ? `<div class="btnrow u-mt10px"><button type="button" class="btn sm ghost" id="lp-more">اقرأ النبذة كاملة</button></div>
+        <div id="lp-long" style="display:none; margin-top:10px; font-size:14px; line-height:1.85;">${paras.map((p) => `<p>${aboutRich(p)}</p>`).join("")}</div>` : ""}
+      </section>
+      <div class="center" style="margin:14px 0 4px;"><a href="teacher/" class="u-cvarprimarydark-fw700-fs14px">دخول المدرسين</a></div>
+      ${closing()}
+    </div>
+  </div>
+<!-- @@ app.closing | esc,footerText -->
+<div class="closing">${esc(footerText)}</div>
+<!-- @@ app.statusChip |  -->
+<span class="chip green">مقبول</span>
+<!-- @@ app.statusChip_2 |  -->
+<span class="chip red">مرفوض</span>
+<!-- @@ app.statusChip_3 |  -->
+<span class="chip red">⛔ موقوف</span>
+<!-- @@ app.statusChip_4 |  -->
+<span class="chip amber">تحت المراجعة</span>

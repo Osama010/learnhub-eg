@@ -1,0 +1,10 @@
+<!-- قوالب الواجهة لموديول core/router.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.renderWrongPortal | PORTAL,esc,info -->
+<div class="loginwrap"><div class="card center u-mw520px-m60pxauto">
+    <div style="font-size:42px;">${info.icon || "🔒"}</div>
+    <h1 class="u-fs20px-m8px0">${esc(info.title || "")}</h1>
+    <p class="muted">الحساب اللي داخل بيه مش حساب ${esc({ student: "طالب", teacher: "مدرس", admin: "أدمن" }[PORTAL] || "")}. اخرج وادخل من الرابط الخاص بحسابك.</p>
+    <div class="btnrow u-justcenter"><button type="button" class="btn" id="wp-out">خروج</button></div>
+  </div></div>
+<!-- @@ app.renderLoading |  -->
+<div class="spin">ثانية واحدة...</div>

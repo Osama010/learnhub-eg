@@ -1,0 +1,49 @@
+<!-- قوالب الواجهة لموديول features/student/quizzes.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.renderStudentQuizExams |  -->
+<div class="spin">بنحمل الكويزات والامتحانات...</div>
+<!-- @@ student.renderStudentQuizExams_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ student.renderStudentQuizExams_3 | closing,esc,exams,fbProfile,fmtTs,quizzes,sAttemptFor,sExamState,sMistakesCardHtml,sQuizBtnHtml,sTerm,studentData,studentTabs,termTabsHtml -->
+
+    <div class="hdr">
+      <h1>الكويزات والامتحانات 📝</h1>
+      <div class="fact">${esc((fbProfile && fbProfile.grade) || "")}</div>
+    </div>
+    ${studentTabs("quiz")}
+    ${termTabsHtml(sTerm())}
+    ${sMistakesCardHtml()}
+    <div class="card">
+      <h2 class="u-fs18px-mt0">الكويزات (${quizzes.length})</h2>
+      ${quizzes.length ? `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px;">
+        ${quizzes.map((q) => {
+          const att = sAttemptFor(q.id, null);
+          const pct = att && att.total > 0 ? Math.round((att.score / att.total) * 100) : null;
+          const lesson = q.lessonId ? (studentData.lessons || []).find((l) => l.id === q.lessonId) : null;
+          return `<div class="card u-m0">
+            <b class="u-fs15px">${esc(q.title || "")}</b>
+            ${lesson ? `<div class="u-m4px0"><span class="chip">🔗 ${esc(lesson.title || "")}</span></div>` : `<div class="muted u-fs12px-m4px0">كويز عام</div>`}
+            <div class="muted u-fs12px-m4px0">📝 ${(q.questions || []).length} سؤال · ${esc(q.subject || "")}</div>
+            ${att ? `<div class="muted u-fs12px-m4px0">نتيجتك: ${att.score} من ${att.total} (${pct}%)</div>` : ""}
+            <div class="btnrow">${sQuizBtnHtml(q, att)}</div>
+          </div>`;
+        }).join("")}
+      </div>` : `<p class="muted center u-mt12px">لسه مفيش كويزات لصفك.</p>`}
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">الامتحانات (${exams.length})</h2>
+      ${exams.length ? `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:12px;">
+        ${exams.map((e) => {
+          const [stTxt, stCls] = sExamState(e);
+          const att = sAttemptFor(null, e.id);
+          const pct = att && att.total > 0 ? Math.round((att.score / att.total) * 100) : null;
+          return `<div class="card u-m0">
+            <div class="btnrow u-justspacebetween"><b class="u-fs15px">${esc(e.title || "")}</b><span class="chip ${stCls}">${stTxt}</span></div>
+            ${e.desc ? `<div class="muted u-fs13px-mt4px">${esc(e.desc)}</div>` : ""}
+            <div class="muted u-fs12px-m4px0">📝 ${(e.quiz || []).length} سؤال${e.closeAt ? " · يقفل " + fmtTs(e.closeAt) : ""}</div>
+            ${att ? `<div class="muted u-fs12px-m4px0">نتيجتك: ${att.score} من ${att.total} (${pct}%)</div>` : ""}
+            <div class="btnrow">${stTxt === "مفتوح" ? `<button type="button" class="btn sm" data-se="${e.id}">${att ? "إعادة الامتحان" : "ابدأ الامتحان"}</button>` : ""}</div>
+          </div>`;
+        }).join("")}
+      </div>` : `<p class="muted center u-mt12px">لسه مفيش امتحانات لصفك.</p>`}
+    </div>
+    ${closing()}

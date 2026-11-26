@@ -1,0 +1,21 @@
+<!-- قوالب الواجهة لموديول features/student/activity.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.sBadgesCardHtml | badges,got -->
+<div class="card">
+    <h2 class="u-fs18px-mt0">⭐ أوسمتك (${got} من ${badges.length})</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; margin-top:8px;">
+      ${badges.map((b) => `<div class="card card-sub" style="margin:0; text-align:center; padding:12px 8px; ${b.got ? "" : "opacity:.45; filter:grayscale(1);"}">
+        <div class="u-fs26px">${b.icon}</div>
+        <b class="u-fs135px">${b.name}</b>
+        <div class="muted" style="font-size:12px; margin-top:2px;">${b.desc}</div>
+        ${b.got ? `<div style="font-size:12px; color:var(--green, #16a34a); font-weight:700; margin-top:4px;">✅ خدتها</div>` : ""}
+      </div>`).join("")}
+    </div>
+  </div>
+<!-- @@ student.sRankCardHtml | r -->
+<div class="card u-bord4pxsolidvaramberf59e0b">
+    <div class="btnrow u-justspacebetween-flexwrap">
+      <b class="u-fs15px">🏆 ترتيبك الأسبوعي: <span class="u-cvarprimarydark">المركز ${r.rank} من ${r.rivals}</span> في صفك</b>
+      <span class="chip amber">${r.mine} نقطة الأسبوع ده</span>
+    </div>
+    <div class="muted u-fs12px-mt6px">الترتيب بين طلبة مدرسيك في نفس صفك بس، والنقاط بتتصفر كل جمعة. مفيش أسماء — الترتيب ده ليك انت بس.</div>
+  </div>

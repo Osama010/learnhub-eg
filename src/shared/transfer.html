@@ -1,0 +1,44 @@
+<!-- قوالب الواجهة لموديول shared/transfer.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.renderTransferPage | GRADES,allChecked,esc,filteredTeacherName,list,pickedCount,tNames,targets,teachers,transferState -->
+
+    <div class="btnrow u-m4px012px"><button type="button" class="btn ghost small" id="tr-back">→ رجوع</button></div>
+    <h1 class="u-m0012px">📦 نقل جماعي بين الصفوف</h1>
+    <p class="muted" style="font-size:13px; margin:0 0 12px;">الشاشة دي مخصصة للنقل بس — مفيش هنا أي إجراء تاني. النقل بيحتاج تأكيد بعد الاختيار.</p>
+    <div class="card" style="border-right:4px solid var(--blue); margin-bottom:12px;">
+      <div class="btnrow" style="flex-wrap:wrap; align-items:center;">
+        <span class="u-fs14px">من: <select id="tr-from" class="inp" style="width:auto; display:inline-block; padding:6px 10px;">${GRADES.map((g) => `<option ${g === transferState.from ? "selected" : ""}>${g}</option>`).join("")}</select></span>
+        ${teachers ? `<span class="u-fs14px">المدرس: <select id="tr-teacher" class="inp" style="width:auto; display:inline-block; padding:6px 10px;"><option value="">كل المدرسين</option>${teachers.map((t) => `<option value="${t.id}" ${transferState.teacher === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></span>` : ""}
+        <span class="u-fs14px">إلى: <select id="tr-to" class="inp" style="width:auto; display:inline-block; padding:6px 10px;">${targets.map((g) => `<option ${g === transferState.to ? "selected" : ""}>${g}</option>`).join("")}</select></span>
+        <button type="button" class="btn sm blue" id="tr-go" ${pickedCount ? "" : "disabled"}>نقل المحدد (${pickedCount})</button>
+      </div>
+      <p class="muted u-fs125px-mt6px">بعد النقل الطالب يشوف محتوى صفه الجديد بس، ومش هيقدر يوصل لمحتوى الصف القديم. درجاته القديمة بتفضل محفوظة على السيرفر للتقارير — مش بتظهر له. «متخرج» لطلاب الثالث الثانوي اللي خلصوا.</p>
+    </div>
+    <div class="card">
+      <div class="btnrow u-justspacebetween-aligcenter">
+        <h2 class="u-fs18px-m0">طلاب «${esc(transferState.from)}»${filteredTeacherName ? ` لـ«${esc(filteredTeacherName)}»` : ""} (${list.length})</h2>
+        ${list.length ? `<label style="font-size:13.5px; cursor:pointer;"><input type="checkbox" id="tr-all" ${allChecked ? "checked" : ""} class="u-accevarprimary"> تحديد الكل</label>` : ""}
+      </div>
+      ${list.length ? `<div class="u-overauto"><table class="ttable">
+        <thead><tr><th></th><th>الاسم</th><th>السنة</th>${teachers ? "<th>المدرس</th>" : ""}<th>ولي الأمر</th></tr></thead>
+        <tbody>${list.map((s) => `<tr>
+          <td><input type="checkbox" data-trp="${s.id}" ${transferState.picked[s.id] ? "checked" : ""} class="u-accevarprimary"></td>
+          <td>${esc(s.name)}</td><td>${esc(s.grade || "—")}</td>${teachers ? `<td>${esc(tNames(s))}</td>` : ""}<td class="ltr">${esc(s.parentPhone || "غير مسجل")}</td>
+        </tr>`).join("")}</tbody></table></div>` : `<p class="muted center u-mt10px">مفيش طلبة مقبولين في الصف ده.</p>`}
+    </div>
+<!-- @@ app.renderTransferPage_2 | chosen,esc,to,transferState -->
+
+      <b class="u-fs17px">📦 تأكيد النقل الجماعي</b>
+      <p style="font-size:14.5px; margin:10px 0;">هيتم نقل <b>${chosen.length} ${chosen.length === 1 ? "طالب" : "طالب"}</b> من «${esc(transferState.from)}» إلى «${esc(to)}».</p>
+      <p class="muted u-fs125px">الطلبة هيشوفوا محتوى الصف الجديد بس بعد النقل. درجاتهم السابقة هتفضل محفوظة في التقارير.</p>
+      <div class="btnrow u-mt12px"><button type="button" class="btn blue" id="cf-ok">تأكيد النقل</button><button type="button" class="btn ghost" id="cf-no">إلغاء</button></div>
+      <p class="msg" id="cf-msg"></p>
+<!-- @@ app.confirmDeleteStudent | esc,s -->
+
+    <b class="u-fs17px">⚠️ حذف الطالب نهائيًا؟</b>
+    <p class="u-fs14px-m10px0">هيتم حذف <b>${esc(s.name || "")}</b> وكل بياناته من المنصة بالكامل:</p>
+    <div class="card card-sub u-m0012px-fs135px">
+      ✖️ بياناته وحسابه &nbsp;·&nbsp; ✖️ كل محاولاته ودرجاته في الكويزات والامتحانات &nbsp;·&nbsp; ✖️ تقييماته للدروس
+    </div>
+    <p class="muted u-fs125px">مفيش تراجع عن الخطوة دي.</p>
+    <div class="btnrow u-mt12px"><button type="button" class="btn red" id="cd-ok">نعم، حذف نهائي</button><button type="button" class="btn ghost" id="cd-no">إلغاء</button></div>
+    <p class="msg" id="cd-msg"></p>

@@ -1,0 +1,13 @@
+<!-- قوالب الواجهة لموديول features/teacher/late-students.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.lateStudentsHtml | kindLabel -->
+<p class="muted" style="font-size:13px; margin:12px 0 0;">✅ كل الطلاب المستهدفين حلوا ${kindLabel} — مفيش متأخرين.</p>
+<!-- @@ teacher.lateStudentsHtml_2 | esc,parent,text,to,waLink,x -->
+<tr><td>${esc(x.name || "—")}</td><td class="ltr">${esc(to || "غير مسجل")}</td>
+      <td>${to ? `<a class="btn sm green" target="_blank" rel="noopener" href="${waLink(to, text)}">إرسال تذكير واتساب${parent ? " لولي الأمر" : " للطالب"}</a>` : `<span class="muted u-fs125px">مفيش رقم</span>`}</td></tr>
+<!-- @@ teacher.lateStudentsHtml_3 | esc,grade,kindLabel,late,rows -->
+<h3 style="font-size:15.5px; margin:16px 0 4px;">⏰ المتأخرين عن ${kindLabel} (${late.length})</h3>
+  <p class="muted u-fs125px-m006px">طلابك المقبولين اللي ${kindLabel} ده موجه لهم${grade ? " (" + esc(grade) + ")" : ""} ولسه ماحلوش. الزرار بيفتح واتساب برسالة تذكير جاهزة بتبعتها بنفسك — لولي الأمر أولاً، وللطالب لو مفيش رقم ولي أمر.</p>
+  <table class="ttable">
+    <thead><tr><th>الطالب</th><th>الرقم</th><th>تذكير</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>

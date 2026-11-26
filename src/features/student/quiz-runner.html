@@ -1,0 +1,63 @@
+<!-- قوالب الواجهة لموديول features/student/quiz-runner.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.sQuestionHtml | esc,i,q -->
+<div style="display:grid; gap:8px;">${(q.options || []).map((o, oi) => `<label><input type="radio" name="sq${i}" value="${oi}"> ${esc(o)}</label>`).join("")}</div>
+<!-- @@ student.sQuestionHtml_2 | esc,i,q -->
+<div style="display:grid; gap:8px;">${(q.options || []).map((o, oi) => `<label><input type="checkbox" name="sq${i}" value="${oi}"> ${esc(o)}</label>`).join("")}</div>
+      <p class="muted u-fs125px-m6px00">اختار كل الإجابات الصحيحة.</p>
+<!-- @@ student.sQuestionHtml_3 | i -->
+<div class="btnrow"><label class="btn sm ghost"><input type="radio" name="sq${i}" value="0"> صح</label><label class="btn sm ghost"><input type="radio" name="sq${i}" value="1"> غلط</label></div>
+<!-- @@ student.sQuestionHtml_4 | esc,i,opts,q -->
+<div style="display:grid; gap:8px;">${(q.pairs || []).map((pr, pi) => `
+      <div class="btnrow u-aligcenter"><b class="u-fs14px">${esc(pr.a)}</b>
+      <select class="inp u-fl1" data-sqm="${i}:${pi}"><option value="">اختار المقابل</option>${opts.map((b) => `<option value="${esc(b)}">${esc(b)}</option>`).join("")}</select>
+      </div>`).join("")}</div>
+<!-- @@ student.sQuestionHtml_5 | i -->
+<input type="number" class="inp ltr" data-sqt="${i}" placeholder="اكتب الرقم">
+<!-- @@ student.sQuestionHtml_6 | i -->
+<input type="text" class="inp" data-sqt="${i}" placeholder="اكتب إجابتك">
+<!-- @@ student.sQuestionHtml_7 | body,esc,i,q,qImgHtml -->
+<div class="card"><h3 style="font-size:16px; margin-top:0;">س${i + 1}: ${esc(q.q || "")}</h3>${qImgHtml(q)}${body}</div>
+<!-- @@ student.renderStudentTake |  -->
+<div class="spin">بنحمل الاختبار...</div>
+<!-- @@ student.renderStudentTake_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ student.renderStudentTake_3 | closing,esc,isExam,item,questions,sQuestionHtml,sTeacherName,studentTabs -->
+
+    <div class="hdr">
+      <h1>${isExam ? "امتحان" : "كويز"}: ${esc(item.title || "")}</h1>
+      <div class="fact">${esc(item.subject || "")} · ${esc(sTeacherName(item.teacherId) || "")}</div>
+    </div>
+    ${studentTabs("quiz")}
+    <div class="btnrow u-mb10px"><a class="btn ghost" href="#/student/quizexams">← رجوع للكويزات والامتحانات</a></div>
+    ${questions.map((q, i) => sQuestionHtml(q, i)).join("")}
+    <div class="card center">
+      <button type="button" class="btn" id="sq-submit" style="min-width:220px;">تسليم ${isExam ? "الامتحان" : "الكويز"}</button>
+      <p class="msg" id="sq-msg"></p>
+      <p class="muted u-fs125px-mt8px">بعد التسليم بتشوف درجتك على طول.</p>
+    </div>
+    ${closing()}
+<!-- @@ student.qImgHtml | q -->
+<img src="${q.img}" alt="صورة السؤال" style="max-width:100%; border-radius:12px; margin:0 0 10px; display:block;">
+<!-- @@ student.sShowResult | closing,esc,given,isExam,item,pct,qImgHtml,questions,results,sCorrectText,sGivenText,score,studentTabs -->
+
+    <div class="hdr">
+      <h1>نتيجتك: ${score} من ${questions.length} (${pct}%)</h1>
+      <div class="fact">${esc(item.title || "")}</div>
+    </div>
+    ${studentTabs("quiz")}
+    <div class="card center">
+      <div class="u-fs44px">${pct >= 85 ? "🏆" : pct >= 50 ? "💪" : "📖"}</div>
+      <h2 style="margin:8px 0; font-size:19px;">${pct >= 85 ? "ممتاز! نتيجة رائعة 🎉" : pct >= 50 ? "كويس — راجع الغلط وجرّب تاني" : "راجع الدرس وحاول مرة تانية"}</h2>
+      <div class="btnrow u-justcenter">
+        ${!isExam ? `<button type="button" class="btn" id="sr-retry">إعادة الكويز</button>` : ""}
+        <a class="btn ghost" href="#/student/quizexams">رجوع للكويزات والامتحانات</a>
+      </div>
+    </div>
+    ${questions.map((q, i) => `
+    <div class="card" style="border-right:4px solid ${results[i].correct ? "#16a34a" : "#dc2626"};">
+      <h3 style="font-size:15.5px; margin-top:0;">س${i + 1}: ${esc(q.q || "")}</h3>
+      ${qImgHtml(q)}
+      <div class="u-fs14px">إجابتك: ${esc(sGivenText(q, given[i]))} ${results[i].correct ? "✅" : "❌"}</div>
+      ${results[i].correct ? "" : `<div class="muted u-fs13px-mt4px">الإجابة الصحيحة: ${esc(sCorrectText(q))}</div>`}
+    </div>`).join("")}
+    ${closing()}

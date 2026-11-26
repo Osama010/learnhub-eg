@@ -1,0 +1,44 @@
+<!-- قوالب الواجهة لموديول features/admin/admins.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.adminAdmins | ADMIN_EMAIL,admins,esc,fmtTs,myEmail -->
+
+    <div class="card">
+      <h2 class="u-fs18px-mt0">إضافة مشرف جديد</h2>
+      <div class="fgrid">
+        <div><label class="flabel">اسم المشرف</label><input id="an-name" type="text" class="inp" placeholder="اسم المشرف"></div>
+        <div><label class="flabel">الإيميل (جيميل)</label><input id="an-email" type="email" class="inp" dir="ltr" placeholder="admin@gmail.com"></div>
+      </div>
+      <button type="button" class="btn" id="an-add">إضافة المشرف</button>
+      <p id="adm-msg" class="msg"></p>
+      <p class="muted u-fs125px">المشرف الجديد بيدخل من زر "دخول الأدمن" بحساب جوجل بتاع الإيميل ده، وبيقدر يعمل كل حاجة في اللوحة زي الأدمن الأساسي. الإيميل بيتحفظ صغير (lowercase) عشان المطابقة تظبط.</p>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">رقم الأدمن السري (PIN)</h2>
+      <p class="muted u-fs13px">ده الرقم اللي اللوحة بتطلبه منك كل مرة تدخل فيها بعد تسجيل الدخول — حماية إضافية لو الجهاز في إيد حد تاني. بيتحفظ مشفّر ومحدش يقدر يقرأه، ولو نسيته تقدر تغيّره من هنا في أي وقت.</p>
+      <div class="fgrid">
+        <div><label class="flabel">الرقم السري الجديد (من 4 لـ 6 أرقام)</label><input id="apc-pin1" type="password" inputmode="numeric" maxlength="6" class="inp ltr" autocomplete="off"></div>
+        <div><label class="flabel">تأكيد الرقم السري</label><input id="apc-pin2" type="password" inputmode="numeric" maxlength="6" class="inp ltr" autocomplete="off"></div>
+      </div>
+      <button type="button" class="btn" id="apc-btn">تغيير الرقم السري</button>
+      <p id="apc-msg" class="msg"></p>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">المشرفين (${admins.length})</h2>
+      <table class="ttable">
+        <thead><tr><th>الاسم</th><th>الإيميل</th><th>أضافه</th><th>تاريخ الإضافة</th><th>إجراءات</th></tr></thead>
+        <tbody>
+          ${admins.length ? admins.map((a) => {
+            const isSuper = a.id === ADMIN_EMAIL;
+            const isMe = a.id === myEmail;
+            return `<tr>
+              <td>${esc(a.name || "—")}${isSuper ? ' <span class="chip green">أساسي</span>' : ""}${isMe && !isSuper ? ' <span class="chip">أنت</span>' : ""}</td>
+              <td class="ltr">${esc(a.id)}</td>
+              <td>${esc(a.addedBy || "—")}</td>
+              <td>${a.addedAt ? fmtTs(a.addedAt) : "—"}</td>
+              <td>${isSuper ? '<span class="muted u-fs125px">ميتحذفش</span>'
+                : isMe ? '<span class="muted u-fs125px">متحذفش نفسك</span>'
+                : `<button type="button" class="btn sm red" data-admdel="${esc(a.id)}">حذف</button>`}</td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="5" class="center muted">مفيش مشرفين مسجلين</td></tr>`}
+        </tbody>
+      </table>
+    </div>

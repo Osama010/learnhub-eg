@@ -1,0 +1,23 @@
+<!-- قوالب الواجهة لموديول features/student/announcements.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.renderStudentAnn |  -->
+<div class="spin">بنحمل الإعلانات...</div>
+<!-- @@ student.renderStudentAnn_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ student.renderStudentAnn_3 | closing,esc,fbProfile,fmtTs,list,sTeacherChip,studentTabs -->
+
+    <div class="hdr">
+      <h1>الإعلانات 📢</h1>
+      <div class="fact">${esc((fbProfile && fbProfile.grade) || "")}</div>
+    </div>
+    ${studentTabs("ann")}
+    ${list.length ? list.map((a) => `
+    <div class="card">
+      <div class="btnrow u-justspacebetween"><b class="u-fs15px">📢 ${esc(a.text || "")}</b>${(a.grade || "") ? `<span class="chip">${esc(a.grade)}</span>` : `<span class="chip green">كل الصفوف</span>`}</div>
+      <div class="muted u-fs12px-mt4px">${sTeacherChip(a.teacherId, a.teacherName)}${a.createdAt ? " · " + fmtTs(a.createdAt) : ""}</div>
+    </div>`).join("") : `
+    <div class="card center">
+      <div class="u-fs44px">📢</div>
+      <h2 class="u-fs20px-m8px0">مفيش إعلانات ليك لسه</h2>
+      <p class="muted">إعلانات مدرسيك لصفك هتظهر هنا أول ما تتنشر.</p>
+    </div>`}
+    ${closing()}

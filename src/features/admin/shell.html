@@ -1,0 +1,25 @@
+<!-- قوالب الواجهة لموديول features/admin/shell.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.adminLayout | aboutTeaserHtml,closing,content,myName,platNavHtml,tab -->
+
+    ${platNavHtml(myName, "", "#/admin/profile")}
+    <div class="hdr">
+      <h1>لوحة تحكم الأدمن</h1>
+    </div>
+    <div class="tabs">
+      <button type="button" class="tab ${tab === "stats" ? "active" : ""}" data-g="#/admin">نظرة عامة</button>
+      <button type="button" class="tab ${tab === "teachers" ? "active" : ""}" data-g="#/admin/teachers">المدرسين</button>
+      <button type="button" class="tab ${tab === "students" ? "active" : ""}" data-g="#/admin/students">الطلاب</button>
+      <button type="button" class="tab ${tab === "subjects" ? "active" : ""}" data-g="#/admin/subjects">المواد الدراسية</button>
+      <button type="button" class="tab ${tab === "library" ? "active" : ""}" data-g="#/admin/library">المكتبة العامة</button>
+      <button type="button" class="tab ${tab === "analytics" ? "active" : ""}" data-g="#/admin/analytics">التحليل 📊</button>
+      <button type="button" class="tab ${tab === "reports" ? "active" : ""}" data-g="#/admin/reports">التقارير</button>
+      <button type="button" class="tab ${tab === "log" ? "active" : ""}" data-g="#/admin/log">السجل</button>
+      <button type="button" class="tab ${tab === "admins" ? "active" : ""}" data-g="#/admin/admins">المشرفين</button>
+    </div>
+    ${content}
+    ${aboutTeaserHtml()}
+    ${closing()}
+<!-- @@ admin.renderAdmin |  -->
+<div class="spin">بنحمل بيانات المنصة...</div>
+<!-- @@ admin.renderAdmin_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>

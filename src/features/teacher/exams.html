@@ -1,0 +1,10 @@
+<!-- قوالب الواجهة لموديول features/teacher/exams.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.examResultsHtml |  -->
+<p class="muted u-fs13px-m10px00">لسه مفيش طالب حل الامتحان ده.</p>
+<!-- @@ teacher.examResultsHtml_2 | attempts,avg,e,esc,fmtTs,lateStudentsHtml,pcts -->
+<div class="u-mt10px">
+    <p class="muted u-fs125px-m006px">المحاولات: ${attempts.length} · أعلى ${Math.round(Math.max(...pcts))}% · أقل ${Math.round(Math.min(...pcts))}% · المتوسط ${avg}%</p>
+    <table class="ttable">
+    <thead><tr><th>الطالب</th><th>الدرجة</th><th>النسبة</th><th>آخر محاولة</th></tr></thead>
+    <tbody>${attempts.map((a) => `<tr><td>${esc(a.studentName || "—")}</td><td>${a.score} من ${a.total}</td><td>${a.total > 0 ? Math.round((a.score / a.total) * 100) + "%" : "—"}</td><td>${a.updatedAt ? fmtTs(a.updatedAt) : "—"}</td></tr>`).join("")}</tbody>
+  </table>${lateStudentsHtml(e.stage, attempts, "الامتحان", e.title, e.grade)}</div>

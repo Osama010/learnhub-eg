@@ -1,0 +1,47 @@
+/* الوضع الليلي */
+/* ---------- الوضع الليلي ---------- */
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --line: #334155;
+  --primary: #14b8a6;
+  --primary-dark: #2dd4bf;
+  --primary-soft: #134e4a;
+  --blue: #60a5fa;
+  --blue-soft: #1e3a5f;
+  --amber: #fbbf24;
+  --amber-soft: #453407;
+  --red: #f87171;
+  --red-soft: #4c1d1d;
+  --green: #4ade80;
+  --green-soft: #14532d;
+  --inpbg: #0f172a;
+}
+/* كروت التنبيه الملوّنة (تدريس فاتح نهاري / تدريس داكن ليلي) */
+.tint-amber { border: 1.5px solid #fde68a; background: #fffbeb; }
+.tint-red { border: 1.5px solid #fecaca; background: #fef2f2; }
+.card-sub { background: #fff; }
+[data-theme="dark"] .tint-amber { border-color: #71600f; background: #2b2305; }
+[data-theme="dark"] .tint-red { border-color: #7f1d1d; background: #2b1111; }
+[data-theme="dark"] .card-sub { background: #243349; }
+[data-theme="dark"] .card { box-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
+[data-theme="dark"] .btn.ghost.red { border-color: #7f1d1d; }
+/* تدريس ليلي لعناصر كانت بألوان فاتحة ثابتة */
+[data-theme="dark"] { --redbg: #4c1d1d; }
+[data-theme="dark"] .chip.gray { background: #243349; }
+[data-theme="dark"] .loginwrap { background: linear-gradient(180deg, rgba(20, 184, 166, .10) 0%, var(--bg) 45%); }
+[data-theme="dark"] .sec-h { background: color-mix(in srgb, var(--sc, #14b8a6) 16%, var(--card)); }
+[data-theme="dark"] .sec-h .st .tt { color: var(--muted); }
+[data-theme="dark"] .sec-h .arr { color: var(--muted); }
+[data-theme="dark"] .sprog { color: var(--muted); }
+[data-theme="dark"] .sprog-track { background: #334155; }
+
+/* زرار تبديل الوضع في الشريط العلوي */
+.themebtn {
+  background: none; border: 1.5px solid var(--line); border-radius: 50%;
+  width: 34px; height: 34px; font-size: 14px; cursor: pointer; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; color: var(--text);
+}
+.themebtn:hover { background: var(--primary-soft); }

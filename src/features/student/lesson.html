@@ -1,0 +1,36 @@
+<!-- قوالب الواجهة لموديول features/student/lesson.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.renderStudentLesson |  -->
+<div class="spin">بنحمل الدرس...</div>
+<!-- @@ student.renderStudentLesson_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ student.renderStudentLesson_3 | closing,esc,hasP,hasV,l,linked,myStars,sAttemptFor,sQuizBlocked,sQuizBtnHtml,sTeacherName,studentTabs -->
+
+    <div class="hdr">
+      <h1>${esc(l.title || "الدرس")}</h1>
+      <div class="fact">الوحدة ${l.unit || "—"} · الدرس ${l.lessonNum || "—"}${l.subject ? " · " + esc(l.subject) : ""} · ${esc(sTeacherName(l.teacherId) || "")}</div>
+    </div>
+    ${studentTabs("lessons")}
+    <div class="btnrow u-mb10px"><a class="btn ghost" href="#/student">← رجوع لدروسي</a></div>
+    <div class="card">
+      ${hasV ? `<div data-media-video><p class="muted center">جاري تحميل الفيديو…</p></div>` : ""}
+      ${l.desc ? `<p class="muted" style="font-size:13.5px; margin-top:10px;">${esc(l.desc)}</p>` : ""}
+      ${hasP ? `<div data-media-pdf class="u-mt12px"></div>` : ""}
+      ${!hasV && !hasP ? `<p class="muted center">الدرس ده من غير وسائط لسه.</p>` : ""}
+    </div>
+    <div class="card center">
+      <b class="u-fs15px">قيّم الدرس</b>
+      <div class="btnrow" style="justify-content:center; margin-top:6px;">
+        ${[1, 2, 3, 4, 5].map((n) => `<button type="button" class="rate-star${myStars >= n ? " on" : ""}" data-star="${n}" aria-label="${n} نجوم">★</button>`).join("")}
+      </div>
+      <div class="muted u-fs12px">${myStars ? `تقييمك: ${myStars} من 5 — تقدر تغيّره` : "دوس على النجوم — تقييمك بيوصل للمدرس من غير اسمك"}</div>
+    </div>
+    ${linked.map((q) => {
+      const att = sAttemptFor(q.id, null);
+      const pct = att && att.total > 0 ? Math.round((att.score / att.total) * 100) : null;
+      return `<div class="card">
+        <h2 class="u-fs18px-mt0">${esc(q.title || "كويز الدرس")}</h2>
+        <p class="muted u-fs135px">${(q.questions || []).length} سؤال${att ? ` · نتيجتك: ${att.score} من ${att.total} (${pct}%)${sQuizBlocked(q) ? "" : " — تقدر تعيد الكويز"}` : ""}</p>
+        <div class="btnrow">${sQuizBtnHtml(q, att, "")}</div>
+      </div>`;
+    }).join("")}
+    ${closing()}

@@ -1,0 +1,35 @@
+<!-- قوالب الواجهة لموديول features/student/mistakes.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.sMistakesCardHtml | n -->
+<div class="card tint-red">
+    <div class="btnrow u-justspacebetween-flexwrap">
+      <b class="u-fs155px">🎯 عندك ${n === 1 ? "سؤال واحد غلط" : n + " أسئلة غلط"} من اختباراتك — راجعهم قبل الامتحان</b>
+      <button type="button" class="btn sm" data-gomistakes>راجع غلطاتك</button>
+    </div>
+  </div>
+<!-- @@ student.renderStudentMistakes |  -->
+<div class="spin">بنجمع غلطاتك...</div>
+<!-- @@ student.renderStudentMistakes_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ student.renderStudentMistakes_3 | closing,esc,groups,qImgHtml,sCorrectText,studentTabs,total -->
+
+    <div class="hdr"><h1>راجع غلطاتك 🎯</h1><div class="fact">الأسئلة اللي غلطت فيها من آخر محاولة لكل اختبار، ومعاها الإجابة الصحيحة</div></div>
+    ${studentTabs("quiz")}
+    <div class="btnrow u-mb10px"><a class="btn ghost" href="#/student/quizexams">← رجوع للكويزات والامتحانات</a></div>
+    ${!total ? `<div class="card center u-p30px"><b class="u-fs17px">مفيش غلطات 🎉</b><p class="muted u-mt8px">كل إجاباتك في آخر محاولاتك صح — كمّل كده!</p></div>` : groups.map((g) => `
+    <div class="card">
+      <div class="btnrow u-justspacebetween-flexwrap">
+        <b class="u-fs16px">${esc(g.item.title || "")}</b>
+        <span class="chip ${g.isExam ? "amber" : ""}">${g.isExam ? "امتحان" : "كويز"} · ${g.list.length === 1 ? "سؤال غلط واحد" : g.list.length + " أسئلة غلط"}</span>
+      </div>
+      <div style="display:grid; gap:10px; margin-top:12px;">
+        ${g.list.map((m) => `<div class="card card-sub u-m0">
+          <b class="u-fs145px">س${m.idx + 1}: ${esc(m.q.q || "")}</b>
+          ${qImgHtml(m.q)}
+          <div style="font-size:13.5px; margin-top:6px; color:var(--green); font-weight:700;">✅ الإجابة الصحيحة: ${esc(sCorrectText(m.q))}</div>
+        </div>`).join("")}
+      </div>
+      <div class="btnrow u-mt12px">
+        <a class="btn sm ghost" href="#/student/${g.isExam ? "exam" : "quiz"}/${g.item.id}">افتح ${g.isExam ? "الامتحان" : "الكويز"} تاني</a>
+      </div>
+    </div>`).join("")}
+    ${closing()}

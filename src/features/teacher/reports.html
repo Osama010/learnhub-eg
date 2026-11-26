@@ -1,0 +1,79 @@
+<!-- قوالب الواجهة لموديول features/teacher/reports.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.teacherPrintReport | escP,fbProfile,rep -->
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${escP(rep.title)}</title>
+  <style>
+    body { font-family: "Cairo", "Segoe UI", Tahoma, sans-serif; direction: rtl; padding: 24px; color: #1e293b; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .meta { color: #64748b; font-size: 12.5px; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #cbd5e1; padding: 7px 10px; text-align: right; }
+    th { background: #f1f5f9; }
+    .foot { margin-top: 18px; color: #64748b; font-size: 12px; text-align: center; }
+    @media print { body { padding: 0; } }
+  </style></head><body>
+  <h1>${escP(rep.title)} — منصة learnhub-eg</h1>
+  <div class="meta">المدرس: ${escP((fbProfile && fbProfile.name) || "")} · تاريخ التقرير: ${escP(new Date().toLocaleString("ar-EG"))} · عدد السجلات: ${rep.rows.length}${rep.summary ? " · " + escP(rep.summary) : ""}</div>
+  <table><thead><tr>${rep.columns.map((cl) => `<th>${escP(cl)}</th>`).join("")}</tr></thead>
+  <tbody>${rep.rows.map((r) => `<tr>${r.cells.map((cl) => `<td>${escP(cl)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+  <div class="foot">فكرة وإعداد: مهندس اسامه حسن عسس</div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+  </body></html>
+<!-- @@ teacher.teacherExportReport | escP,rep,rows -->
+<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>
+      <table border="1"><thead><tr>${rep.columns.map((cl) => `<th>${escP(cl)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((r) => `<tr>${r.map((cl) => `<td>${escP(cl)}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>
+<!-- @@ teacher.renderTeacherReports |  -->
+<div class="spin">بنجهز تقاريرك...</div>
+<!-- @@ teacher.renderTeacherReports_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ teacher.renderTeacherReports_3 | STAGE_NAMES,esc,gradeOpts,myStages,trepState -->
+<select id="trf-stage" class="inp"><option value="">كل المراحل</option>
+      ${myStages.map((s) => `<option value="${esc(s)}" ${trepState.stage === s ? "selected" : ""}>${esc(STAGE_NAMES[s] || s)}</option>`).join("")}</select>
+      <select id="trf-grade" class="inp"><option value="">كل الصفوف</option>
+      ${gradeOpts.map((g) => `<option value="${esc(g)}" ${trepState.grade === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>
+<!-- @@ teacher.renderTeacherReports_4 | STAGE_NAMES,esc,gradesOfStage,myStages,stSel,trepState -->
+<select id="trf-stage" class="inp">
+      ${myStages.map((s) => `<option value="${esc(s)}" ${stSel === s ? "selected" : ""}>${esc(STAGE_NAMES[s] || s)}</option>`).join("")}</select>
+      <select id="trf-grade" class="inp"><option value="">كل صفوف المرحلة</option>
+      ${gradesOfStage(stSel).map((g) => `<option value="${esc(g)}" ${trepState.grade === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>
+<!-- @@ teacher.renderTeacherReports_5 | STAGE_NAMES,esc,sel,teacherQuizzes -->
+<select id="trf-quiz" class="inp">
+      ${teacherQuizzes.map((q) => `<option value="${q.id}" ${sel === q.id ? "selected" : ""}>${esc(STAGE_NAMES[q.stage] || q.stage || "")} — ${esc(q.title)}</option>`).join("")}</select>
+<!-- @@ teacher.renderTeacherReports_6 | TREP_TYPES,closing,esc,filtersHtml,rep,teacherTabs,trepState -->
+
+    <div class="hdr">
+      <h1>التقارير 📊</h1>
+    </div>
+    ${teacherTabs("reports")}
+    <div class="tabs">${TREP_TYPES.map(([v, lbl]) => `<button type="button" class="tab ${trepState.type === v ? "active" : ""}" data-trt="${v}">${lbl}</button>`).join("")}</div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">${rep.title} (${rep.rows.length})</h2>
+      ${rep.summary ? `<p class="muted u-fs135px">${esc(rep.summary)}</p>` : ""}
+      ${filtersHtml ? `<div class="filterrow">${filtersHtml}</div>` : ""}
+      <div class="btnrow u-mb12px">
+        <button type="button" class="btn" id="trp-print">🖨️ طباعة / PDF</button>
+        <button type="button" class="btn ghost" id="trp-csv">تصدير CSV</button>
+        <button type="button" class="btn ghost" id="trp-xls">تصدير Excel</button>
+      </div>
+      <div class="u-overauto">
+      <table class="ttable">
+        <thead><tr>${rep.columns.map((cl) => `<th>${cl}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${rep.rows.length ? rep.rows.map((r) => `<tr>${r.cells.map((cl, ci) => `<td>${ci === 0 && r.sid ? `<a href="javascript:void(0)" data-spop="${r.sid}" class="u-cvarprimarydark-fw700">${esc(cl)}</a>` : esc(cl)}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${rep.columns.length}" class="center muted">مفيش بيانات لسه</td></tr>`}
+        </tbody>
+      </table>
+      </div>
+      ${rep.extraColumns ? `
+      <h2 style="font-size:17px; margin:18px 0 6px;">🧩 ${esc(rep.extraTitle || "")}</h2>
+      ${rep.extraNote ? `<p class="muted u-fs125px-mt0">${esc(rep.extraNote)}</p>` : ""}
+      <div class="u-overauto">
+      <table class="ttable">
+        <thead><tr>${rep.extraColumns.map((cl) => `<th>${cl}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${(rep.extraRows || []).length ? rep.extraRows.map((r) => `<tr>${r.cells.map((cl) => `<td>${esc(cl)}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${rep.extraColumns.length}" class="center muted">${esc(rep.extraEmpty || "مفيش بيانات لسه")}</td></tr>`}
+        </tbody>
+      </table>
+      </div>` : ""}
+      <p class="muted u-fs125px">الطباعة والتصدير بيطلعوا اللي قدامك بالفلاتر الحالية. اضغط على اسم أي طالب لعرض بياناته كاملة.</p>
+    </div>
+    ${closing()}

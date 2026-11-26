@@ -1,0 +1,28 @@
+<!-- قوالب الواجهة لموديول features/student/shell.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.t | active,h,id,lbl -->
+<button type="button" class="tab ${active === id ? "active" : ""}" data-sh="${h}">${lbl}</button>
+<!-- @@ student.studentTabs | t -->
+<div class="tabs">${t("lessons", "#/student", "دروسي")}${t("quiz", "#/student/quizexams", "الكويزات والامتحانات")}${t("upcoming", "#/student/upcoming", "القادم")}${t("library", "#/student/library", "المكتبة")}${t("ann", "#/student/ann", "الإعلانات")}${t("grades", "#/student/grades", "درجاتي")}${t("analytics", "#/student/analytics", "تحليلي 📈")}</div>
+<!-- @@ student.sTeacherChip | t -->
+<img src="${t.avatar}" alt="" style="width:22px; height:22px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-left:4px; border:1.5px solid var(--primary-soft);">
+<!-- @@ student.sSubjProgressHtml | col,pct,qz,qzDone,sLessonsCountText,total,watched -->
+<div class="sprog" style="grid-column:1/-1;">
+    <span>شوفت ${watched} من ${sLessonsCountText(total)}</span>
+    <span class="sprog-track"><span class="sprog-fill" style="width:${pct}%; background:${col[0]};"></span></span>
+    ${qz.length ? `<span>· خلصت ${qzDone} من ${qz.length} كويز</span>` : ""}
+  </div>
+<!-- @@ student.sQuizBtnHtml |  -->
+<span class="chip">✅ اتحل — محاولة واحدة</span>
+<!-- @@ student.sQuizBtnHtml_2 | att,btnCls,q -->
+<button type="button" class="btn ${btnCls || "sm"}" data-sq="${q.id}">${att ? "إعادة الكويز" : "ابدأ الكويز"}</button>
+<!-- @@ student.sReminderHtml | lines -->
+<div class="card lcard" style="border-right:4px solid #d97706;"><b>⏰ تذكير سريع</b>
+    <div class="muted u-fs13px-mt4px">${lines.join("<br>")}</div>
+  </div>
+<!-- @@ student.sUnavailable | closing,esc,msg -->
+
+    <div class="card center" style="max-width:520px; margin:40px auto;">
+      <h1 class="u-fs20px">${esc(msg)}</h1>
+      <div class="btnrow u-justcenter"><a class="btn ghost" href="#/student">رجوع لدروسي</a></div>
+    </div>
+    ${closing()}

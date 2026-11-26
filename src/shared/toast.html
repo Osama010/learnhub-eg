@@ -1,0 +1,7 @@
+<!-- قوالب الواجهة لموديول shared/toast.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.showToast | icon,type -->
+<div class="toastcard ${type === "good" ? "good" : "bad"}">
+    <div class="ticon">${icon}</div>
+    <div class="tmsg"></div>
+    <button type="button" class="btn" style="min-width:120px;">تمام</button>
+  </div>

@@ -1,0 +1,33 @@
+<!-- قوالب الواجهة لموديول features/student/grades.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.renderStudentGrades |  -->
+<div class="spin">بنحمل درجاتك...</div>
+<!-- @@ student.renderStudentGrades_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ student.renderStudentGrades_3 | atts,avg,closing,esc,fbProfile,fmtTs,nameFor,studentTabs -->
+
+    <div class="hdr">
+      <h1>درجاتي 📊</h1>
+      <div class="fact">${esc((fbProfile && fbProfile.grade) || "")}</div>
+    </div>
+    ${studentTabs("grades")}
+    <div class="statcards">
+      <div class="statcard"><div class="num">${atts.length}</div><div class="lbl">اختبار حليته</div></div>
+      <div class="statcard"><div class="num">${avg !== null ? avg + "%" : "—"}</div><div class="lbl">متوسط درجاتك</div></div>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">سجل الكويزات والامتحانات</h2>
+      ${atts.length ? `<div class="u-overauto"><table class="ttable">
+        <thead><tr><th>الاختبار</th><th>النوع</th><th>الدرجة</th><th>النسبة</th><th>آخر محاولة</th></tr></thead>
+        <tbody>${atts.map((a) => {
+          const pct = a.total > 0 ? Math.round((a.score / a.total) * 100) : 0;
+          return `<tr>
+            <td>${esc(nameFor(a))}</td>
+            <td>${a.examId ? "امتحان" : "كويز"}</td>
+            <td>${a.score} من ${a.total}</td>
+            <td><span class="chip ${pct >= 85 ? "green" : pct >= 50 ? "amber" : "red"}">${pct}%</span></td>
+            <td>${a.updatedAt ? fmtTs(a.updatedAt) : "—"}</td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table></div>` : `<p class="muted center">لسه ما حليتش أي كويز أو امتحان. ابدأ من تاب "الكويزات والامتحانات".</p>`}
+    </div>
+    ${closing()}

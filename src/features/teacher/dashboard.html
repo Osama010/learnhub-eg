@@ -1,0 +1,179 @@
+<!-- قوالب الواجهة لموديول features/teacher/dashboard.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.teacherTabs | active -->
+<div class="tabs">
+    <button type="button" class="tab ${active === "students" ? "active" : ""}" data-g="#/teacher">طلابي</button>
+    <button type="button" class="tab ${active === "lessons" ? "active" : ""}" data-g="#/teacher/lessons">الدروس والكويزات</button>
+    <button type="button" class="tab ${active === "ann" ? "active" : ""}" data-g="#/teacher/announcements">الإعلانات</button>
+    <button type="button" class="tab ${active === "analytics" ? "active" : ""}" data-g="#/teacher/analytics">التحليل 📊</button>
+    <button type="button" class="tab ${active === "reports" ? "active" : ""}" data-g="#/teacher/reports">التقارير</button>
+  </div>
+<!-- @@ teacher.honorBoardCard | esc,g,medalStyle,pts,tAvatarHtml,top -->
+<h3 class="u-fs15px-m12px04px">${esc(g)}</h3>
+      ${top.map((s, i) => `<div class="btnrow" style="justify-content:space-between; padding:6px 4px; border-bottom:1px solid var(--border, #e2e8f0);">
+        <span class="u-fs14px"><span style="display:inline-block; min-width:24px; height:24px; line-height:24px; border-radius:50%; text-align:center; font-size:13px; font-weight:700; margin-left:6px; ${medalStyle(i)}">${i + 1}</span>${tAvatarHtml(s)} ${esc(s.name)}</span>
+        <b style="font-size:14px; color:var(--primary-dark);">${pts[s.id]} نقطة</b>
+      </div>`).join("")}
+<!-- @@ teacher.honorBoardCard_2 | sections -->
+<div class="card u-bord4pxsolidvaramberf59e0b">
+    <h2 class="u-fs18px-mt0">🏆 لوحة الشرف — أوائل الأسبوع</h2>
+    <p class="muted u-fs125px-mt0">النقاط بتتجمع من مشاهدة الدروس (10) ونجاح الكويزات (20)، وبتتصفر كل جمعة. الترتيب بين طلاب نفس الصف بس.</p>
+    ${sections}
+  </div>
+<!-- @@ teacher.tLessonRatingHtml | r -->
+<div class="muted u-fs12px-m4px0">⭐ ${r.avg} من 5 (${r.count} ${r.count === 1 ? "تقييم" : "تقييمات"})</div>
+<!-- @@ teacher.tAvatarHtml | s,size -->
+<img src="${s.avatar}" alt="" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; display:inline-block; vertical-align:middle; margin-left:6px; border:2px solid var(--primary-soft);">
+<!-- @@ teacher.tAvatarHtml_2 | esc,nm,size -->
+<span style="width:${size}px; height:${size}px; border-radius:50%; background:var(--primary); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; vertical-align:middle; margin-left:6px;">${esc(nm ? nm[0] : "؟")}</span>
+<!-- @@ teacher.renderTeacherDash |  -->
+<div class="spin">بنحمل طلابك...</div>
+<!-- @@ teacher.renderTeacherDash_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ teacher.renderTeacherDash_3 | aboutTeaserHtml,addReqs,approved,bcData,broadcastBannerHtml,closing,dashGradeFilter,esc,fbProfile,fbUser,gradesOfStage,honorBoardCard,pending,stageOfGrade,studentQuizAvg,subFmtDate,subInfo,tAvatarHtml,teacherTabs,waLink,weekActs -->
+
+    <div class="hdr">
+      <h1>أهلاً ${esc(fbProfile ? fbProfile.name : "بيك")} 👋</h1>
+    </div>
+    ${broadcastBannerHtml(bcData, "teacher")}
+    ${(() => {
+      // تنبيه قرب انتهاء الاشتراك (آخر 15 يوم) — التجديد بيتم من الأدمن
+      const si = subInfo(fbProfile || {});
+      if (si.status !== "expiring") return "";
+      return `<div class="card tint-amber u-bord4pxsolidvaramber">
+        <b>⏳ اشتراكك قرب ينتهي</b>
+        <div style="font-size:14px; margin-top:4px;">اشتراكك (${si.label}) بينتهي في <b class="ltr">${subFmtDate(si.end)}</b> — فاضل <b>${si.daysLeft} يوم</b>. جدّد مع الأدمن قبل الانتهاء عشان حسابك ومحتواك ميفصلش.</div>
+      </div>`;
+    })()}
+    ${teacherTabs("students")}
+    ${(fbProfile && (fbProfile.stages || []).length) ? `
+    <div class="statcards">
+      ${(fbProfile.stages).map((st) => {
+        const icons = { "ابتدائي": "🎒", "إعدادي": "📗", "ثانوي": "🎓" };
+        const names = { "ابتدائي": "الابتدائية", "إعدادي": "الإعدادية", "ثانوي": "الثانوية" };
+        const count = approved.filter((s) => stageOfGrade(s.grade) === st).length;
+        const gradeCounts = gradesOfStage(st).map((g) => {
+          const c = approved.filter((s) => s.grade === g).length;
+          return c ? `${g.replace("الصف ", "")}: ${c}` : "";
+        }).filter(Boolean).join(" · ");
+        return `<div class="statcard u-curpointer" data-glink="#/teacher/lessons/${encodeURIComponent(st)}" title="اضغط لعرض دروس المرحلة"><div class="u-fs26px">${icons[st] || "📚"}</div><div class="lbl">المرحلة ${names[st] || st}</div><div class="num u-fs20px">${count} طالب</div><div class="muted u-fs12px">${gradeCounts || "—"}</div></div>`;
+      }).join("")}
+    </div>` : ""}
+    <div class="statcards">
+      <div class="statcard"><div class="num">${approved.length}</div><div class="lbl">طلابك</div></div>
+      <div class="statcard"><div class="num">${pending.length}</div><div class="lbl">طلبات جديدة</div></div>
+    </div>
+    ${honorBoardCard(approved, weekActs)}
+    ${addReqs.length ? `
+    <div class="card u-bord4pxsolidvaramber">
+      <h2 class="u-fs18px-mt0">🙋 طلبات طلاب عاوزين يضيفوك (${addReqs.length})</h2>
+      <p class="muted u-fs125px-m006px">دول طلاب عندهم حساب على المنصة مع مدرس تاني وطلبوا يكونوا معاك. لما توافق بيظهر لهم محتواك.</p>
+      ${addReqs.map((r) => `<div class="btnrow u-justspacebetween-bord1pxsolidvarline-p8px0">
+        <span><b>${esc(r.studentName || "طالب")}</b> <span class="muted u-fs125px">${esc(r.grade || "")}</span></span>
+        <span><button type="button" class="btn sm" data-req-ok="${esc(r.id)}">قبول</button> <button type="button" class="btn sm red" data-req-no="${esc(r.id)}">رفض</button></span>
+      </div>`).join("")}
+    </div>` : ""}
+    ${pending.length ? `
+    <div class="card">
+      <h2 class="u-fs18px-mt0">طلبات تسجيل جديدة (${pending.length})</h2>
+      <table class="ttable resp">
+        <thead><tr><th>الاسم</th><th>السنة</th><th>الموبايل</th><th>ولي الأمر</th><th>الإيميل</th><th>إجراءات</th></tr></thead>
+        <tbody>
+          ${pending.map((s) => `<tr>
+            <td data-h="الاسم">${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" class="u-cvarprimarydark-fw700">${esc(s.name)}</a></td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="الموبايل">${esc(s.phone)}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td><td class="ltr" data-h="الإيميل">${esc(s.email)}</td>
+            <td>
+              <div class="btnrow">
+                <button type="button" class="btn sm" data-ok="${s.id}">قبول</button>
+                <button type="button" class="btn sm red" data-no="${s.id}">رفض</button>
+              </div>
+            </td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>` : ""}
+    <div class="card">
+      <div class="btnrow u-justspacebetween-aligcenter">
+        <h2 class="u-fs18px-mt0">طلابك${dashGradeFilter ? " — " + esc(dashGradeFilter) : ""} (${dashGradeFilter ? approved.filter((s) => s.grade === dashGradeFilter).length : approved.length})</h2>
+        <a class="btn sm ghost" href="#/teacher/transfer" title="صفحة منفصلة لنقل دفعة من طلابك لصف تاني">📦 نقل جماعي بين الصفوف</a>
+      </div>
+      ${((fbProfile && fbProfile.stages) || []).length ? `<div class="btnrow u-mb10px">
+        <button type="button" class="btn sm ${!dashGradeFilter ? "" : "ghost"}" data-dgf="">كل الصفوف</button>
+        ${[...new Set(((fbProfile && fbProfile.stages) || []).flatMap((st) => gradesOfStage(st)))].map((g) => `<button type="button" class="btn sm ${dashGradeFilter === g ? "" : "ghost"}" data-dgf="${esc(g)}">${esc(g.replace("الصف ", ""))}</button>`).join("")}
+      </div>` : ""}
+      <table class="ttable resp">
+        <thead><tr><th>الاسم</th><th>السنة</th><th>ولي الأمر</th><th>تقدمه</th><th>إجراءات</th></tr></thead>
+        <tbody>
+          ${approved.length ? approved.filter((s) => !dashGradeFilter || s.grade === dashGradeFilter).map((s) => {
+            const avg = studentQuizAvg(s.id);
+            const prog = avg !== null ? avg + "%" : ((s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0) + "%";
+            const sus = ((s.suspendedBy || []).indexOf(fbUser.uid) !== -1);
+            return `<tr>
+              <td data-h="الاسم">${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" class="u-cvarprimarydark-fw700">${esc(s.name)}</a>${sus ? ` <span class="chip red">⛔ موقوف عن محتواك</span>` : ""}</td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td><td data-h="تقدمه">${prog}</td>
+              <td>
+                <div class="btnrow">
+                  <a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك مدرسك من منصة الدروس.")}">واتساب</a>
+                  <button type="button" class="btn sm ghost" data-snotes="${s.id}">📝 ملاحظات</button>
+                  <button type="button" class="btn sm ghost" data-rs="${s.id}">إعادة ضبط الباسورد</button>
+                  ${sus ? `<button type="button" class="btn sm" data-us="${s.id}">▶️ إلغاء الإيقاف</button>` : `<button type="button" class="btn sm ghost" data-ss="${s.id}">⛔ إيقاف مؤقت</button>`}
+                  <button type="button" class="btn sm red" data-dl="${s.id}">حذف نهائي</button>
+                </div>
+              </td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="5" class="center muted">لسه مفيش طلاب مقبولين</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+    ${aboutTeaserHtml()}
+    ${closing()}
+<!-- @@ teacher.teacherShowStudent | GRADES,attempts,avg,esc,fmtTs,s,stageOfGrade,teacherExams,teacherLessons,teacherQuizzes,waLink -->
+<div class="detailcard" style="max-height:85vh; overflow-y:auto;">
+    <h3>${esc(s.name)}</h3>
+    <div class="drow"><span class="dl">الإيميل</span><span class="dv ltr">${esc(s.email || "—")}</span></div>
+    <div class="drow"><span class="dl">الموبايل (واتساب)</span><span class="dv ltr">${esc(s.phone || "—")}</span></div>
+    <div class="drow"><span class="dl">موبايل ولي الأمر</span><span class="dv ltr">${esc(s.parentPhone || "غير مسجل")}</span></div>
+    <div class="drow"><span class="dl">السنة الدراسية</span><span class="dv">${esc(s.grade || "—")}</span></div>
+    <div class="drow"><span class="dl">المرحلة</span><span class="dv">${esc(stageOfGrade(s.grade) || "—")}</span></div>
+    <div class="drow"><span class="dl">الحالة</span><span class="dv">${s.status === "approved" ? "مقبول" : s.status === "rejected" ? "مرفوض" : "تحت المراجعة"}</span></div>
+    <div class="drow"><span class="dl">حساب الدخول</span><span class="dv">${s.authLinked ? "اتعمل" : "لسه مدخلش"}</span></div>
+    <div class="drow"><span class="dl">تاريخ التسجيل</span><span class="dv">${fmtTs(s.createdAt)}</span></div>
+    <div class="drow"><span class="dl">متوسط الدرجات</span><span class="dv">${avg !== null ? avg + "%" : "—"}</span></div>
+    <div class="btnrow u-justcenter-mt12px">
+      ${s.phone ? `<a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك مدرسك من منصة الدروس.")}">واتساب الطالب</a>` : ""}
+      ${s.parentPhone ? `<a class="btn sm green" target="_blank" href="${waLink(s.parentPhone, "أهلاً بحضرتك، معاك مدرس " + s.name + " من منصة الدروس.")}">واتساب ولي الأمر</a>` : ""}
+    </div>
+    <div class="u-mt14px-bord1pxsolidvarborder-pt10px">
+      <b class="u-fs14px">تعديل رقم ولي الأمر</b>
+      <div class="btnrow u-mt6px">
+        <input id="pp-edit" type="tel" class="inp ltr u-fl1" placeholder="01xxxxxxxxx" value="${esc(s.parentPhone || "")}">
+        <button type="button" class="btn sm" id="pp-save">حفظ</button>
+      </div>
+      <p class="msg u-m4px00" id="pp-msg"></p>
+    </div>
+    <div class="u-mt14px-bord1pxsolidvarborder-pt10px">
+      <b class="u-fs14px">تصحيح الصف الدراسي</b>
+      <div class="btnrow u-mt6px">
+        <select id="gr-edit" class="inp u-fl1">${GRADES.map((g) => `<option ${s.grade === g ? "selected" : ""}>${g}</option>`).join("")}</select>
+        <button type="button" class="btn sm" id="gr-save">حفظ</button>
+      </div>
+      <p class="msg u-m4px00" id="gr-msg"></p>
+    </div>
+    <div class="u-mt14px-bord1pxsolidvarborder-pt10px">
+      <b class="u-fs14px">سجل الكويزات والامتحانات (${attempts.length})</b>
+      ${attempts.length ? `<table class="ttable u-mt8px">
+        <thead><tr><th>الاختبار</th><th>النوع</th><th>الدرجة</th><th>النسبة</th><th>آخر محاولة</th></tr></thead>
+        <tbody>${attempts.map((a) => {
+          const kind = a.examId ? "امتحان" : "كويز";
+          const name = a.examId
+            ? ((teacherExams.find((e) => e.id === a.examId) || {}).title || "امتحان محذوف")
+            : a.quizId
+            ? ((teacherQuizzes.find((q) => q.id === a.quizId) || {}).title || "كويز محذوف")
+            : ((teacherLessons.find((l) => l.id === a.lessonId) || {}).title || "كويز درس محذوف");
+          const pct = a.total > 0 ? Math.round((a.score / a.total) * 100) + "%" : "—";
+          return `<tr><td>${esc(name)}</td><td>${kind}</td><td>${a.score} من ${a.total}</td><td>${pct}</td><td>${a.updatedAt ? fmtTs(a.updatedAt) : "—"}</td></tr>`;
+        }).join("")}</tbody></table>` : `<p class="muted" style="font-size:13px; margin:6px 0 0;">لسه ما حلش أي اختبار.</p>`}
+    </div>
+    <div class="btnrow u-justcenter-mt14px"><button type="button" class="btn ghost" id="ov-close">إغلاق</button></div>
+  </div>
+<!-- @@ teacher.renderTeacherTransfer |  -->
+<div class="spin">بنحمل طلابك...</div>
+<!-- @@ teacher.renderTeacherTransfer_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>

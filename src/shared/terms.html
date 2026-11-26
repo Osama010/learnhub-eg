@@ -1,0 +1,10 @@
+<!-- قوالب الواجهة لموديول shared/terms.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.termTabsHtml | active -->
+<div class="tabs u-mb10px">
+    <button type="button" class="tab ${active === 1 ? "active" : ""}" data-term="1">📘 الترم الأول</button>
+    <button type="button" class="tab ${active === 2 ? "active" : ""}" data-term="2">📗 الترم الثاني</button>
+  </div>
+<!-- @@ app.termRoChip |  -->
+<span class="chip gray">🔒 ترم منتهي — قراءة بس</span>
+<!-- @@ app.openConfirmOverlay | innerHtml -->
+<div class="detailcard">${innerHtml}</div>

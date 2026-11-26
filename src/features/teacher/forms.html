@@ -1,0 +1,111 @@
+<!-- قوالب الواجهة لموديول features/teacher/forms.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.renderLessonFormPage | STAGE_NAMES,closing,editing,esc,gradeSelectHtml,lessonForm,stage,subject,teacherTabs,termPickerHtml -->
+
+    <div class="hdr">
+      <h1>${editing ? "تعديل الدرس" : "إضافة درس جديد"} — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}</h1>
+      <div class="fact">مادة ${esc(subject || "—")}</div>
+    </div>
+    ${teacherTabs("lessons")}
+    <div class="btnrow u-mb10px"><button type="button" class="btn ghost" id="lf-back">← رجوع للدروس</button></div>
+    <div class="card">
+      ${termPickerHtml(lessonForm)}
+      <div class="fgrid">
+        <div><label class="flabel">الوحدة رقم</label><input id="ls-unit" type="number" min="1" step="1" class="inp" placeholder="مثال: 1" value="${esc(String(lessonForm.unit))}"></div>
+        <div><label class="flabel">الدرس رقم</label><input id="ls-num" type="number" min="1" step="1" class="inp" placeholder="مثال: 2" value="${esc(String(lessonForm.lessonNum))}"></div>
+      </div>
+      <label class="flabel">عنوان الدرس</label>
+      <input id="ls-title" type="text" class="inp" placeholder="مثال: البرمجة بلغة بايثون" value="${esc(lessonForm.title)}">
+      <label class="flabel">الصف (اختياري)</label>
+      ${gradeSelectHtml("ls-grade", stage, lessonForm.grade || "")}
+      <p class="muted u-fs125px-mt2px">سيبه "كل صفوف المرحلة" لو الدرس لكل طلاب المرحلة، أو اختار صف معين لو الدرس موجه ليه بس.</p>
+      <div class="fgrid">
+        <div><label class="flabel">رابط الفيديو (يوتيوب أو جوجل درايف)</label><input id="ls-video" type="url" class="inp ltr" placeholder="https://youtube.com/watch?v=... أو https://drive.google.com/file/d/..." value="${esc(lessonForm.videoUrl)}"></div>
+        <div><label class="flabel">ملف PDF</label>
+          <div class="btnrow u-m4px0">
+            <label class="u-fs13px"><input type="radio" name="ls-pdfmode" value="file" ${lessonForm.pdfMode !== "link" ? "checked" : ""}> رفع ملف</label>
+            <label class="u-fs13px"><input type="radio" name="ls-pdfmode" value="link" ${lessonForm.pdfMode === "link" ? "checked" : ""}> رابط درايف</label>
+          </div>
+          ${lessonForm.pdfMode === "link"
+            ? `<input id="ls-pdf" type="url" class="inp ltr" placeholder="https://drive.google.com/..." value="${esc(lessonForm.pdfUrl)}">`
+            : `<input id="ls-pdffile" type="file" accept="application/pdf,.pdf" class="inp">${lessonForm.pdfMeta && !lessonForm.pdfFile ? `<div class="muted u-fs125px">الملف الحالي: ${esc(lessonForm.pdfMeta.name || "PDF")} — اختار ملف جديد لو عايز تبدله.</div>` : ""}<div class="muted u-fs12px">أقصى حجم 10 ميجا.</div>`}
+        </div>
+      </div>
+      <p class="muted u-fs125px-mt2px">فيديو درايف لازم يكون متشارك: من جوجل درايف ← كليك يمين على الملف ← مشاركة ← "أي شخص لديه الرابط". فيديو يوتيوب بيشتغل على طول.</p>
+      <div><label class="flabel">🕒 موعد النشر (اختياري)</label><input id="ls-pub" type="datetime-local" class="inp ltr" value="${esc(lessonForm.publishAt || "")}"></div>
+      <p class="muted u-fs125px-mt2px">سيبه فاضي عشان الدرس ينشر فورا. لو حددت معاد، الدرس يتسجل كـ"مجدول" وتظهر عليه شارة — إظهاره للطالب في المعاد هيتفعل مع واجهة الطالب لما تجهز.</p>
+      <label class="flabel">وصف الدرس (اختياري — يظهر على كارت الدرس)</label>
+      <textarea id="ls-desc" class="inp" rows="2" placeholder="مثال: في الدرس ده هنتعلم أساسيات لغة بايثون ونكتب أول برنامج">${esc(lessonForm.desc)}</textarea>
+      <div class="btnrow">
+        <button type="button" class="btn" id="ls-save">${editing ? "حفظ التعديلات" : "إضافة الدرس"}</button>
+        <button type="button" class="btn ghost" id="ls-cancel">إلغاء</button>
+      </div>
+      <p id="ls-msg" class="msg"></p>
+      <p class="muted u-fs125px">الكويزات بقت لوحدها في تاب "الكويزات والامتحانات" — من هناك تقدر تضيف كويز وترابطه بالدرس ده. الدرس بيظهر لطلابك المقبولين بس. الفيديو يفضل على يوتيوب أو درايف والـPDF على درايف — المنصة بتعرضهم بس.</p>
+    </div>
+    ${closing()}
+<!-- @@ teacher.renderQuizFormPage | STAGE_NAMES,closing,editing,esc,gradeSelectHtml,quizBuilderHtml,quizForm,stage,stageLessons,subject,teacherTabs,termPickerHtml -->
+
+    <div class="hdr">
+      <h1>${editing ? "تعديل الكويز" : "إضافة كويز جديد"} — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}</h1>
+      <div class="fact">مادة ${esc(subject || "—")}</div>
+    </div>
+    ${teacherTabs("lessons")}
+    <div class="btnrow u-mb10px"><button type="button" class="btn ghost" id="qf-back">← رجوع للكويزات والامتحانات</button></div>
+    <div class="card">
+      ${termPickerHtml(quizForm)}
+      <label class="flabel">عنوان الكويز</label>
+      <input id="qz-title" type="text" class="inp" placeholder="مثال: كويز الوحدة الأولى" value="${esc(quizForm.title)}">
+      <label class="flabel">الصف (اختياري)</label>
+      ${gradeSelectHtml("qz-grade", stage, quizForm.grade || "")}
+      <label class="flabel">ربط بدرس (اختياري)</label>
+      <select id="qz-lesson" class="inp">
+        <option value="">كويز عام — مش مرتبط بدرس</option>
+        ${stageLessons.map((l) => `<option value="${l.id}" ${quizForm.lessonId === l.id ? "selected" : ""}>الوحدة ${l.unit || "؟"} · الدرس ${l.lessonNum || "؟"} — ${esc(l.title)}</option>`).join("")}
+      </select>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:14px; font-weight:700; cursor:pointer;">
+        <input type="checkbox" id="qz-oneattempt" ${quizForm.oneAttempt ? "checked" : ""} style="width:18px; height:18px;">
+        محاولة واحدة بس للطالب — ميعرفش يعيد الكويز بعد ما يحله
+      </label>
+      <h3 class="u-fs16px-m14px08px">أسئلة الكويز</h3>
+      <div id="qz-quiz">${quizBuilderHtml("q", quizForm.quiz)}</div>
+      <div class="btnrow">
+        <button type="button" class="btn ghost" id="qz-addq">+ إضافة سؤال</button>
+        <button type="button" class="btn ghost" id="qz-bank">📚 إضافة من بنك الأسئلة</button>
+        <button type="button" class="btn" id="qz-save">${editing ? "حفظ التعديلات" : "إضافة الكويز"}</button>
+        <button type="button" class="btn ghost" id="qz-cancel">إلغاء</button>
+      </div>
+      <p id="qz-msg" class="msg"></p>
+      <p class="muted u-fs125px">الكويز مفتوح للطالب على طول — لو عايز مواعيد فتح وقفل وقفل يدوي استخدم "إضافة امتحان". بنفس أنواع الأسئلة السبعة بتاعة الكويزات العادية.</p>
+    </div>
+    ${closing()}
+<!-- @@ teacher.renderExamFormPage | STAGE_NAMES,closing,esc,examForm,gradeSelectHtml,quizBuilderHtml,stage,teacherTabs,termPickerHtml -->
+
+    <div class="hdr">
+      <h1>${examForm.id ? "تعديل الامتحان" : "إضافة امتحان جديد"} — المرحلة ${esc(STAGE_NAMES[stage] || stage || "")}</h1>
+    </div>
+    ${teacherTabs("lessons")}
+    <div class="btnrow u-mb10px"><button type="button" class="btn ghost" id="xf-back">← رجوع للكويزات والامتحانات</button></div>
+    <div class="card">
+      ${termPickerHtml(examForm)}
+      <p class="muted u-fs13px">امتحان رسمي لكل طلاب المرحلة — بنفس أنواع الأسئلة السبعة. ممكن تحدد موعد فتح وقفل أو تسيبه مفتوح على طول، وتقدر تقفله يدوي في أي وقت.</p>
+      <label class="flabel">عنوان الامتحان</label>
+      <input id="ex-title" type="text" class="inp" placeholder="مثال: امتحان شهر نوفمبر" value="${esc(examForm.title)}">
+      <label class="flabel">وصف الامتحان (اختياري)</label>
+      <textarea id="ex-desc" class="inp" rows="2" placeholder="تعليمات أو وصف قصير للطلاب">${esc(examForm.desc)}</textarea>
+      <label class="flabel">الصف (اختياري)</label>
+      ${gradeSelectHtml("ex-grade", stage, examForm.grade || "")}
+      <div class="fgrid">
+        <div><label class="flabel">موعد الفتح (اختياري)</label><input id="ex-open" type="datetime-local" class="inp ltr" value="${esc(examForm.openAt)}"></div>
+        <div><label class="flabel">موعد القفل (اختياري)</label><input id="ex-close" type="datetime-local" class="inp ltr" value="${esc(examForm.closeAt)}"></div>
+      </div>
+      <h3 class="u-fs16px-m14px08px">أسئلة الامتحان</h3>
+      <div id="ex-quiz">${quizBuilderHtml("x", examForm.quiz)}</div>
+      <div class="btnrow">
+        <button type="button" class="btn ghost" id="ex-addq">+ إضافة سؤال</button>
+      <button type="button" class="btn ghost" id="ex-bank">📚 إضافة من بنك الأسئلة</button>
+        <button type="button" class="btn" id="ex-save">${examForm.id ? "حفظ التعديلات" : "إضافة الامتحان"}</button>
+        <button type="button" class="btn ghost" id="ex-cancel">إلغاء</button>
+      </div>
+      <p id="ex-msg" class="msg"></p>
+    </div>
+    ${closing()}

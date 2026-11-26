@@ -1,0 +1,35 @@
+<!-- قوالب الواجهة لموديول features/teacher/announcements.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.renderTeacherAnnouncements |  -->
+<div class="spin">بنحمل الإعلانات...</div>
+<!-- @@ teacher.renderTeacherAnnouncements_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ teacher.renderTeacherAnnouncements_3 | STAGE_NAMES,annGradeSel,annStageSel,closing,esc,fmtTs,gradeChip,gradeSelectHtml,myStages,teacherAnn,teacherTabs -->
+
+    <div class="hdr">
+      <h1>الإعلانات 📢</h1>
+    </div>
+    ${teacherTabs("ann")}
+    <div class="card">
+      <h2 class="u-fs18px-mt0">إعلان جديد</h2>
+      <div class="fgrid">
+        <div><label class="flabel">المرحلة</label><select id="an-stage" class="inp">
+          ${myStages.map((st) => `<option value="${esc(st)}" ${annStageSel === st ? "selected" : ""}>المرحلة ${esc(STAGE_NAMES[st] || st)}</option>`).join("")}
+        </select></div>
+        <div><label class="flabel">الصف (اختياري)</label>${gradeSelectHtml("an-grade", annStageSel, annGradeSel)}</div>
+      </div>
+      <label class="flabel">نص الإعلان</label>
+      <textarea id="an-text" class="inp" rows="3" placeholder="مثال: مراجعة الوحدة الأولى يوم الخميس الساعة 5"></textarea>
+      <button type="button" class="btn" id="an-send">نشر الإعلان</button>
+      <p id="an-msg" class="msg"></p>
+      <p class="muted u-fs125px-mt6px">الإعلان بيوصل لكل طلابك المقبولين في المرحلة المختارة — ولو اخترت صف، للصف ده بس. عرض الإعلان عند الطالب هيتفعل مع واجهة الطالب لما تجهز — دلوقتي بيتحفظ وبيطلع في قائمتك تحت.</p>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">الإعلانات السابقة (${teacherAnn.length})</h2>
+      ${teacherAnn.length ? teacherAnn.map((a) => `
+      <div class="card u-m0010px">
+        <div class="btnrow u-justspacebetween"><b class="u-fs15px">${esc(a.text || "")}</b><span class="btnrow u-m0"><span class="chip">المرحلة ${esc(STAGE_NAMES[a.stage] || a.stage || "")}</span>${gradeChip(a.grade)}</span></div>
+        <div class="muted u-fs12px-m4px0">${a.createdAt ? fmtTs(a.createdAt) : ""}</div>
+        <div class="btnrow"><button type="button" class="btn sm red" data-adel="${a.id}">حذف</button></div>
+      </div>`).join("") : `<p class="muted center">لسه مفيش إعلانات — اكتب أول إعلان فوق.</p>`}
+    </div>
+    ${closing()}

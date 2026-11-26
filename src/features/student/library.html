@@ -1,0 +1,21 @@
+<!-- قوالب الواجهة لموديول features/student/library.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.sLibraryCard | emb,esc,it -->
+<div class="card u-m0">
+    <div class="btnrow u-justspacebetween-flexwrap">
+      <b class="u-fs155px">${esc(it.title || "")}</b>
+      ${it.subject ? `<span class="chip">${esc(it.subject)}</span>` : ""}
+    </div>
+    ${it.desc ? `<p class="muted" style="font-size:13.5px; margin:6px 0;">${esc(it.desc)}</p>` : ""}
+    ${emb ? `<div style="border-radius:14px; overflow:hidden; aspect-ratio:16/9; background:#0f172a; margin-top:8px;"><iframe src="${esc(emb.src)}" style="width:100%; height:100%; border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>` : ""}
+    ${it.pdfUrl ? `<div class="btnrow u-mt10px"><a class="btn ghost" target="_blank" rel="noopener" href="${esc(it.pdfUrl)}">📄 فتح ملف الـ PDF</a></div>` : ""}
+  </div>
+<!-- @@ student.renderStudentLibrary |  -->
+<div class="spin">بنحمل المكتبة...</div>
+<!-- @@ student.renderStudentLibrary_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ student.renderStudentLibrary_3 | closing,items,sLibraryCard,studentTabs -->
+
+    <div class="hdr"><h1>المكتبة 📚</h1><div class="fact">محتوى عام من إدارة المنصة لكل الطلبة — مراجعات ونماذج امتحانات وفيديوهات</div></div>
+    ${studentTabs("library")}
+    ${items.length ? `<div style="display:grid; gap:12px;">${items.map(sLibraryCard).join("")}</div>` : `<div class="card center u-p30px"><b class="u-fs16px">المكتبة فاضية لسه</b><p class="muted u-mt8px">أول ما الإدارة تنزل محتوى عام هيظهر هنا.</p></div>`}
+    ${closing()}

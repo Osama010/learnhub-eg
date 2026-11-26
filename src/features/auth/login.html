@@ -1,0 +1,54 @@
+<!-- قوالب الواجهة لموديول features/auth/login.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ auth.renderLogin | BASE,LOGO_FULL_SVG,PORTAL,PORTAL_INFO,closing,loginRole,pwaInstallCard,roles,themeIcon -->
+<div class="loginwrap">
+    <button type="button" class="themebtn u-posifixed-top14px-left14px-zind60" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+    <div class="hero">
+      ${LOGO_FULL_SVG}
+      <div class="u-cvarmuted-fw700-fs18px-mt2px">${PORTAL ? PORTAL_INFO[PORTAL].icon + " " + PORTAL_INFO[PORTAL].title : "منصة تعليمية متكاملة"}</div>
+      <div class="fact u-mt8px">${PORTAL ? PORTAL_INFO[PORTAL].sub : "اختار نوع حسابك وسجّل دخولك"}</div>
+    </div>
+    <div class="card logincard u-mw520px-m14pxauto0">
+      <div class="rolecards" ${PORTAL ? 'style="display:none;"' : ""}>
+        ${roles.map((r) => `
+          <button type="button" class="rolecard ${loginRole === r.id ? "active" : ""}" data-role="${r.id}">
+            <div class="ric ${r.cls}">${r.icon}</div>
+            <div class="rname">${r.name}</div>
+            <div class="rdesc">${r.desc}</div>
+          </button>`).join("")}
+      </div>
+      <div id="login-form"></div>
+      <p class="msg bad" id="login-msg"></p>
+    </div>
+    ${pwaInstallCard()}
+    <div class="center u-mt12px"><a href="${BASE || "./"}" class="u-cvarprimarydark-fw700-fs14px">← الصفحة الرئيسية</a></div>
+    ${closing()}</div>
+<!-- @@ auth.renderLoginForm |  -->
+
+      <label class="flabel">الإيميل</label>
+      <input id="li-email" type="email" class="inp ltr" placeholder="student@example.com">
+      <label class="flabel">الباسورد</label>
+      <input id="li-pass" type="password" class="inp ltr" placeholder="••••••••">
+      <button type="button" class="btn u-w100pc" id="li-btn">دخول</button>
+      <p class="muted u-fs13px-mt8px">أول مرة تدخل بعد ما المدرس قبلك؟ اكتب إيميلك والرقم السري اللي سجلت بيه، وهنخليك تختار باسوردك.</p>
+      <div class="center muted" style="margin-top:10px; border-top:1px solid var(--line); padding-top:12px;">
+        طالب جديد؟ <a href="#/register" class="u-cvarprimarydark-fw700">سجّل حسابك من هنا</a>
+      </div>
+<!-- @@ auth.renderLoginForm_2 |  -->
+
+      <label class="flabel">الإيميل</label>
+      <input id="li-email" type="email" class="inp ltr" placeholder="teacher@example.com">
+      <label class="flabel">الباسورد</label>
+      <input id="li-pass" type="password" class="inp ltr" placeholder="••••••••">
+      <button type="button" class="btn u-w100pc" id="li-btn">دخول</button>
+      <p class="muted u-fs13px-mt8px">حسابات المدرسين بيعملها الأدمن. لو نسيت الباسورد كلّم الأدمن يعملك إعادة ضبط.</p>
+<!-- @@ auth.renderLoginForm_3 |  -->
+
+      <label class="flabel">الإيميل</label>
+      <input id="li-email" type="email" class="inp ltr" placeholder="admin@gmail.com">
+      <label class="flabel">الباسورد</label>
+      <input id="li-pass" type="password" class="inp ltr" placeholder="••••••••">
+      <button type="button" class="btn u-w100pc" id="li-btn">دخول</button>
+      <div class="center" style="margin:8px 0 4px;"><a href="javascript:void(0)" id="li-forgot" style="color:var(--primary-dark); font-size:13px;">نسيت الباسورد؟</a></div>
+      <div class="center muted" style="font-size:13px; margin:6px 0;">— أو —</div>
+      <button type="button" class="btn blue u-w100pc" id="li-google">الدخول بحساب جوجل</button>
+      <p class="muted u-fs125px-mt8px">الدخول بالباسورد بيشتغل لو الأدمن ربط باسورد بحسابه من تاب المشرفين بعد دخوله بجوجل. كده محدش يقدر يعمل حساب بإيميل أدمن من عنده. وبعد أي دخول أدمن، اللوحة بتطلب رقم الأدمن السري قبل ما تفتح.</p>

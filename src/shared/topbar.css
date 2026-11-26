@@ -1,0 +1,28 @@
+/* الشريط العلوي الثابت */
+/* ---------- الشريط العلوي الثابت (المستر) ---------- */
+body { padding-top: 52px; }
+.pnav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: var(--card); border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(47, 58, 69, 0.06);
+}
+.pnav .pnav-in {
+  max-width: 960px; margin: 0 auto; padding: 7px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.pnav .brand { font-weight: 800; font-size: 16px; color: var(--primary-dark); text-decoration: none; }
+.pnav .me {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: 0; cursor: pointer; font-family: inherit; padding: 2px 4px; border-radius: 999px;
+}
+.pnav .me:hover { background: var(--primary-soft); }
+.pnav .me .nm { font-size: 13.5px; font-weight: 700; color: var(--text); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pnav .me .av, .pav {
+  width: 34px; height: 34px; border-radius: 50%; object-fit: cover;
+  border: 2px solid var(--primary-soft); display: inline-block; vertical-align: middle;
+}
+.pnav .me .avinit, .pavinit {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; border: 2px solid var(--primary-soft); vertical-align: middle;
+}

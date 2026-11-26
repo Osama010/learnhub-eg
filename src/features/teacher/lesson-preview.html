@@ -1,0 +1,34 @@
+<!-- قوالب الواجهة لموديول features/teacher/lesson-preview.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.renderTeacherLessonView |  -->
+<div class="spin">بنحمل الدرس...</div>
+<!-- @@ teacher.renderTeacherLessonView_2 | closing,e,esc -->
+<p class="msg bad">مشكلة في تحميل الدرس: ${esc(e.message || e)}</p>${closing()}
+<!-- @@ teacher.renderTeacherLessonView_3 | closing -->
+<div class="card center u-mw520px-m60pxauto">
+      <p class="msg bad">الدرس ده مش موجود (ممكن يكون اتحذف).</p>
+      <div class="btnrow u-justcenter"><a class="btn ghost" href="#/teacher">رجوع</a></div>
+    </div>${closing()}
+<!-- @@ teacher.renderTeacherLessonView_4 | STAGE_NAMES,closing,esc,hasP,hasV,l,linkedQuizzes,teacherTabs -->
+
+    <div class="hdr">
+      <h1>${esc(l.title || "درس")}</h1>
+      <div class="fact">الوحدة ${esc(String(l.unit || "—"))} · الدرس ${esc(String(l.lessonNum || "—"))}${l.subject ? " · " + esc(l.subject) : ""} · المرحلة ${esc(STAGE_NAMES[l.stage] || l.stage || "")}</div>
+    </div>
+    ${teacherTabs("lessons")}
+    <div class="btnrow"><button type="button" class="btn ghost" id="lv-back">← رجوع للدروس</button></div>
+    ${l.desc ? `<div class="card"><h2 class="u-fs17px-mt0">وصف الدرس</h2><p style="white-space:pre-wrap; margin:0;">${esc(l.desc)}</p></div>` : ""}
+    ${hasV ? `<div class="card"><h2 class="u-fs17px-mt0">الفيديو 🎬</h2><div data-media-video><p class="muted center">جاري تحميل الفيديو…</p></div></div>` : ""}
+    ${hasP ? `<div class="card"><h2 class="u-fs17px-mt0">ملف PDF 📄</h2><div data-media-pdf></div></div>` : ""}
+    ${linkedQuizzes.length ? `<div class="card">
+      <h2 class="u-fs17px-mt0">الكويزات المرتبطة بالدرس 📝 (${linkedQuizzes.length})</h2>
+      ${linkedQuizzes.map((q) => `<div style="border-top:1px solid var(--line); padding:8px 0;"><b>${esc(q.title)}</b> <span class="muted u-fs125px">(${(q.questions || []).length} سؤال)</span></div>`).join("")}
+      <p class="muted u-fs125px">إضافة وتعديل ونتايج الكويزات من تاب "الكويزات والامتحانات" في صفحة المرحلة.</p>
+    </div>` : ""}
+    ${closing()}
+<!-- @@ teacher.quizResultsHtml | attempts,esc,fmtTs -->
+<table class="ttable u-mt10px">
+    <thead><tr><th>الطالب</th><th>الدرجة</th><th>آخر محاولة</th></tr></thead>
+    <tbody>${attempts.map((a) => `<tr><td>${esc(a.studentName || "—")}</td><td>${a.score} من ${a.total}</td><td>${a.updatedAt ? fmtTs(a.updatedAt) : "—"}</td></tr>`).join("")}</tbody>
+  </table>
+<!-- @@ teacher.quizResultsHtml_2 |  -->
+<p class="muted u-fs13px-m10px00">لسه مفيش طالب حل الكويز ده.</p>

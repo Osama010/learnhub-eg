@@ -1,0 +1,27 @@
+<!-- قوالب الواجهة لموديول features/teacher/question-bank.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.openBankPicker |  -->
+<div class="detailcard" style="max-height:85vh; overflow-y:auto; max-width:640px;">
+    <h3>📚 بنك الأسئلة — اختار اللي يتحط</h3>
+    <p class="muted u-fs13px">بنكك الخاص — أي سؤال بتحفظه من أي كويز أو امتحان بيظهر هنا.</p>
+    <p class="muted">بنحمل البنك...</p>
+  </div>
+<!-- @@ teacher.openBankPicker_2 | bq,esc,typeLbl -->
+
+    <div style="border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; display:flex; gap:8px; align-items:flex-start;" data-brow="${bq.id}">
+      <input type="checkbox" data-bsel="${bq.id}" style="margin-top:4px;">
+      <div class="u-fl1" data-btxt="${bq.id}"><b class="u-fs14px">${esc((bq.q && bq.q.q) || "")}</b>
+        <div class="muted u-fs12px">${typeLbl[(bq.q && bq.q.type)] || "سؤال"} · استُخدم ${bq.useCount || 0} مرة</div></div>
+      <button type="button" class="btn sm red" data-bdel="${bq.id}">حذف</button>
+    </div>
+<!-- @@ teacher.openBankPicker_3 |  -->
+<p class="muted center">البنك فاضي لسه — احفظ أسئلة من فورم الكويز أو الامتحان وهتظهر هنا.</p>
+<!-- @@ teacher.openBankPicker_4 | bank,listHtml -->
+
+    <h3>📚 بنك الأسئلة — اختار اللي يتحط (${bank.length})</h3>
+    <input type="text" class="inp u-mb10px" id="bk-search" placeholder="بحث في البنك...">
+    <div id="bk-list">${listHtml}</div>
+    <div class="btnrow u-mt10px">
+      <button type="button" class="btn" id="bk-add" ${bank.length ? "" : "disabled"}>إضافة المحدد</button>
+      <button type="button" class="btn ghost" id="bk-cancel">إلغاء</button>
+    </div>
+    <p class="muted u-fs125px">أي سؤال بتكتبه في كويز أو امتحان تقدر تحفظه هنا بعلامة "احفظ في البنك" — والحذف من البنك مبيأثرش على الكويزات اللي استخدمته قبل كده.</p>

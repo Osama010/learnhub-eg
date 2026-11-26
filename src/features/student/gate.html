@@ -1,0 +1,18 @@
+<!-- قوالب الواجهة لموديول features/student/gate.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.renderStudentHome | closing,isSus,st -->
+
+      <div class="card center u-mw520px-m60pxauto">
+        <div class="u-fs44px">${isSus ? "⛔" : "⏳"}</div>
+        <h1 class="u-fs22px-m8px0">${isSus ? "تم إيقاف حسابك مؤقتًا" : st === "rejected" ? "طلبك اترفض" : "طلبك لسه تحت المراجعة"}</h1>
+        <p class="muted">${isSus ? "حسابك متوقف مؤقتًا من إدارة المنصة. كلّم مدرسك أو إدارة المنصة." : st === "rejected" ? "للأسف طلبك ما اتقبلش. لو في خطأ كلّم مدرسك." : "المدرس لسه ما وافقش على طلبك. ارجع كمان شوية."}</p>
+        <div class="btnrow u-justcenter"><button type="button" class="btn ghost" id="so">خروج</button></div>
+      </div>
+      ${closing()}
+<!-- @@ student.renderStudentHome_2 | closing -->
+
+      <div class="card center u-mw520px-m60pxauto">
+        <h1 class="u-fs22px-m8px0">الحساب ده مش متسجل كطالب</h1>
+        <p class="muted">لو انت طالب جديد سجّل من صفحة التسجيل الأول.</p>
+        <div class="btnrow u-justcenter"><button type="button" class="btn ghost" id="so">خروج</button></div>
+      </div>
+      ${closing()}

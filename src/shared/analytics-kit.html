@@ -1,0 +1,11 @@
+<!-- قوالب الواجهة لموديول shared/analytics-kit.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.anTrendSvg |  -->
+<p class="muted center u-fs13px">محتاج نتايج كتير أكتر عشان يترسم المنحنى.</p>
+<!-- @@ app.anTrendSvg_2 | esc,line,pts -->
+<svg viewBox="0 0 360 126" width="100%" style="max-width:640px;display:block;margin:0 auto"><g stroke="#e2e8f0"><line x1="10" y1="20" x2="350" y2="20"/><line x1="10" y1="60" x2="350" y2="60"/><line x1="10" y1="100" x2="350" y2="100"/></g>
+    <polyline fill="none" stroke="#0d9488" stroke-width="3" points="${line.map((p) => p.x.toFixed(1) + "," + p.y.toFixed(1)).join(" ")}"/>
+    ${line.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#0d9488"/><text x="${p.x.toFixed(1)}" y="${(p.y - 8).toFixed(1)}" font-size="10" fill="#475569" text-anchor="middle">${p.v}</text>`).join("")}
+    ${pts.map((p) => `<text x="${p.x.toFixed(1)}" y="120" font-size="10" fill="#64748b" text-anchor="middle">${esc(p.l)}</text>`).join("")}</svg>
+<!-- @@ app.anBandsSvg | b,cols,mx -->
+<svg viewBox="0 0 360 110" width="100%" style="direction:ltr">${b.map((v, i) => { const h = Math.max(2, (v / mx) * 75); return `<rect x="${30 + i * 80}" y="${95 - h}" width="60" height="${h}" rx="4" fill="${cols[i]}"/><text x="${60 + i * 80}" y="${90 - h}" font-size="11" fill="#475569" text-anchor="middle">${v}</text>`; }).join("")}</svg>
+    <div class="muted" style="font-size:12px;display:flex;justify-content:space-around;direction:ltr"><span>0-50</span><span>50-70</span><span>70-90</span><span>90+</span></div>

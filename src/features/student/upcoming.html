@@ -1,0 +1,31 @@
+<!-- قوالب الواجهة لموديول features/student/upcoming.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.sUpLessonCard | esc,fmtTs,l,lessonHasPdf,lessonHasVideo,tchr -->
+<div class="card u-m0">
+    <div class="btnrow u-justspacebetween"><b class="u-fs15px">${esc(l.title || "")}</b><span class="chip amber">🕒 ينزل ${fmtTs(l.publishAt)}</span></div>
+    <div class="muted u-fs13px-mt4px">${esc(l.subject || "")}${tchr.name ? " · " + esc(tchr.name) : ""}</div>
+    <div class="muted u-fs12px-m4px0">${lessonHasVideo(l) ? "🎬 فيديو" : ""}${lessonHasVideo(l) && lessonHasPdf(l) ? " · " : ""}${lessonHasPdf(l) ? "📄 PDF" : ""}</div>
+  </div>
+<!-- @@ student.sUpExamCard | e,esc,fmtTs,opens -->
+<div class="card u-m0">
+    <div class="btnrow u-justspacebetween"><b class="u-fs15px">${esc(e.title || "")}</b><span class="chip ${opens ? "amber" : "green"}">${opens ? "يفتح " + fmtTs(e.openAt) : "مفتوح · يقفل " + fmtTs(e.closeAt)}</span></div>
+    ${e.desc ? `<div class="muted u-fs13px-mt4px">${esc(e.desc)}</div>` : ""}
+    <div class="muted u-fs12px-m4px0">📝 ${(e.quiz || []).length} سؤال</div>
+  </div>
+<!-- @@ student.renderStudentUpcoming |  -->
+<div class="spin">بنحمل الجدول...</div>
+<!-- @@ student.renderStudentUpcoming_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ student.renderStudentUpcoming_3 | closing,exams,lessons,sTerm,sUpExamCard,sUpLessonCard,studentTabs,termTabsHtml -->
+
+    <div class="hdr"><h1>القادم 🗓️</h1><div class="fact">الدروس والامتحانات اللي ليها معاد قريب، مرتبة بأقرب معاد</div></div>
+    ${studentTabs("upcoming")}
+    ${termTabsHtml(sTerm())}
+    <div class="card">
+      <h2 class="u-fs18px-mt0">دروس هتنزل قريب (${lessons.length})</h2>
+      ${lessons.length ? `<div style="display:grid; gap:12px; margin-top:12px;">${lessons.map(sUpLessonCard).join("")}</div>` : `<p class="muted center u-mt12px">مفيش دروس مجدولة دلوقتي.</p>`}
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">امتحانات قادمة (${exams.length})</h2>
+      ${exams.length ? `<div style="display:grid; gap:12px; margin-top:12px;">${exams.map(sUpExamCard).join("")}</div>` : `<p class="muted center u-mt12px">مفيش امتحانات ليها معاد قريب.</p>`}
+    </div>
+    ${closing()}

@@ -1,0 +1,24 @@
+<!-- قوالب الواجهة لموديول shared/lesson-media.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.mountPlayer |  -->
+<p class="muted center">الفيديو مش متاح.</p>
+<!-- @@ app.mountPlayer_2 | cover,esc,src,wmName -->
+<iframe ${cover ? "" : `src="${esc(src)}"`} title="فيديو الدرس" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+    ${cover ? `<button type="button" class="mcover" aria-label="تشغيل" style="position:absolute;inset:0;z-index:6;border:0;cursor:pointer;background:linear-gradient(135deg,#0f172a,#134e4a);color:#fff;font-size:54px;">▶</button>` : ""}
+    <div class="mshield"></div>
+    ${wmName ? `<span class="mwm">${esc(wmName)}</span>` : ""}
+    <button type="button" class="mfs">⛶ ملء الشاشة</button>
+<!-- @@ app.mountPdf | drive -->
+<div class="mplayer" style="aspect-ratio:3/4;max-height:80vh;"><iframe src="https://drive.google.com/file/d/${drive[1]}/preview"></iframe><div class="mshield" style="height:56px;left:auto;width:64px;"></div></div>
+<!-- @@ app.mountPdf_2 | esc,media -->
+<a class="btn ghost" href="${esc(media.pdfUrl)}" target="_blank" rel="noopener">📄 فتح ملف الـ PDF</a>
+<!-- @@ app.mountPdf_3 |  -->
+<p class="muted center">الملف مش متاح.</p>
+<!-- @@ app.mountPdf_4 | esc,f -->
+<div class="btnrow" style="margin-bottom:8px;justify-content:space-between;"><span class="muted u-fs13px">📄 ${esc(f.name || "ملف PDF")}</span><button type="button" class="btn ghost pdf-dl" disabled>⬇ تحميل الملف</button></div>
+    <div class="pdfbox"><p class="muted center pdf-status">جاري تحميل الملف…</p></div>
+<!-- @@ app.mountPdf_5 | e,esc -->
+<p class="msg bad">مشكلة في فتح الملف: ${esc(e.message || String(e))}</p>
+<!-- @@ app.mountLessonMedia |  -->
+<p class="msg bad">مش قادر أحمّل الفيديو.</p>
+<!-- @@ app.mountLessonMedia_2 |  -->
+<p class="msg bad">مش قادر أحمّل الملف.</p>

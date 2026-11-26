@@ -1,0 +1,48 @@
+<!-- قوالب الواجهة لموديول features/teacher/analytics.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.kpi | l,v -->
+<div><b>${v}</b><span>${l}</span></div>
+<!-- @@ teacher.empty | t -->
+<p class="muted center u-fs13px">${t}</p>
+<!-- @@ teacher.anDashHtml | AN_CSS,anBandsSvg,anTrendSvg,empty,esc,kpi,m -->
+  <div class="an-k">
+    ${kpi(m.activeNow + "<small style='font-size:14px'> / " + m.total + "</small>", "طالب نشط آخر 7 أيام")}
+    ${kpi(m.avg === null ? "—" : m.avg + "%" + (m.delta ? ` <small style="font-size:12px;color:${m.delta > 0 ? "#15803d" : "#b91c1c"}">${m.delta > 0 ? "▲" : "▼"} ${Math.abs(m.delta)}%</small>` : ""), "متوسط الدرجات")}
+    ${kpi(m.completion === null ? "—" : m.completion + "%", "نسبة فتح الدروس (أول فتح)")}
+    ${kpi(m.rating === null ? "—" : m.rating + " ⭐", "متوسط تقييم الدروس")}
+  </div>
+  <div class="card an-card"><h2>📈 متوسط الدرجات أسبوعيا</h2>${anTrendSvg(m.trend)}</div>
+  <div class="an-grid">
+  <div class="card an-card"><h2>📊 متوسط كل كويز وامتحان</h2>${m.bars.length ? m.bars.map((b) => `<div class="an-bar"><span style="width:96px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(b.title)}</span><div class="t"><i style="width:${b.avg}%;${b.avg < 60 ? "background:#f59e0b" : ""}"></i></div><b>${b.avg}%</b></div>`).join("") : empty("لسه مفيش نتايج.")}</div>
+  <div class="card an-card"><h2>🎯 توزيع الدرجات</h2>${m.attemptsCount ? anBandsSvg(m.bands) : empty("لسه مفيش نتايج في الفترة دي.")}</div>
+  </div>
+  <div class="card an-card"><h2>⚠️ طلاب محتاجين متابعة (${m.risk.length})</h2>${m.risk.length ? m.risk.slice(0, 10).map((r) => `<div class="an-row"><span>${esc(r.s.name || "")} <span class="muted u-fs12px">${esc((r.s.grade || "").replace("الصف ", ""))}</span></span><span class="an-tag ${r.red ? "" : "o"}">${esc(r.tag)}</span></div>`).join("") : empty("كل الطلاب ماشيين كويس 👏")}</div>
+  <div class="an-grid">
+  <div class="card an-card"><h2>🧠 أصعب الأسئلة</h2>${m.hard.length ? m.hard.map((h) => `<div class="an-row"><span>${esc(h.item)} · س${h.n}: ${esc(String(h.q).slice(0, 60))}</span><b style="color:${h.rate < 50 ? "#b91c1c" : "#b45309"};white-space:nowrap;">${h.rate}% صح</b></div>`).join("") : empty("محتاج 3 محاولات على الأقل للكويز.")}</div>
+  <div class="card an-card"><h2>🏆 أفضل 5 طلاب</h2>${m.top.length ? m.top.map((t, i) => `<div class="an-row"><span>${["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][i]} ${esc(t.s.name || "")}</span><b>${t.avg}%</b></div>`).join("") : empty("لسه مفيش نتايج.")}</div>
+  </div>
+  <div class="card an-card"><h2>💡 ملاحظات</h2>${m.notes.length ? `<div class="u-fs135px-lh19">${m.notes.map((n) => "• " + esc(n)).join("<br>")}</div>` : empty("مفيش ملاحظات دلوقتي.")}</div>
+<!-- @@ teacher.teacherAnalyticsExport | escP,rows -->
+<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table border="1">${rows.map((r) => `<tr>${r.map((c) => `<td>${escP(c)}</td>`).join("")}</tr>`).join("")}</table></body></html>
+<!-- @@ teacher.teacherAnalyticsPrint | anDashHtml,escP,fbProfile,m,tanState -->
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تحليل المدرس</title><style>
+    body{font-family:"Cairo","Segoe UI",Tahoma,sans-serif;direction:rtl;padding:24px;color:#1e293b}h1{font-size:20px;margin:0 0 4px}.meta{color:#64748b;font-size:12.5px;margin-bottom:14px}
+    .card{border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:12px;break-inside:avoid}.muted{color:#64748b}.center{text-align:center}.foot{margin-top:18px;color:#64748b;font-size:12px;text-align:center}
+    @media print{body{padding:0}}</style></head><body>
+    <h1>داشبورد التحليل — منصة learnhub-eg</h1><div class="meta">المدرس: ${escP((fbProfile && fbProfile.name) || "")} · ${escP(tanState.grade || "كل الصفوف")} · آخر ${tanState.days} يوم · ${escP(new Date().toLocaleString("ar-EG"))}</div>
+    ${anDashHtml(m)}<div class="foot">فكرة وإعداد: مهندس اسامه حسن عسس</div><script>window.onload=function(){window.print();}<\/script></body></html>
+<!-- @@ teacher.renderTeacherAnalytics |  -->
+<div class="spin">بنحلل بياناتك...</div>
+<!-- @@ teacher.renderTeacherAnalytics_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ teacher.drawTeacherAnalytics | anDashHtml,closing,esc,fbProfile,grades,m,tanState,teacherTabs,termName -->
+
+    <div class="hdr"><h1>التحليل 📊</h1><div class="fact">${esc((fbProfile && fbProfile.name) || "")}${fbProfile && fbProfile.subject ? " · " + esc(fbProfile.subject) : ""} · ${termName(m.term)}</div></div>
+    ${teacherTabs("analytics")}
+    <div class="filterrow">
+      <select id="an-grade" class="inp"><option value="">كل الصفوف</option>${grades.map((g) => `<option value="${esc(g)}" ${tanState.grade === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>
+      <select id="an-days" class="inp">${[[7, "آخر 7 أيام"], [30, "آخر 30 يوم"], [90, "آخر 90 يوم"]].map(([d, l]) => `<option value="${d}" ${tanState.days === d ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <select id="an-term" class="inp">${[1, 2].map((t) => `<option value="${t}" ${m.term === t ? "selected" : ""}>${termName(t)}</option>`).join("")}</select>
+    </div>
+    <div class="btnrow" style="margin:8px 0 12px;"><button type="button" class="btn" id="an-print">🖨️ PDF / طباعة</button><button type="button" class="btn ghost" id="an-xls">⬇ Excel</button><button type="button" class="btn ghost" id="an-csv">CSV</button></div>
+    ${m.total ? anDashHtml(m) : `<div class="card center"><p class="muted">لسه مفيش طلاب مقبولين${tanState.grade ? " في " + esc(tanState.grade) : ""}.</p></div>`}
+    ${closing()}

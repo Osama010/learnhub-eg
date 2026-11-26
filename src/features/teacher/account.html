@@ -1,0 +1,55 @@
+<!-- قوالب الواجهة لموديول features/teacher/account.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.tMyAvatar | av,size -->
+<img src="${av}" alt="" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; display:inline-block; vertical-align:middle; border:2px solid var(--primary-soft);">
+<!-- @@ teacher.tMyAvatar_2 | esc,nm,size -->
+<span style="width:${size}px; height:${size}px; border-radius:50%; background:var(--primary); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:${Math.round(size * 0.45)}px; font-weight:800; vertical-align:middle;">${esc(nm ? nm[0] : "؟")}</span>
+<!-- @@ teacher.renderTeacherProfile |  -->
+<div class="spin">بنحمل حسابك...</div>
+<!-- @@ teacher.renderTeacherProfile_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ teacher.row | esc,lbl,ltr,val -->
+<div class="btnrow u-justspacebetween-bord1pxsolidvarline-padd8px"><span class="muted">${lbl}</span><b ${ltr ? 'class="ltr"' : ""}>${esc(val)}</b></div>
+<!-- @@ teacher.renderTeacherProfile_3 | approved,closing,esc,fbUser,row,t,tMyAvatar,teacherExams,teacherLessons,teacherQuizzes,teacherTabs -->
+
+    <div class="hdr">
+      <h1 style="display:flex; align-items:center; gap:10px;">${tMyAvatar(44)} حسابي</h1>
+    </div>
+    ${teacherTabs("profile")}
+    <div class="card center u-p28px">
+      ${tMyAvatar(120)}
+      <h2 class="u-m10px02px-fs20px">${esc(t.name || "")}</h2>
+      <div class="muted">${esc(t.subject || "")}${(t.stages || []).length ? " · " + esc(t.stages.join("، ")) : ""}</div>
+      <div class="btnrow u-justcenter-mt12px">
+        <button type="button" class="btn sm" id="tp-pick">📷 ${(t.avatar || t.photoData) ? "تغيير الصورة" : "إضافة صورة"}</button>
+        ${(t.avatar || t.photoData) ? `<button type="button" class="btn sm ghost" id="tp-del">حذف الصورة</button>` : ""}
+      </div>
+      <input type="file" id="tp-file" accept="image/*" style="display:none;">
+      <div class="muted u-fs12px-mt6px">صورتك بتظهر لطلابك جنب اسمك — أي صورة من موبايلك تنفع، بتتصغّر لوحدها.</div>
+      <p class="msg" id="tp-msg"></p>
+    </div>
+    <div class="statcards">
+      <div class="statcard"><div class="num">${approved.length}</div><div class="lbl">طالب مقبول</div></div>
+      <div class="statcard"><div class="num">${(teacherLessons || []).length}</div><div class="lbl">درس</div></div>
+      <div class="statcard"><div class="num">${(teacherQuizzes || []).length}</div><div class="lbl">كويز</div></div>
+      <div class="statcard"><div class="num">${(teacherExams || []).length}</div><div class="lbl">امتحان</div></div>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">بياناتك</h2>
+      <div style="display:grid; gap:10px; margin-top:10px;">
+        ${row("الاسم", t.name || "—")}
+        ${row("المادة", t.subject || "—")}
+        ${row("المراحل", (t.stages || []).join("، ") || "—")}
+        ${row("الإيميل", fbUser.email || "—", true)}
+        ${row("الموبايل", t.phone || "—", true)}
+      </div>
+      <p class="muted u-fs125px-mt12px">الاسم والمادة والمراحل بيتحدثوا من الأدمن — لو في حاجة غلط كلّمه.</p>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">🔒 الباسورد</h2>
+      <div class="btnrow">
+        <button type="button" class="btn ghost sm" id="tp-pass">تغيير الباسورد</button>
+        <span class="muted u-fs13px">هيوصلك إيميل بلينك تغيير الباسورد.</span>
+      </div>
+      <p class="msg" id="tp-pass-msg"></p>
+    </div>
+    ${closing()}

@@ -1,0 +1,137 @@
+<!-- قوالب الواجهة لموديول features/admin/log.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.adminLogPage | ACTIONS,esc,fmtTs,list,logFilter -->
+
+    <div class="card">
+      <h2 class="u-fs18px-mt0">📋 سجل النشاط (${list.length})</h2>
+      <p class="muted u-fs13px-mt0">آخر 300 حركة، الأحدث الأول. السجل بيتكتب تلقائيًا مع كل حركة حساسة ومبيتعدلش ولا بيتمسح.</p>
+      <div class="filterrow">
+        <select id="lf-action" class="inp"><option value="">كل الحركات</option>
+          ${ACTIONS.map((a) => `<option ${logFilter.action === a ? "selected" : ""}>${a}</option>`).join("")}</select>
+        <input id="lf-from" type="date" class="inp" value="${esc(logFilter.from)}" title="من تاريخ">
+        <input id="lf-to" type="date" class="inp" value="${esc(logFilter.to)}" title="إلى تاريخ">
+      </div>
+      ${list.length ? `<div class="u-overauto"><table class="ttable">
+        <thead><tr><th>التاريخ</th><th>الحركة</th><th>الهدف</th><th>التفاصيل</th><th>بواسطة</th></tr></thead>
+        <tbody>${list.map((l) => `<tr>
+          <td class="ltr">${fmtTs(l.at)}</td><td>${esc(l.action || "—")}</td><td>${esc(l.targetName || "—")}</td><td>${esc(l.details || "—")}</td><td>${esc(l.by || "—")}</td>
+        </tr>`).join("")}</tbody></table></div>` : `<p class="muted center">مفيش حركات بالفلاتر دي لسه.</p>`}
+    </div>
+<!-- @@ admin.adminStats | STAGES,activeBroadcastText,adminCache,approved,esc,gradesOfStage,pending,stageOfGrade,statusChip,students,subChip,subFmtDate,subInfo,teacherStagesText,teachers,termCurrent,termName,tsToDate -->
+
+    <div class="card u-bord4pxsolidvarprimary">
+      <div class="btnrow u-justspacebetween-flexwrap">
+        <b class="u-fs16px">🗓️ الترم الحالي</b>
+        <span class="chip green">${termName(termCurrent())} نشط</span>
+      </div>
+      <p class="muted" style="font-size:13px; margin:6px 0 10px;">أي محتوى جديد (درس / كويز / امتحان) بيتسجل على الترم الحالي افتراضيًا. لما تبدل للترم الثاني، محتوى الترم الأول يفضل ظاهر للطلبة لكن يبقى للقراءة بس — ميقدرش مدرس يعدله أو يحذفه. المكتبة العامة شغالة للترمين، ونقاط الطالب بتتجمع طول السنة.</p>
+      <div class="btnrow u-aligcenter">
+        <label class="chip" style="cursor:pointer; font-size:14px; ${termCurrent() === 1 ? "border:2px solid var(--primary);" : ""}"><input type="radio" name="cur-term" value="1" ${termCurrent() === 1 ? "checked" : ""} class="u-accevarprimary"> الترم الأول</label>
+        <label class="chip" style="cursor:pointer; font-size:14px; ${termCurrent() === 2 ? "border:2px solid var(--primary);" : ""}"><input type="radio" name="cur-term" value="2" ${termCurrent() === 2 ? "checked" : ""} class="u-accevarprimary"> الترم الثاني</label>
+        <button type="button" class="btn small" id="term-save">حفظ الترم الحالي</button>
+      </div>
+      <p class="msg" id="term-msg"></p>
+    </div>
+    <div class="statcards">
+      <div class="statcard"><div class="num">${teachers.length}</div><div class="lbl">مدرس</div></div>
+      <div class="statcard"><div class="num">${students.length}</div><div class="lbl">طالب</div></div>
+      <div class="statcard"><div class="num">${approved}</div><div class="lbl">طالب مقبول</div></div>
+      <div class="statcard"><div class="num">${pending}</div><div class="lbl">طلب تحت المراجعة</div></div>
+    </div>
+    ${(() => {
+      // كارت اشتراكات المدرسين: عدادات + اللي قرب يخلص أو خلّص مع زرار تجديد سريع
+      const subs = teachers.map((t) => ({ t, si: subInfo(t) }));
+      const active = subs.filter((x) => x.si.status === "active" || x.si.status === "expiring").length;
+      const expiring = subs.filter((x) => x.si.status === "expiring");
+      const expired = subs.filter((x) => x.si.status === "expired");
+      const free = subs.filter((x) => x.si.status === "free").length;
+      const watch = [...expired, ...expiring];
+      return `<div class="card">
+      <h2 class="u-fs18px-mt0">اشتراكات المدرسين</h2>
+      <div class="statcards">
+        <div class="statcard"><div class="num">${active}</div><div class="lbl">اشتراك نشط</div></div>
+        <div class="statcard amber"><div class="num">${expiring.length}</div><div class="lbl">قرب ينتهي</div></div>
+        <div class="statcard red"><div class="num">${expired.length}</div><div class="lbl">منتهي</div></div>
+        <div class="statcard"><div class="num">${free}</div><div class="lbl">مجاني</div></div>
+      </div>
+      ${watch.length ? `<table class="ttable resp">
+        <thead><tr><th>المدرس</th><th>النوع</th><th>المبلغ</th><th>النهاية</th><th>الحالة</th><th></th></tr></thead>
+        <tbody>${watch.map(({ t, si }) => `<tr>
+          <td data-h="المدرس">${esc(t.name)}</td>
+          <td data-h="النوع">${si.label}</td>
+          <td data-h="المبلغ" class="ltr">${si.amount || 0} ج</td>
+          <td data-h="النهاية" class="ltr">${subFmtDate(si.end)}</td>
+          <td data-h="الحالة">${subChip(si)}</td>
+          <td><button type="button" class="btn sm" data-subren="${t.id}">تجديد</button></td>
+        </tr>`).join("")}</tbody>
+      </table>` : `<p class="muted" style="margin:4px 2px 0;">مفيش اشتراكات قربت تخلص أو خلصت. عدّل اشتراك أي مدرس من تاب "المدرسين".</p>`}
+    </div>`;
+    })()}
+    ${(() => {
+      // كارت الإعلان العام: نص واحد بيوصل للكل أو لفئة معينة لمدة محددة
+      const bc = adminCache.broadcast;
+      const bcTxt = activeBroadcastText(bc, "admin");
+      const bcAud = { all: "الكل", teachers: "المدرسين بس", students: "الطلاب بس" };
+      const bcUntil = bc && tsToDate(bc.until);
+      return `<div class="card u-bord4pxsolidvaramberf59e0b">
+      <h2 class="u-fs18px-mt0">📢 إعلان عام</h2>
+      ${bcTxt ? `<div class="card card-sub u-m0010px">
+        <b class="u-fs135px">الإعلان الشغال دلوقتي (${bcAud[(bc && bc.audience) || "all"] || "الكل"}${bcUntil ? " — حتى " + subFmtDate(bcUntil) : ""}):</b>
+        <p style="font-size:13.5px; margin:6px 0 0; white-space:pre-wrap;">${esc(bcTxt)}</p>
+        <div class="btnrow u-mt8px"><button type="button" class="btn red sm" id="bc-del">إيقاف الإعلان</button></div>
+      </div>` : ""}
+      <textarea id="bc-text" class="inp" rows="2" placeholder="اكتب نص الإعلان... مثال: المنصة هتتجدد يوم الجمعة الساعة 11 بليل" style="resize:vertical;"></textarea>
+      <div class="btnrow u-aligcenter-mt8px">
+        <select id="bc-aud" class="inp u-wauto"><option value="all">للكل</option><option value="teachers">للمدرسين بس</option><option value="students">للطلاب بس</option></select>
+        <select id="bc-days" class="inp u-wauto"><option value="1">لمدة يوم</option><option value="3" selected>3 أيام</option><option value="7">أسبوع</option></select>
+        <button type="button" class="btn blue" id="bc-pub">نشر الإعلان</button>
+      </div>
+      <p class="muted u-fs125px-m6px00">الإعلان بيظهر بانر فوق لوحة المدرس ولوحة الطالب حسب الفئة اللي اخترتها، وبيختفي لوحده بعد المدة.</p>
+      <p class="msg" id="bc-msg"></p>
+    </div>`;
+    })()}
+    <div class="card">
+      <h2 class="u-fs18px-mt0">المراحل والصفوف</h2>
+      <p class="muted u-fs13px-mt0">كل مرحلة بصفوفها، وعدد الطلاب في كل صف.</p>
+      ${STAGES.map((st) => {
+        const stu = students.filter((s) => stageOfGrade(s.grade) === st).length;
+        return `<h3 class="u-m14px08px-fs15px">المرحلة ال${esc(st)}ة <span class="muted u-fw400">(${stu} طالب)</span></h3>
+        <table class="ttable"><thead><tr><th>الصف</th><th>عدد الطلاب</th></tr></thead><tbody>
+          ${gradesOfStage(st).map((g) => `<tr><td>${esc(g)}</td><td>${students.filter((s) => s.grade === g).length}</td></tr>`).join("")}
+        </tbody></table>`;
+      }).join("")}
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">طلاب كل مدرس</h2>
+      <table class="ttable resp">
+        <thead><tr><th>المدرس</th><th>المادة</th><th>المراحل (طلاب كل مرحلة)</th><th>عدد طلابه</th><th>مقبول</th><th>طلبات جديدة</th></tr></thead>
+        <tbody>
+          ${teachers.length ? teachers.map((t) => {
+            const mine = students.filter((s) => (s.teacherIds || []).includes(t.id));
+            return `<tr data-rv-t="${t.id}" class="u-curpointer" title="اضغط لعرض البيانات كاملة">
+              <td data-h="المدرس">${esc(t.name)}${t.active === false ? ' <span class="chip red">معطّل</span>' : ""}</td>
+              <td data-h="المادة">${esc(t.subject || "—")}</td>
+              <td data-h="المراحل">${esc(teacherStagesText(t))}</td>
+              <td data-h="عدد طلابه">${mine.length}</td>
+              <td data-h="مقبول">${mine.filter((s) => s.status === "approved").length}</td>
+              <td data-h="طلبات جديدة">${mine.filter((s) => s.status === "pending").length}</td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="6" class="center muted">لسه مفيش مدرسين</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">مستوى الطلاب في المواد</h2>
+      <table class="ttable">
+        <thead><tr><th>الطالب</th><th>الإيميل</th><th>المدرس</th><th>السنة</th><th>الحالة</th><th>البرمجة والذكاء الاصطناعي</th></tr></thead>
+        <tbody>
+          ${students.length ? students.map((s) => {
+            const tnames = (s.teacherIds || []).map((id) => (adminCache.teachers.find((t) => t.id === id) || {}).name || "—").join("، ");
+            const prog = (s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0;
+            return `<tr data-rv-s="${s.id}" class="u-curpointer" title="اضغط لعرض البيانات كاملة">
+              <td data-h="الطالب">${esc(s.name)}</td><td class="ltr" data-h="الإيميل">${esc(s.email || "—")}</td><td data-h="المدرس">${esc(tnames)}</td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td>
+              <td data-h="الحالة">${statusChip(s.status)}</td><td data-h="البرمجة">${prog}%</td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="6" class="center muted">لسه مفيش طلاب</td></tr>`}
+        </tbody>
+      </table>
+    </div>

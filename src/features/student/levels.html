@@ -1,0 +1,13 @@
+<!-- قوالب الواجهة لموديول features/student/levels.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.sLevelCardHtml | lv,pct,pts,streak -->
+<div class="card tint-amber">
+    <div class="btnrow u-justspacebetween">
+      <b class="u-fs16px">${lv.cur.icon} مستواك: ${lv.cur.name}</b>
+      <span class="chip amber">⭐ ${pts} نقطة</span>
+    </div>
+    <div class="sprog u-mt10px">
+      <span class="sprog-track"><span class="sprog-fill" style="width:${pct}%; background:#f59e0b;"></span></span>
+    </div>
+    <div class="muted" style="font-size:12px; margin-top:8px;">${lv.next ? `فاضل ${lv.next.min - pts} نقطة وتوصل مستوى «${lv.next.name}» ${lv.next.icon} — كل درس بتشوفه بـ 10 نقاط وكل اختبار ناجح بـ 20.` : "مبروك! وصلت أعلى مستوى 🏆 — كمّل بنفس الحماس."}</div>
+    <div class="u-fs13px-mt8px">${streak > 0 ? `⚡ سلسلة نشاطك: <b>${streak} ${streak === 1 ? "يوم" : streak === 2 ? "يومين" : "أيام"}</b> ورا بعض — شوف درس أو انجح في كويز النهارده عشان السلسلة تكمل.` : `⚡ ابدأ سلسلة نشاطك النهارده — شوف درس أو انجح في كويز وبعدّ الأيام ورا بعض.`}</div>
+  </div>

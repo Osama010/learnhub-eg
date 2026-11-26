@@ -1,0 +1,35 @@
+<!-- قوالب الواجهة لموديول features/student/first-login.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.renderParentPhoneGate | closing -->
+
+    <div class="hdr u-mt32px">
+      <h1>رقم ولي الأمر مطلوب 👨‍👩‍👦</h1>
+      <div class="fact">خطوة واحدة وتكمل — لازم نسجل رقم ولي أمرك قبل استخدام المنصة</div>
+    </div>
+    <div class="card u-mw520px-m0auto">
+      <p class="muted u-fs14px">عشان نقدر نوصّل لولي أمرك أي تحديث مهم عن حسابك، اكتب رقم موبايله (واتساب). مش هتقدر تكمل من غيره.</p>
+      <label class="flabel">رقم موبايل ولي الأمر (واتساب)</label>
+      <input id="pp-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx">
+      <button type="button" class="btn u-w100pc" id="pp-save">حفظ ودخول</button>
+      <p class="msg bad" id="pp-msg"></p>
+    </div>
+    ${closing()}
+<!-- @@ student.renderFirstLogin | closing,email,esc -->
+
+    <div class="hdr u-mt32px">
+      <h1>أول دخول ليك</h1>
+      <div class="fact">اكتب رقمك السري واختار باسوردك الجديد</div>
+    </div>
+    <div class="card u-mw520px-m0auto">
+      <label class="flabel">الإيميل</label>
+      <input type="email" class="inp ltr" value="${esc(email)}" disabled>
+      <label class="flabel">الرقم السري اللي سجلت بيه</label>
+      <input id="fl-pin" type="password" inputmode="numeric" maxlength="6" class="inp ltr" placeholder="مثال: 2580">
+      <label class="flabel">الباسورد الجديد (6 أحرف أو أرقام على الأقل)</label>
+      <input id="fl-pass1" type="password" class="inp ltr">
+      <label class="flabel">تأكيد الباسورد</label>
+      <input id="fl-pass2" type="password" class="inp ltr">
+      <button type="button" class="btn u-w100pc" id="fl-btn">تأكيد ودخول</button>
+      <p class="msg bad" id="fl-msg"></p>
+      <div class="center muted u-mt8px"><a href="#/login" id="fl-back" class="u-cvarprimarydark">رجوع لصفحة الدخول</a></div>
+    </div>
+    ${closing()}

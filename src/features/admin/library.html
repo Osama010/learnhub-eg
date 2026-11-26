@@ -1,0 +1,36 @@
+<!-- قوالب الواجهة لموديول features/admin/library.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.adminLibrary | esc,items,libForm -->
+
+    <div class="card">
+      <h2 class="u-fs18px-mt0">${libForm.id ? "تعديل محتوى" : "إضافة محتوى للمكتبة"}</h2>
+      <p class="muted u-fs13px-mt0">أي حاجة بتضيفها هنا بتظهر لكل الطلبة في تاب «المكتبة» — نماذج امتحانات، مراجعات عامة، فيديوهات.</p>
+      <div style="display:grid; gap:10px; margin-top:10px;">
+        <input type="text" class="inp" id="lb-title" placeholder="العنوان (مثال: نموذج امتحان الوزارة 2025)" value="${esc(libForm.title)}">
+        <input type="text" class="inp" id="lb-subject" placeholder="المادة أو التصنيف (اختياري)" value="${esc(libForm.subject)}">
+        <textarea class="inp" id="lb-desc" rows="2" placeholder="وصف قصير (اختياري)">${esc(libForm.desc)}</textarea>
+        <input type="text" class="inp ltr" id="lb-video" placeholder="لينك فيديو (اختياري)" value="${esc(libForm.videoUrl)}">
+        <input type="text" class="inp ltr" id="lb-pdf" placeholder="لينك ملف PDF (اختياري)" value="${esc(libForm.pdfUrl)}">
+      </div>
+      <p class="msg" id="lb-msg"></p>
+      <div class="btnrow">
+        <button type="button" class="btn" id="lb-save">${libForm.id ? "حفظ التعديل" : "إضافة للمكتبة"}</button>
+        ${libForm.id ? `<button type="button" class="btn ghost" id="lb-cancel">إلغاء التعديل</button>` : ""}
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">محتوى المكتبة (${items.length})</h2>
+      ${items.length ? `<div style="display:grid; gap:12px; margin-top:12px;">
+        ${items.map((it) => `<div class="card u-m0">
+          <div class="btnrow u-justspacebetween-flexwrap">
+            <b class="u-fs15px">${esc(it.title || "")}</b>
+            ${it.subject ? `<span class="chip">${esc(it.subject)}</span>` : ""}
+          </div>
+          ${it.desc ? `<div class="muted u-fs13px-mt4px">${esc(it.desc)}</div>` : ""}
+          <div class="muted u-fs12px-m4px0">${it.videoUrl ? "🎬 فيديو" : ""}${it.videoUrl && it.pdfUrl ? " · " : ""}${it.pdfUrl ? "📄 PDF" : ""}</div>
+          <div class="btnrow">
+            <button type="button" class="btn sm ghost" data-lbe="${it.id}">تعديل</button>
+            <button type="button" class="btn sm red" data-lbd="${it.id}">حذف</button>
+          </div>
+        </div>`).join("")}
+      </div>` : `<p class="muted center u-mt12px">المكتبة فاضية لسه — أضف أول محتوى من الفورم فوق.</p>`}
+    </div>

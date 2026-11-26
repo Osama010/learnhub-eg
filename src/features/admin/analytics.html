@@ -1,0 +1,50 @@
+<!-- قوالب الواجهة لموديول features/admin/analytics.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.aanLineSvg |  -->
+<p class="muted center u-fs13px">لسه مفيش بيانات كفاية.</p>
+<!-- @@ admin.aanLineSvg_2 | esc,every,mx,pts,xy -->
+<svg viewBox="0 0 360 126" width="100%" style="max-width:640px;display:block;margin:0 auto"><g stroke="#e2e8f0"><line x1="10" y1="20" x2="350" y2="20"/><line x1="10" y1="60" x2="350" y2="60"/><line x1="10" y1="100" x2="350" y2="100"/></g>
+    <polyline fill="none" stroke="#6366f1" stroke-width="3" points="${xy.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ")}"/>
+    ${pts.map((p, i) => i % every === 0 ? `<text x="${xy[i][0].toFixed(1)}" y="120" font-size="10" fill="#64748b" text-anchor="middle">${esc(p.label)}</text>` : "").join("")}
+    <text x="12" y="16" font-size="10" fill="#475569">${mx}</text></svg>
+<!-- @@ admin.aanBarsSvg | esc,mx,pts,w -->
+<svg viewBox="0 0 360 120" width="100%" style="max-width:640px;display:block;margin:0 auto;direction:ltr">${pts.map((p, i) => { const h = Math.max(2, (p.v / mx) * 75); const x = 20 + i * w; return `<rect x="${(x + w * 0.15).toFixed(1)}" y="${95 - h}" width="${(w * 0.7).toFixed(1)}" height="${h}" rx="4" fill="#0d9488"/><text x="${(x + w / 2).toFixed(1)}" y="${90 - h}" font-size="11" fill="#475569" text-anchor="middle">${p.v}</text><text x="${(x + w / 2).toFixed(1)}" y="112" font-size="10" fill="#64748b" text-anchor="middle">${esc(p.label)}</text>`; }).join("")}</svg>
+<!-- @@ admin.kpi | l,v -->
+<div><b>${v}</b><span>${l}</span></div>
+<!-- @@ admin.empty | t -->
+<p class="muted center u-fs13px">${t}</p>
+<!-- @@ admin.aanHtml | AN_CSS,aanBarsSvg,aanLineSvg,empty,esc,kpi,m,mxN -->
+  <div class="an-k">
+    ${kpi(m.approved.toLocaleString("en"), "طالب مقبول (من " + m.total.toLocaleString("en") + ")")}
+    ${kpi(m.active7.toLocaleString("en") + (m.approved ? ` <small class="u-fs13px">(${Math.round((m.active7 / m.approved) * 100)}%)</small>` : ""), "نشطين آخر 7 أيام")}
+    ${kpi(m.teachers + (m.expiring ? ` <small style="font-size:12px;color:#b45309">${m.expiring} اشتراك قرب ينتهي</small>` : ""), "مدرس")}
+    ${kpi("+" + m.newRegs, "تسجيلات جديدة في الفترة")}
+  </div>
+  <div class="an-grid">
+  <div class="card an-card"><h2>👥 تسجيلات جديدة أسبوعيا</h2>${aanBarsSvg(m.regWeeks)}</div>
+  <div class="card an-card"><h2>⚡ الطلاب النشطين يوميا</h2>${aanLineSvg(m.daily)}</div>
+  </div>
+  <div class="an-grid">
+  <div class="card an-card"><h2>🧑‍🏫 الطلاب لكل مدرس</h2>${m.perTeacher.length ? m.perTeacher.slice(0, 12).map((p) => `<div class="an-bar"><span class="u-w90px-overhidden-wsnowrap-textellipsis">${esc(p.t.name || "")}</span><div class="t"><i style="width:${Math.round((p.n / mxN) * 100)}%"></i></div><b>${p.n}</b></div>`).join("") : empty("مفيش مدرسين.")}</div>
+  <div class="card an-card"><h2>🏫 متوسط الدرجات لكل مدرس</h2>${m.perTeacher.some((p) => p.avg !== null) ? m.perTeacher.filter((p) => p.avg !== null).slice(0, 12).map((p) => `<div class="an-bar"><span class="u-w90px-overhidden-wsnowrap-textellipsis">${esc(p.t.name || "")}</span><div class="t"><i style="width:${p.avg}%;${p.avg < 60 ? "background:#f59e0b" : ""}"></i></div><b>${p.avg}%</b></div>`).join("") : empty("لسه مفيش نتايج في الفترة دي.")}</div>
+  </div>
+  <div class="card an-card"><h2>⚠️ محتاج انتباه (${m.attention.length})</h2>${m.attention.length ? m.attention.slice(0, 12).map((a) => `<div class="an-row"><span>${esc(a.txt)}</span><span class="an-tag ${a.o ? "o" : ""}">${esc(a.tag)}</span></div>`).join("") : empty("كله تمام ✅")}</div>
+  ${m.counts ? `<div class="card an-card"><h2>📦 المحتوى لكل مرحلة</h2><div class="u-fs135px-lh19">${m.counts.map((c) => `${esc(c.stage)}: ${c.lessons} درس · ${c.quizzes} كويز`).join("<br>")}</div></div>` : ""}
+<!-- @@ admin.aanExport | escP,rows -->
+<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table border="1">${rows.map((r) => `<tr>${r.map((c) => `<td>${escP(c)}</td>`).join("")}</tr>`).join("")}</table></body></html>
+<!-- @@ admin.aanPrint | aanHtml,aanState,m -->
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تحليل المنصة</title><style>
+    body{font-family:"Cairo","Segoe UI",Tahoma,sans-serif;direction:rtl;padding:24px;color:#1e293b}h1{font-size:20px;margin:0 0 4px}.meta{color:#64748b;font-size:12.5px;margin-bottom:14px}
+    .card{border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:12px;break-inside:avoid}.muted{color:#64748b}.center{text-align:center}.foot{margin-top:18px;color:#64748b;font-size:12px;text-align:center}
+    @media print{body{padding:0}}</style></head><body><h1>تحليل المنصة — learnhub-eg</h1><div class="meta">آخر ${aanState.days} يوم · ${new Date().toLocaleString("ar-EG")}</div>
+    ${aanHtml(m)}<div class="foot">فكرة وإعداد: مهندس اسامه حسن عسس</div><script>window.onload=function(){window.print();}<\/script></body></html>
+<!-- @@ admin.adminAnalytics |  -->
+<div class="spin">بنحلل بيانات المنصة...</div>
+<!-- @@ admin.adminAnalytics_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ admin.adminAnalytics_3 | aanExtra,aanHtml,aanState,m -->
+
+    <div class="card"><h2 class="u-fs18px-mt0">📊 تحليل المنصة</h2>
+    <div class="filterrow"><select id="aan-days" class="inp">${[[7, "آخر 7 أيام"], [30, "آخر 30 يوم"], [90, "آخر 90 يوم"]].map(([d, l]) => `<option value="${d}" ${aanState.days === d ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    <div class="btnrow u-mt8px"><button type="button" class="btn" id="aan-print">🖨️ PDF / طباعة</button><button type="button" class="btn ghost" id="aan-xls">⬇ Excel</button><button type="button" class="btn ghost" id="aan-csv">CSV</button></div>
+    <p class="muted" style="font-size:12.5px;margin:8px 0 0;">الأرقام محسوبة من بيانات المنصة المحمّلة + استعلامات محدودة بالفترة، من غير أي ملخص مخزن.${aanExtra.noContentCheck ? " (تعذر فحص آخر محتوى للمدرسين.)" : ""}</p></div>
+    ${aanHtml(m)}

@@ -1,0 +1,8 @@
+<!-- قوالب الواجهة لموديول shared/subscriptions.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.subChip | si -->
+<span class="chip amber">فاضل ${si.daysLeft} يوم</span>
+<!-- @@ app.broadcastBannerHtml | esc,txt -->
+<div class="card" style="border-right:4px solid var(--amber, #f59e0b); background:linear-gradient(135deg, rgba(245,158,11,.12), transparent 60%);">
+    <b class="u-fs15px">📢 إعلان من إدارة المنصة</b>
+    <p style="font-size:14px; margin:6px 0 0; white-space:pre-wrap;">${esc(txt)}</p>
+  </div>

@@ -1,0 +1,5 @@
+<!-- قوالب الواجهة لموديول features/student/profile.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.sAvatarHtml | av,size -->
+<img src="${av}" alt="" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; display:inline-block; vertical-align:middle; border:2px solid var(--primary-soft);">
+<!-- @@ student.sAvatarHtml_2 | esc,nm,size -->
+<span style="width:${size}px; height:${size}px; border-radius:50%; background:var(--primary); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:${Math.round(size * 0.45)}px; font-weight:800; vertical-align:middle;">${esc(nm ? nm[0] : "؟")}</span>

@@ -1,0 +1,25 @@
+<!-- قوالب الواجهة لموديول features/auth/email-verify.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ auth.renderVerifyGate | LOGO_FULL_SVG,closing,email,esc,isTeacher,msg,resent,themeIcon -->
+<div class="loginwrap">
+    <button type="button" class="themebtn u-posifixed-top14px-left14px-zind60" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+    <div class="hero">
+      ${LOGO_FULL_SVG}
+      <div class="u-cvarmuted-fw700-fs18px-mt2px">فعّل إيميلك الأول 📧</div>
+      <div class="fact u-mt8px">${isTeacher
+        ? "حسابك كمدرس مش هيتفتح غير بعد التفعيل."
+        : "حسابك مش هيتفتح غير بعد التفعيل."} بعتنا لينك على <b class="ltr">${esc(email)}</b> — افتح إيميلك ودوس اللينك وبعدين ارجع هنا</div>
+    </div>
+    <div class="card logincard u-mw520px-m14pxauto0">
+      ${resent ? `<p class="msg good u-tacenter">اتبعت اللينك تاني ✅ شوف البريد الوارد أو السبام</p>` : ""}
+      ${msg ? `<p class="msg bad u-tacenter">${esc(msg)}</p>` : ""}
+      <div class="btnrow" style="flex-direction:column; align-items:stretch; gap:10px;">
+        <button type="button" class="btn" id="ev-done">عملت التفعيل ✅</button>
+        <button type="button" class="btn ghost" id="ev-resend">إعادة إرسال اللينك</button>
+        <button type="button" class="btn ghost" id="ev-out">خروج</button>
+      </div>
+      <p class="muted" style="font-size:13px; margin-top:14px; text-align:center;">${isTeacher
+        ? "اللينك ممكن يوصل في السبام. لو الإيميل ده غلط أو مش بتاعك، كلّم الأدمن يعدّله."
+        : "اللينك ممكن يوصل في السبام. لو الإيميل ده غلط أو مش بتاعك، كلّم مدرسك يعدّله."}</p>
+    </div>
+    ${closing()}
+  </div>

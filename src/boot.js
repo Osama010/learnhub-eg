@@ -1,0 +1,57 @@
+/* تشغيل التطبيق: بيربط كل الموديولات، وبعدين الراوتر وفايربيز وعامل الخدمة. */
+import { route } from "./core/router.js";
+import { initFirebase } from "./core/session.js";
+import "./features/auth/login.js";
+import "./features/auth/email-verify.js";
+import "./features/auth/register.js";
+import "./features/auth/admin-pin.js";
+import "./features/about/about.js";
+import "./features/landing/stats.js";
+import "./features/landing/landing.js";
+import "./features/admin/shell.js";
+import "./features/admin/log.js";
+import "./features/admin/subjects.js";
+import "./features/admin/teachers.js";
+import "./features/admin/teacher-content.js";
+import "./features/admin/reports.js";
+import "./features/admin/admins.js";
+import "./features/admin/account.js";
+import "./features/admin/library.js";
+import "./features/admin/analytics.js";
+import "./features/teacher/dashboard.js";
+import "./features/teacher/lessons.js";
+import "./features/teacher/forms.js";
+import "./features/teacher/lesson-preview.js";
+import "./features/teacher/exams.js";
+import "./features/teacher/reports.js";
+import "./features/teacher/late-students.js";
+import "./features/teacher/question-bank.js";
+import "./features/teacher/announcements.js";
+import "./features/teacher/notes.js";
+import "./features/teacher/account.js";
+import "./features/teacher/analytics.js";
+import "./features/student/gate.js";
+import "./features/student/shell.js";
+import "./features/student/first-login.js";
+import "./features/student/home.js";
+import "./features/student/lesson.js";
+import "./features/student/quizzes.js";
+import "./features/student/quiz-runner.js";
+import "./features/student/upcoming.js";
+import "./features/student/levels.js";
+import "./features/student/activity.js";
+import "./features/student/mistakes.js";
+import "./features/student/library.js";
+import "./features/student/announcements.js";
+import "./features/student/grades.js";
+import "./features/student/profile.js";
+import "./features/student/teachers.js";
+import "./features/student/analytics.js";
+
+window.addEventListener("hashchange", route);
+route();
+initFirebase();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register(new URL("../sw.js", import.meta.url)).catch(() => {}));
+}

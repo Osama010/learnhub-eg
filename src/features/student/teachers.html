@@ -1,0 +1,73 @@
+<!-- قوالب الواجهة لموديول features/student/teachers.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ student.row | esc,t -->
+<button type="button" class="btn sm" data-treq="${esc(t.id)}">اطلب الإضافة</button>
+<!-- @@ student.row_2 | esc,r -->
+<span class="chip amber">قيد الانتظار</span> <button type="button" class="btn sm ghost" data-tcancel="${esc(r.id)}">إلغاء الطلب</button>
+<!-- @@ student.row_3 | esc,r -->
+<span class="chip red">اترفض</span> <button type="button" class="btn sm ghost" data-tcancel="${esc(r.id)}">حذف الطلب</button>
+<!-- @@ student.row_4 | act,esc,t -->
+<div class="btnrow u-justspacebetween-bord1pxsolidvarline-p8px0"><span><b>${esc(t.name)}</b>${t.subject ? ` <span class="muted u-fs125px">— ${esc(t.subject)}</span>` : ""}</span><span>${act}</span></div>
+<!-- @@ student.studentTeachersCardHtml | esc,mineList,others,row -->
+<div class="card" id="sp-teachers">
+    <h2 class="u-fs18px-mt0">👩‍🏫 مدرسيني</h2>
+    <div class="btnrow" style="margin-bottom:6px;">${mineList.length ? mineList.map((t) => `<span class="chip green">${esc(t.name)}</span>`).join("") : '<span class="muted">—</span>'}</div>
+    ${others.length ? `<h3 class="u-fs15px-m12px04px">إضافة مدرس جديد</h3>
+      <p class="muted" style="font-size:12.5px; margin:0 0 4px;">بتبعت طلب للمدرس، ولما يوافق عليه بيظهر عندك محتواه.</p>
+      ${others.map(row).join("")}` : `<p class="muted u-fs13px">مفيش مدرسين تانيين متاحين دلوقتي.</p>`}
+    <p class="msg" id="sp-t-msg"></p>
+  </div>
+<!-- @@ student.renderStudentProfile |  -->
+<div class="spin">بنحمل حسابك...</div>
+<!-- @@ student.renderStudentProfile_2 | e,esc -->
+<p class="msg bad">مشكلة في التحميل: ${esc(e.message || e)}</p>
+<!-- @@ student.row_5 | esc,lbl,ltr,val -->
+<div class="btnrow u-justspacebetween-bord1pxsolidvarline-padd8px"><span class="muted">${lbl}</span><b ${ltr ? 'class="ltr"' : ""}>${esc(val)}</b></div>
+<!-- @@ student.renderStudentProfile_3 | atts,avg,best,closing,esc,fbUser,row,s,sAvatarHtml,sLevelCardHtml,studentTabs,studentTeachersCardHtml,trq -->
+
+    <div class="hdr">
+      <h1 style="display:flex; align-items:center; gap:10px;">${sAvatarHtml(44)} حسابي</h1>
+      <div class="fact">${esc(s.grade || "")}</div>
+    </div>
+    ${studentTabs("profile")}
+    <div class="card center u-p28px">
+      ${sAvatarHtml(120)}
+      <h2 class="u-m10px02px-fs20px">${esc(s.name || "")}</h2>
+      <div class="muted">${esc(s.grade || "")}</div>
+      <div class="btnrow u-justcenter-mt12px">
+        <button type="button" class="btn sm" id="sp-pick">📷 ${s.avatar ? "تغيير الصورة" : "إضافة صورة"}</button>
+        ${s.avatar ? `<button type="button" class="btn sm ghost" id="sp-del">حذف الصورة</button>` : ""}
+      </div>
+      <input type="file" id="sp-file" accept="image/*" style="display:none;">
+      <div class="muted u-fs12px-mt6px">الصورة بتتصغّر لوحدها قبل الحفظ — أي صورة من موبايلك تنفع.</div>
+      <p class="msg" id="sp-msg"></p>
+    </div>
+    ${sLevelCardHtml()}
+    <div class="statcards">
+      <div class="statcard"><div class="num">${atts.length}</div><div class="lbl">اختبار حليته</div></div>
+      <div class="statcard"><div class="num">${avg !== null ? avg + "%" : "—"}</div><div class="lbl">متوسط درجاتك</div></div>
+      <div class="statcard"><div class="num">${best !== null ? best + "%" : "—"}</div><div class="lbl">أعلى نتيجة ليك</div></div>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">بياناتك</h2>
+      <div style="display:grid; gap:10px; margin-top:10px;">
+        ${row("الاسم", s.name || "—")}
+        ${row("الصف", s.grade || "—")}
+        ${row("الإيميل", fbUser.email || "—", true)}
+        <div class="btnrow u-justspacebetween"><span class="muted">رقم ولي الأمر</span><b class="ltr">${esc(s.parentPhone || "—")}</b></div>
+      </div>
+      <p class="muted u-fs125px-mt12px">الاسم والصف ورقم ولي الأمر بيتحدثوا من مدرسك أو الأدمن — لو في حاجة غلط كلّم مدرسك.</p>
+    </div>
+    ${studentTeachersCardHtml(trq)}
+    <div class="card">
+      <h2 class="u-fs18px-mt0">🔒 الباسورد</h2>
+      <div id="sp-pass-form" style="display:none; margin-top:10px;">
+        <div style="display:grid; gap:10px; max-width:340px;">
+          <input type="password" class="inp ltr" id="sp-p1" placeholder="الباسورد الجديد (٦ حروف على الأقل)">
+          <input type="password" class="inp ltr" id="sp-p2" placeholder="تأكيد الباسورد الجديد">
+          <div class="btnrow"><button type="button" class="btn sm" id="sp-pass-save">حفظ الباسورد</button></div>
+        </div>
+      </div>
+      <div class="btnrow" id="sp-pass-open-row"><button type="button" class="btn ghost sm" id="sp-pass-open">تغيير الباسورد</button></div>
+      <p class="msg" id="sp-pass-msg"></p>
+    </div>
+    ${closing()}

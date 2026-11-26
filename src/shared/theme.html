@@ -1,0 +1,20 @@
+<!-- قوالب الواجهة لموديول shared/theme.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ app.platNavHtml | avatarUrl -->
+<img class="av" src="${avatarUrl}" alt="">
+<!-- @@ app.platNavHtml_2 | esc,nm -->
+<span class="avinit">${esc(nm ? nm[0] : "؟")}</span>
+<!-- @@ app.platNavHtml_3 | LOGO_ICON_SVG,av,esc,nm,profileHash,themeIcon -->
+<div class="pnav"><div class="pnav-in">
+    <a class="brand" href="#/login" style="display:flex; align-items:center; gap:7px;">${LOGO_ICON_SVG}<span style="font-weight:900; font-size:19px; color:var(--primary-dark);">المستر</span></a>
+    <span class="mezone">
+      <span class="mewrap">
+        <button type="button" class="me" data-medrop><span class="nm">${esc(nm)}</span>${av}<span class="mechev">▾</span></button>
+        <span class="medrop" style="display:none;">
+          <button type="button" class="md-item" data-prof="${profileHash}">👤 حسابي</button>
+          <span class="md-sep"></span>
+          <button type="button" class="md-item md-out" data-mesout>🚪 خروج</button>
+        </span>
+      </span>
+      <button type="button" class="themebtn" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+    </span>
+  </div></div>
