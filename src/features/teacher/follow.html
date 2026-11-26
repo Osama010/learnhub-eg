@@ -24,6 +24,11 @@
       <p class="muted u-fs125px-mt6px">النشاط بيتحسب من آخر يوم دخل فيه الطالب أو آخر محاولة كويز/امتحان. الزرار بيفتح واتساب برسالة تذكير جاهزة وانت تبعت. من الصف تقدر تفتح تقرير ولي الأمر أو تطلع شهادة.</p>
     </div>
     <div id="fl-list"></div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">كل الطلاب</h2>
+      <input id="fl-q" class="inp" type="search" placeholder="ابحث باسم الطالب" autocomplete="off">
+      <div id="fl-all"></div>
+    </div>
     ${backupCardHtml()}
 <!-- @@ teacher.followListHtml | esc,followDays,followMode,rows,sum,waLink -->
 <div class="card">
@@ -38,3 +43,12 @@
     </tr>`).join("")}</tbody>
   </table>` : `<p class="muted">✅ مفيش طلاب متأخرين ${followDays} يوم أو أكتر في الاختيار ده.</p>`}
 </div>
+<!-- @@ teacher.followAllHtml | all,esc,waLink -->
+<p class="muted u-fs125px-m006px">${all.matched ? "الطلاب: " + all.matched + (all.matched > all.shown ? " (معروض أول " + all.shown + "، اكتب جزء من الاسم لتضييق البحث)" : "") : ""}</p>
+${all.rows.length ? `<table class="ttable">
+  <thead><tr><th>الطالب</th><th>إجراءات</th></tr></thead>
+  <tbody>${all.rows.map((r) => `<tr>
+    <td>${esc(r.name)}${r.grade ? `<br><span class="muted u-fs125px">${esc(r.grade)}</span>` : ""}</td>
+    <td><div class="btnrow u-m0" style="gap:6px;"><a class="btn sm" href="#/teacher/preport/${esc(r.id)}">تقرير</a><a class="btn sm" href="#/teacher/cert/${esc(r.id)}">شهادة</a>${r.valid ? `<a class="btn sm green" target="_blank" rel="noopener" href="${waLink(r.to, r.text)}" title="${r.parent ? "لولي الأمر" : "للطالب"}">واتساب</a>` : `<span class="muted u-fs125px">مفيش رقم ${r.parent ? "ولي أمر" : "للطالب"}</span>`}</div></td>
+  </tr>`).join("")}</tbody>
+</table>` : `<p class="muted">مفيش طالب بالاسم ده.</p>`}

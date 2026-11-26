@@ -142,6 +142,10 @@
       ${s.phone ? `<a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك مدرسك من منصة الدروس.")}">واتساب الطالب</a>` : ""}
       ${s.parentPhone ? `<a class="btn sm green" target="_blank" href="${waLink(s.parentPhone, "أهلاً بحضرتك، معاك مدرس " + s.name + " من منصة الدروس.")}">واتساب ولي الأمر</a>` : ""}
     </div>
+    <div class="btnrow u-justcenter-mt12px">
+      <a class="btn sm" id="ov-preport" href="#/teacher/preport/${esc(s.id)}">تقرير ولي الأمر</a>
+      <a class="btn sm" id="ov-cert" href="#/teacher/cert/${esc(s.id)}">شهادة</a>
+    </div>
     <div class="u-mt14px-bord1pxsolidvarborder-pt10px">
       <b class="u-fs14px">تعديل رقم ولي الأمر</b>
       <div class="btnrow u-mt6px">

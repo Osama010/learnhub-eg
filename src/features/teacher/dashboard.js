@@ -169,6 +169,7 @@ export function teacherShowStudent(id) {
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   document.body.appendChild(ov);
   ov.querySelector("#ov-close").onclick = () => ov.remove();
+  ov.querySelectorAll("#ov-preport, #ov-cert").forEach((a) => a.addEventListener("click", () => ov.remove()));
   ov.querySelector("#gr-save").onclick = async () => {
     const v = ov.querySelector("#gr-edit").value;
     const m = ov.querySelector("#gr-msg");

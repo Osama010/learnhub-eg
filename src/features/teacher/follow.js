@@ -9,7 +9,7 @@ import { STAGE_NAMES } from "./lessons.presenter.js";
 import { resolveStage } from "./announcements.presenter.js";
 import { bailIfSignedOut } from "../../shared/toast.js";
 import { waLink } from "../../shared/transfer.js";
-import { INACT_DAYS, followSummary, followTargets, inactiveRows } from "./follow.presenter.js";
+import { INACT_DAYS, allRows, followSummary, followTargets, inactiveRows } from "./follow.presenter.js";
 import { getRecipientMode, recipientPickHtml, setRecipientMode } from "./recipient.js";
 import { backupCardHtml, bindBackup } from "./backup.js";
 
@@ -18,12 +18,19 @@ let followStage = "";
 let followGrade = "";
 let followDays = 7;
 let followMode = "parent";
+let followQuery = "";
 
 function drawFollowList() {
   const students = followTargets(teacherCache, followStage, followGrade);
   const rows = inactiveRows(students, lessonsState.attempts || [], new Date(), followDays, followMode);
   const sum = followSummary(students.length, rows);
   document.getElementById("fl-list").innerHTML = T("teacher.followListHtml", { esc, followDays, followMode, rows, sum, waLink });
+  drawAll(students);
+}
+
+function drawAll(students) {
+  const el = document.getElementById("fl-all");
+  if (el) el.innerHTML = T("teacher.followAllHtml", { all: allRows(students, followMode, followQuery), esc, waLink });
 }
 
 export async function renderTeacherFollow() {
@@ -41,5 +48,8 @@ export async function renderTeacherFollow() {
   document.getElementById("fl-grade").onchange = (e) => { followGrade = e.target.value; drawFollowList(); };
   document.getElementById("fl-days").onchange = (e) => { followDays = Number(e.target.value) || 7; drawFollowList(); };
   document.getElementById("fl-mode").onchange = (e) => { followMode = setRecipientMode(e.target.value); drawFollowList(); };
+  const q = document.getElementById("fl-q");
+  q.value = followQuery;
+  q.oninput = (e) => { followQuery = e.target.value; drawAll(followTargets(teacherCache, followStage, followGrade)); };
   drawFollowList();
 }

@@ -28,7 +28,7 @@ export function inactiveText(x, mode, n) {
   const name = x.name || (normMode(mode) === "parent" ? "نجلكم" : "");
   const gap = n === null ? "لسه ما دخلش المنصة" : "ما دخلش المنصة من " + n + " يوم";
   return normMode(mode) === "parent"
-    ? "أهلاً بحضرتك، معاك مدرس " + name + ". بنفكركم إن " + name + " " + gap + ". من فضلكم شجعوه يدخل ويكمل دروسه وكويزاته."
+    ? "أهلاً بحضرتك، معاك مدرس الطالب " + name + ". بنفكركم إن " + name + " " + gap + ". من فضلكم شجعوه يدخل ويكمل دروسه وكويزاته."
     : "أهلاً " + (x.name || "") + "، معاك مدرسك. لاحظت إنك " + gap + ". ادخل كمل دروسك وكويزاتك وأنا معاك.";
 }
 
@@ -48,4 +48,41 @@ export const followTargets = (students, stage, grade) => eligibleStudents(studen
 /** ملخص: العدد الكلي والمتأخرين واللي ليهم رقم. */
 export function followSummary(total, rows) {
   return { total, late: rows.length, never: rows.filter((r) => r.days === null).length, sendable: rows.filter((r) => r.valid).length };
+}
+
+/** تطبيع نص عربي للبحث: بيشيل التشكيل والتطويل ويوحد الهمزات والياء والتاء المربوطة والأرقام ويظبط المسافات. */
+export function arNorm(t) {
+  return String(t == null ? "" : t)
+    .replace(/[\u064B-\u0652\u0640\u0670]/g, "")
+    .replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/ؤ/g, "و").replace(/ئ/g, "ي")
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 1632))
+    .toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** الاسم بيطابق البحث لو كل كلمة في البحث موجودة في الاسم (بعد التطبيع). */
+export function nameMatches(name, query) {
+  const q = arNorm(query);
+  if (!q) return true;
+  const n = arNorm(name);
+  return q.split(" ").every((w) => n.includes(w));
+}
+
+/** رسالة واتساب عامة جاهزة حسب المستلم. */
+export function generalText(x, mode) {
+  const name = (x && x.name) || "";
+  return normMode(mode) === "parent"
+    ? "أهلاً بحضرتك، معاك مدرس الطالب " + name + " على منصة المستر."
+    : "أهلاً " + name + "، معاك مدرسك على منصة المستر.";
+}
+
+export const ALL_LIMIT = 50;
+
+/** صفوف كل الطلاب (بحث بالاسم) بالترتيب الأبجدي، مع حد أقصى للعرض. */
+export function allRows(students, mode, query) {
+  const m = (students || []).filter((x) => nameMatches(x.name, query)).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ar"));
+  const rows = m.slice(0, ALL_LIMIT).map((x) => {
+    const to = phoneFor(x, mode);
+    return { id: x.id, name: x.name || "—", grade: x.grade || "", to, valid: phoneOk(to), text: generalText(x, mode), parent: normMode(mode) === "parent" };
+  });
+  return { rows, matched: m.length, shown: rows.length };
 }
