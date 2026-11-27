@@ -122,7 +122,7 @@
       <p class="muted" style="font-size:12.5px; margin:10px 4px 0;">المدرس الموقوف بيختفي من صفحة التسجيل للطلبة الجداد ومحتواه بيتقفل على طلابه الحاليين لحد ما يرجع.</p>
     </div>
 <!-- @@ admin.signupsCard | esc,gradesSummary,signups,signupsError -->
-${signupsError ? `<div class="card"><h2 class="u-fs18px-mt0">طلبات المدرسين الجداد</h2><p class="muted">مقدرتش أحمّل الطلبات (${esc(signupsError)}). لو لسه منشرتش قواعد Firestore الجديدة انشرها الأول.</p></div>` : (signups.length ? `<div class="card" id="sg-box">
+${signupsError ? `<div class="card"><h2 class="u-fs18px-mt0">طلبات مدرسين جداد</h2><p class="muted">مقدرتش أحمّل الطلبات (${esc(signupsError)}). لو لسه منشرتش قواعد Firestore الجديدة انشرها الأول.</p></div>` : (signups.length ? `<div class="card" id="sg-box">
       <h2 class="u-fs18px-mt0">طلبات مدرسين جداد (${signups.length})</h2>
       <p class="muted" style="font-size:13px; margin:0 0 10px;">"قبول" بيملّى فورم إضافة المدرس تحت ببياناته، وإنت بتحط له باسورد مؤقت وتدوس إضافة.</p>
       ${signups.map((g) => `<div class="sg-card">
@@ -132,7 +132,7 @@ ${signupsError ? `<div class="card"><h2 class="u-fs18px-mt0">طلبات المد
         ${g.bio ? `<div style="font-size:13px; margin-top:6px;">${esc(g.bio)}</div>` : ""}
         <div class="btnrow u-mt8px"><button type="button" class="btn sm" data-sg-ok="${esc(g.id)}">قبول</button><button type="button" class="btn sm red" data-sg-no="${esc(g.id)}">رفض</button></div>
       </div>`).join("")}
-    </div>` : "")}
+    </div>` : `<div class="card" id="sg-box"><h2 class="u-fs18px-mt0">طلبات مدرسين جداد (0)</h2><p class="muted" style="margin:0;">مفيش طلبات جديدة دلوقتي. الطلبات اللي بتتبعت من "اطلب حساب مدرس" في الصفحة الرئيسية بتظهر هنا.</p></div>`)}
 <!-- @@ admin.adminTeachers_3 | taPhotoData -->
 <img src="${taPhotoData}" alt="" class="u-w64px-h64px-bord50pc-objecover">
 <!-- @@ admin.adminToggleTeacher | esc,mine,t -->
