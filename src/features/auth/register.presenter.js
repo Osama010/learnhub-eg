@@ -24,8 +24,10 @@ export function presentRegistration(raw) {
 }
 
 /** المدرس اللي معملوله قبل ميزة المراحل (مفيش stages) يظهر لكل المراحل. */
-export function teacherShownForGrade(stagesCsv, grade) {
+export function teacherShownForGrade(stagesCsv, grade, gradesCsv) {
   const st = stageOfGrade(grade);
   const stages = String(stagesCsv || "").split(",").filter(Boolean);
+  const grades = String(gradesCsv || "").split(",").filter(Boolean); // مدرس معاه صفوف محددة: بنطابق الصف نفسه
+  if (grade && grades.length) return grades.includes(grade);
   return !st || !stages.length || stages.includes(st);
 }

@@ -5,6 +5,7 @@ import { renderAdmin } from "../features/admin/shell.js";
 import { needsEmailVerify, renderVerifyGate } from "../features/auth/email-verify.js";
 import { renderLogin } from "../features/auth/login.js";
 import { renderRegister } from "../features/auth/register.js";
+import { renderTeacherSignup } from "../features/auth/teacher-signup.js";
 import { renderLanding } from "../features/landing/landing.js";
 import { renderStudentAnalytics } from "../features/student/analytics.js";
 import { renderStudentAnn } from "../features/student/announcements.js";
@@ -44,6 +45,7 @@ export function route() {
   const h = location.hash || "#/login";
   if (!fbReady) { renderLoading(); return; }
   if (!PORTAL && !fbUser && (location.hash === "" || location.hash === "#" || location.hash === "#/")) return renderLanding();
+  if (h === "#/teacher-request") return (!PORTAL || PORTAL === "teacher") ? renderTeacherSignup() : renderLogin();
   if (h === "#/register") return (!PORTAL || PORTAL === "student") ? renderRegister() : renderLogin();
   if (h === "#/login" || h === "#/" || h === "") return fbUser ? routeByRole() : renderLogin();
   if (!fbUser) return renderLogin();

@@ -2,6 +2,7 @@
  "features/auth/login",
  "features/auth/email-verify",
  "features/auth/register",
+ "features/auth/teacher-signup",
  "features/auth/admin-pin",
  "features/about/about",
  "features/landing/landing",

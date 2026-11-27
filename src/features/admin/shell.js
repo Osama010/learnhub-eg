@@ -17,7 +17,7 @@ import { bindPlatNav, platNavHtml } from "../../shared/theme.js";
 import { bailIfSignedOut } from "../../shared/toast.js";
 import { addAdminLog, listSubjects, listAdmins, listLibraryNewestFirst, listPayments, listAdminLog, getBroadcast, setAdmin } from "../../main/data.js";
 import { listTeachersNewestFirst, listTeachersPublic, batchSetTeacherPublic, batchUpdateTeacherPublic } from "../../main/data.js";
-import { listAllStudentsNewestFirst } from "../../main/data.js";
+import { listAllStudentsNewestFirst, listTeacherSignups } from "../../main/data.js";
 import { newBatch } from "../../main/data.js";
 import { SUB_TYPES } from "../../domain/subscription.js";
 import { serverNow } from "../../main/data.js";
@@ -27,7 +27,7 @@ import { adminTabOf, buildLogEntry, buildPaymentDoc, planPublicSync, sortSubject
    يضيف مدرسين (بإنشاء حسابهم في Firebase Auth) ويقدر يعطّلهم أو يشطبهم.
    تقرير الطلاب بعدد طلاب كل مدرس ومستوى كل طالب في كل مادة. */
 
-export let adminCache = { teachers: null, students: null, subjects: null, admins: null, library: null, payments: null, log: null, broadcast: null };
+export let adminCache = { signups: [], signupsError: "", teachers: null, students: null, subjects: null, admins: null, library: null, payments: null, log: null, broadcast: null };
 
 /* سجل نشاط الأدمن: بيتكتب مع كل حركة حساسة — نار ونسيان، فشل التسجيل ميوقفش الحركة */
 export function adminLogAction(action, targetType, targetId, targetName, details) {
@@ -58,6 +58,11 @@ export async function adminLoad() {
     listAdminLog(),
     getBroadcast(),
   ]);
+  // طلبات المدرسين الجداد: قراءة منفصلة، لو القواعد لسه متنشرتش اللوحة كلها تفضل شغالة
+  try {
+    adminCache.signups = (await listTeacherSignups()).filter((g) => g.status === "pending");
+    adminCache.signupsError = "";
+  } catch (e) { adminCache.signups = []; adminCache.signupsError = (e && (e.code || e.message)) || "خطأ"; console.warn("تعذر تحميل طلبات المدرسين", e); }
   adminCache.payments = pay;
   adminCache.log = lg;
   adminCache.broadcast = bc;

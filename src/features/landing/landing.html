@@ -1,44 +1,50 @@
 <!-- قوالب الواجهة لموديول features/landing/landing.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
 <!-- @@ app.renderLanding |  -->
 <div class="spin">ثانية واحدة...</div>
-<!-- @@ app.tcard | esc,i,initial,t -->
-<div class="lp-t rv" style="transition-delay:${Math.min(i, 8) * 70}ms;">
-      <div class="lp-av">${t.avatar ? `<img src="${esc(t.avatar)}" alt="" onerror="this.remove()">` : ""}<span>${initial(t.name)}</span></div>
-      <div class="lp-tn">${esc(t.name)}</div>
-      <div class="lp-ts">${esc(t.subject || "")}</div>
-      <button type="button" class="btn sm" data-pickt="${esc(t.id)}">سجّل مع المدرس ده</button>
-    </div>
-<!-- @@ app.renderLanding_2 | LANDING_FEATURES,a,aboutPhotoHtml,aboutRich,closing,esc,paras,skills,st,tcard,teachers,themeIcon -->
+<!-- @@ app.renderLanding_2 | LANDING_FEATURES,LOGO_FULL_SVG,a,aboutPhotoHtml,aboutRich,closing,esc,paras,skills,st,themeIcon -->
 <div class="landing">
-    <button type="button" class="themebtn u-posifixed-top14px-left14px-zind60" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+    <header class="lp-nav">
+      <a class="lp-brand" href="./" aria-label="المستر">${LOGO_FULL_SVG}</a>
+      <nav class="lp-links">
+        <a href="#/" data-goto="lp-about">عن المنصة</a>
+        <a href="#/" data-goto="lp-eng">المهندس</a>
+      </nav>
+      <div class="lp-navend">
+        <button type="button" class="themebtn lp-theme" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+        <div class="lp-dd"><a class="lp-cta" href="#/login" id="lp-login" aria-haspopup="true" aria-expanded="false">دخول ▾</a>
+          <div class="lp-ddm"><a href="student/"><i>🎓</i><span><b>دخول طالب</b><small>دروسك واختباراتك</small></span></a><a href="teacher/"><i><svg width="22" height="22" viewBox="0 0 96 96" fill="none"><rect x="8" y="10" width="52" height="34" rx="5" fill="#0f766e"/><circle cx="68" cy="38" r="11" fill="#f59e0b"/><path d="M46 88c0-14 10-24 22-24s22 10 22 24" fill="#f59e0b"/></svg></i><span><b>دخول مدرس</b><small>طلابك وتقاريرك</small></span></a></div></div>
+      </div>
+    </header>
     <section class="lp-hero">
-      <i class="lp-b" style="width:140px; height:140px; top:18px; right:6%;"></i>
-      <i class="lp-b" style="width:80px; height:80px; bottom:34px; left:9%; animation-delay:1.8s;"></i>
-      <i class="lp-b" style="width:46px; height:46px; top:44%; left:30%; animation-delay:3.2s;"></i>
-      <div class="lp-logo">🎓</div>
-      <h1>منصة المستر</h1>
-      <p>دروس وكويزات وامتحانات مع أفضل المدرسين، في مكان واحد</p>
-      <div class="lp-btns">
-        <a class="lp-btn" href="student/">دخول الطالب</a>
-        <a class="lp-btn o" href="student/#/register">إنشاء حساب</a>
+      <div class="lp-herotxt">
+        <h1>كل دروسك واختباراتك<br>في مكان واحد</h1>
+        <p>شاهد الدروس، حل الاختبارات، وتابع مستواك مع مدرسينك، من أي مكان وفي أي وقت.</p>
+        <div class="lp-btns">
+          <a class="lp-btn" href="student/#/register">ابدأ الآن</a>
+          <a class="lp-btn o" href="#/" data-goto="lp-about">تعرف على المنصة</a>
+        </div>
+      </div>
+      <div class="lp-video" id="lp-video">
+        <video id="lp-vid" muted autoplay loop playsinline preload="auto" poster="assets/intro-poster.jpg" aria-label="فيديو تعريفي عن المنصة">
+          <source src="assets/intro.mp4" type="video/mp4">
+        </video>
+        <div class="lp-vfall" id="lp-vfall"><b>فيديو تعريفي عن المنصة</b><span>قريباً</span></div>
+        <div class="lp-vhint" id="lp-vhint">اضغط في أي مكان لتشغيل الصوت</div>
+        <button type="button" class="lp-snd" id="lp-snd" aria-pressed="false"><span id="lp-sndico">🔇</span> <span id="lp-sndtxt">تشغيل الصوت</span></button>
       </div>
     </section>
     <div class="lp-wrap">
-      <section class="card lp-stats rv">
-        <div><b data-count="${esc(st.teachers)}">0</b><span>مدرس</span></div>
-        <div><b data-count="${esc(st.lessons)}">0</b><span>درس</span></div>
+      <section class="lp-stats rv">
         <div><b data-count="${esc(st.students)}">0</b><span>طالب</span></div>
+        <div class="am"><b data-count="${esc(st.lessons)}">0</b><span>درس</span></div>
+        <div><b data-count="${esc(st.quizzes)}">0</b><span>اختبار</span></div>
       </section>
-      <section class="card rv">
-        <h2 class="lp-h">مدرسينا</h2>
-        ${teachers.length ? `<div class="lp-grid">${teachers.map(tcard).join("")}</div>` : `<p class="muted center">المدرسين هيظهروا هنا قريب.</p>`}
-      </section>
-      <section class="card rv">
-        <h2 class="lp-h">ليه المنصة؟</h2>
+      <section class="lp-sec rv" id="lp-about">
+        <h2 class="lp-h">عن المنصة</h2>
         <div class="lp-feat">${LANDING_FEATURES.map((f, i) => `<div class="rv" style="transition-delay:${i * 80}ms;"><i>${f[0]}</i><b>${f[1]}</b><span>${f[2]}</span></div>`).join("")}</div>
       </section>
-      <section class="card rv">
-        <h2 class="lp-h">عن المهندس</h2>
+      <section class="lp-sec rv" id="lp-eng">
+        <h2 class="lp-h">المهندس مصمم المنصة</h2>
         <div class="lp-eng">
           ${aboutPhotoHtml(a, 84)}
           <div style="flex:1; min-width:180px;">
@@ -51,7 +57,33 @@
         ${paras.length ? `<div class="btnrow u-mt10px"><button type="button" class="btn sm ghost" id="lp-more">اقرأ النبذة كاملة</button></div>
         <div id="lp-long" style="display:none; margin-top:10px; font-size:14px; line-height:1.85;">${paras.map((p) => `<p>${aboutRich(p)}</p>`).join("")}</div>` : ""}
       </section>
-      <div class="center" style="margin:14px 0 4px;"><a href="teacher/" class="u-cvarprimarydark-fw700-fs14px">دخول المدرسين</a></div>
+      <div class="lp-duo">
+      <section class="lp-tch rv">
+        <div class="lp-tchtxt">
+          <span class="lp-tag">للمدرسين</span>
+          <h2>أنت مدرس؟</h2>
+          <p>المستر يديك مكان واحد تشرح فيه وتتابع طلابك من غير تعقيد.</p>
+          <ul><li>رفع الدروس بالفيديو وملفات PDF</li><li>اختبارات وامتحانات بنتيجة فورية</li><li>متابعة الطلاب وتقارير جاهزة</li></ul>
+          <div class="lp-btns"><a class="lp-amber" href="teacher/">دخول المدرسين</a><a class="lp-ghostw" href="#/teacher-request">اطلب حساب مدرس</a></div>
+        </div>
+        <div class="lp-tchart"><div class="lp-ic"><svg width="96" height="96" viewBox="0 0 96 96" fill="none"><rect x="8" y="10" width="52" height="34" rx="5" fill="#fff" fill-opacity=".9"/><path d="M16 22h30M16 30h22" stroke="#0f766e" stroke-width="4" stroke-linecap="round"/><circle cx="68" cy="38" r="11" fill="#fbbf24"/><path d="M46 88c0-14 10-24 22-24s22 10 22 24" fill="#fbbf24"/></svg></div><div class="lp-mini"><b>+1,010</b><span>طالب</span></div><div class="lp-mini b"><b>٪92</b><span>نسبة الحضور</span></div></div>
+      </section>
+      <section class="lp-tch lp-stu rv">
+        <div class="lp-tchtxt">
+          <span class="lp-tag">للطلاب</span>
+          <h2>أنت طالب؟</h2>
+          <p>سجّل بنفسك واختار مدرسك، وأول ما يوافق على طلبك تبدأ مذاكرة.</p>
+          <ul><li>دروس فيديو في أي وقت</li><li>اختبارات بنتيجة فورية</li><li>لوحة الشرف وترتيب الأوائل</li><li>التسجيل بيوصل لمدرسك وينتظر موافقته</li></ul>
+          <div class="lp-btns"><a class="lp-amber" href="student/">دخول الطلاب</a><a class="lp-ghostw" href="#/register">سجّل كطالب</a></div>
+        </div>
+        <div class="lp-tchart"><div class="lp-ic"><svg width="96" height="96" viewBox="0 0 96 96" fill="none"><path d="M48 14 6 34l42 20 42-20z" fill="#fff" fill-opacity=".92"/><path d="M24 46v16c0 6 11 12 24 12s24-6 24-12V46L48 58z" fill="#fbbf24"/><path d="M88 36v22" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/></svg></div><div class="lp-mini"><b>+300</b><span>درس</span></div><div class="lp-mini b"><b>🏆</b><span>لوحة الشرف</span></div></div>
+      </section>
+      </div>
+      <section class="lp-final rv">
+        <h2>جاهز تبدأ؟</h2>
+        <a class="lp-amber" href="#/login">دخول / إنشاء حساب</a>
+      </section>
+
       ${closing()}
     </div>
   </div>

@@ -28,7 +28,7 @@
       <label class="flabel">اختار مدرس واحد على الأقل</label>
       <div class="teachercheck" id="rg-teachers">
         ${regTeachersCache.length
-          ? regTeachersCache.map((t) => `<label class="rg-t-row" data-stages="${(t.stages || []).join(",")}"><input type="checkbox" class="rg-t" value="${t.id}"> ${esc(t.name)}${t.subject ? " — " + esc(t.subject) : ""}</label>`).join("")
+          ? regTeachersCache.map((t) => `<label class="rg-t-row" data-stages="${(t.stages || []).join(",")}" data-grades="${(t.grades || []).join(",")}"><input type="checkbox" class="rg-t" value="${t.id}"> ${esc(t.name)}${t.subject ? " — " + esc(t.subject) : ""}</label>`).join("")
           : `<span class="muted">لسه مفيش مدرسين على المنصة</span>`}
       </div>
       <p class="muted" id="rg-t-note" style="font-size:12.5px; display:none;">مفيش مدرسين للمرحلة دي لسه، جرّب مرحلة تانية أو كلّم الأدمن.</p>

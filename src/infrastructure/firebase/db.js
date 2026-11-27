@@ -24,6 +24,7 @@ export const db = {
   students: () => fbDb.collection("students"),
   subjects: () => fbDb.collection("subjects"),
   subscriptionPayments: () => fbDb.collection("subscriptionPayments"),
+  teacherSignups: () => fbDb.collection("teacherSignups"),
   teacherRequests: () => fbDb.collection("teacherRequests"),
   teachers: () => fbDb.collection("teachers"),
   teachersPublic: () => fbDb.collection("teachersPublic"),

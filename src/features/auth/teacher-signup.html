@@ -1,0 +1,42 @@
+<!-- قوالب الواجهة لموديول features/auth/teacher-signup.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ auth.renderTeacherSignup | GRADES,LOGO_FULL_SVG,SIGNUP_STAGES,closing,gradesOfStage,themeIcon -->
+<div class="loginwrap">
+    <button type="button" class="themebtn u-posifixed-top14px-left14px-zind60" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+    <div class="hero">
+      ${LOGO_FULL_SVG}
+      <div class="u-cvarmuted-fw700-fs18px-mt2px">طلب حساب مدرس</div>
+      <div class="fact u-mt8px">بعد الإرسال طلبك يروح للأدمن، ولما يوافق يتبعتلك لينك التفعيل على إيميلك</div>
+    </div>
+    <div class="card logincard u-mw520px-m14pxauto0">
+      <label class="flabel">الاسم بالكامل</label>
+      <input id="ts-name" type="text" class="inp" maxlength="80" placeholder="اكتب اسمك">
+      <label class="flabel">الإيميل</label>
+      <input id="ts-email" type="email" class="inp ltr" maxlength="120" placeholder="teacher@example.com">
+      <label class="flabel">رقم الموبايل (واتساب)</label>
+      <input id="ts-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx">
+      <label class="flabel">المادة اللي بتدرّسها</label>
+      <input id="ts-subject" type="text" class="inp" maxlength="60" placeholder="مثال: رياضيات">
+      <label class="flabel">الصفوف اللي بتدرّسها</label>
+      ${SIGNUP_STAGES.map((st) => `<div class="ts-stage"><label class="ts-all"><input type="checkbox" class="ts-stage-all" data-stage="${st}"> كل صفوف المرحلة ال${st}</label>
+        <div class="ts-grades">${gradesOfStage(st).map((g) => `<label class="ts-g"><input type="checkbox" class="ts-grade" data-stage="${st}" value="${g}"><span>${g.replace("الصف ", "").replace(" " + "ال" + st, "")}</span></label>`).join("")}</div></div>`).join("")}
+      <p class="muted" style="font-size:12.5px; margin:4px 2px 10px;">اختار صفوف معينة، أو علّم "كل الصفوف" للمرحلة كلها.</p>
+      <label class="flabel">نبذة قصيرة عنك (اختياري)</label>
+      <textarea id="ts-bio" class="inp" rows="3" maxlength="300" placeholder="سنين الخبرة، مدرسة أو سنتر..."></textarea>
+      <input id="ts-website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:fixed; top:0; width:1px; height:1px; opacity:0; pointer-events:none;">
+      <button type="button" class="btn u-w100pc" id="ts-btn">أرسل الطلب للأدمن</button>
+      <p class="msg bad" id="ts-msg"></p>
+      <p class="muted center" style="font-size:12.5px;">الأدمن بيراجع الطلب ويرد عليك، ومفيش حساب بيتفتح قبل الموافقة.</p>
+      <div class="center u-mt10px"><a href="#/" class="muted" id="ts-back">رجوع للصفحة الرئيسية</a></div>
+    </div>
+    ${closing()}
+  </div>
+<!-- @@ auth.doTeacherSignup | closing -->
+<div class="loginwrap">
+    <div class="card center u-mw520px-m60pxauto">
+      <div class="u-fs44px">✅</div>
+      <h1 class="u-fs22px-m8px0">طلبك وصل للأدمن</h1>
+      <p class="muted">هيراجع بياناتك، ولما يوافق هيوصلك لينك تفعيل الحساب على إيميلك. لو اتأخر كلّمه على واتساب.</p>
+      <div class="btnrow u-justcenter"><a class="btn" href="#/">الصفحة الرئيسية</a></div>
+    </div>
+    ${closing()}
+  </div>

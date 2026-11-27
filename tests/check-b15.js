@@ -65,15 +65,16 @@ const mkDb = (store, lists, logs) => ({
 
   // ---- 2) صفحة الهبوط ----
   const logs = [];
-  const db = mkDb({ "settings/stats": { teachers: 7, lessons: 321, students: 1500 } }, { teachersPublic: [{ id: "t1", name: "مستر أحمد", subject: "برمجة", avatar: "", active: true, subType: "free" }, { id: "t2", name: "مستر علي", subject: "علوم", active: true }] }, logs);
+  const db = mkDb({ "settings/stats": { quizzes: 7, lessons: 321, students: 1500 } }, { teachersPublic: [{ id: "t1", name: "مستر أحمد", subject: "برمجة", avatar: "", active: true, subType: "free" }, { id: "t2", name: "مستر علي", subject: "علوم", active: true }] }, logs);
   global.location = { hash: "" };
   root.setState({ ready: true, user: null, role: null, db });
   await root.route();
   await new Promise((r) => setTimeout(r, 20));
   const h = global.app.innerHTML;
   ok(h.includes("lp-hero") && h.includes("منصة المستر"), "الجذر من غير جلسة بيعرض صفحة الهبوط");
-  ok(h.includes("مستر أحمد") && h.includes("مستر علي") && h.includes("lp-t "), "المدرسين ظاهرين ككروت");
-  ok(h.includes("data-pickt=\"t1\""), "كارت المدرس فيه زرار تسجيل مع المدرس");
+  ok(!h.includes("مستر أحمد") && !h.includes("data-pickt") && !h.includes("مدرسينا") && !h.includes("lp-t "), "مفيش قسم مدرسين في صفحة الهبوط");
+  ok(h.includes('id="lp-vid"') && h.includes("muted") && h.includes("autoplay") && h.includes("loop") && h.includes("playsinline") && h.includes('id="lp-snd"') && h.includes("اضغط في أي مكان لتشغيل الصوت"), "الفيديو التعريفي: تشغيل تلقائي صامت + زرار الصوت + التلميح");
+  ok(h.includes('href="#/login"') && h.includes("assets/intro.mp4"), "زرار الدخول بيودّي لصفحة الدخول ومصدر الفيديو");
   ok(h.includes('data-count="7"') && h.includes('data-count="321"') && h.includes('data-count="1500"'), "الأرقام من settings/stats");
   ok(h.includes('href="student/"') && h.includes('href="student/#/register"') && h.includes('href="teacher/"'), "روابط الطالب والتسجيل والمدرس");
   ok(!h.includes('href="admin/"') && !h.includes("admin/"), "مفيش لينك أدمن في صفحة الهبوط");

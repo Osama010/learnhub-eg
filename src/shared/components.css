@@ -64,3 +64,11 @@
 .toastcard .tmsg { font-size: 16px; font-weight: 800; margin: 8px 0 14px; line-height: 1.9; }
 .toastcard.bad .tmsg { color: var(--red); }
 .toastcard.good .tmsg { color: var(--green); }
+
+/* طلب حساب مدرس: اختيار الصفوف مجمّعة بالمراحل */
+.ts-stage { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 8px 0; }
+.ts-all { display: flex; align-items: center; gap: 8px; font-weight: 800; margin-bottom: 8px; cursor: pointer; }
+.ts-all input, .ts-g input { accent-color: var(--primary); }
+.ts-grades { display: flex; flex-wrap: wrap; gap: 8px; }
+.ts-g { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--primary-soft, rgba(20,184,166,.12)); font-weight: 700; font-size: 13.5px; cursor: pointer; }
+.sg-card { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }

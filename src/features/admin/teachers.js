@@ -8,7 +8,9 @@ import { subChip } from "../../shared/subscriptions.js";
 import { openConfirmOverlay } from "../../shared/terms.js";
 import { bailIfSignedOut, showToast } from "../../shared/toast.js";
 import { deleteTeacherEverywhere, waLink } from "../../shared/transfer.js";
-import { sendPasswordReset } from "../../main/data.js";
+import { sendPasswordReset, setTeacherSignupStatus } from "../../main/data.js";
+import { gradesSummary } from "../auth/teacher-signup.presenter.js";
+import { stageOfGrade } from "../../domain/student.js";
 import { presentTeacherForm, validateNewTeacherPassword, validatePaymentPeriod } from "./teachers.presenter.js";
 import { fmtTs, tsToDate } from "../../domain/format.js";
 import { SUB_TYPES, subDateStr, subEndDefault, subEndOf, subFmtDate, subInfo } from "../../domain/subscription.js";
@@ -123,7 +125,10 @@ export function adminTeachers() {
   const seenSub = new Set();
   const subjectOptions = subjects.filter((s) => { const k = (s.name || "") + "|" + (s.stage || ""); if (seenSub.has(k)) return false; seenSub.add(k); return true; })
     .map((s) => T("admin.adminTeachers", { editing, esc, s })).join("");
-  const content = T("admin.adminTeachers_2", { STAGES, SUB_TYPES, editing, esc, students, subChip, subDateStr, subEndDefault, subEndOf, subFmtDate, subInfo, subjectOptions, subjects, teacherStagesText, teachers });
+  let signupsHtml = "";
+  try { signupsHtml = editing ? "" : T("admin.signupsCard", { esc, gradesSummary, signups: adminCache.signups || [], signupsError: adminCache.signupsError || "" }); }
+  catch (e) { console.warn("تعذر عرض طلبات المدرسين", e); }
+  const content = signupsHtml + T("admin.adminTeachers_2", { STAGES, SUB_TYPES, editing, esc, students, subChip, subDateStr, subEndDefault, subEndOf, subFmtDate, subInfo, subjectOptions, subjects, teacherStagesText, teachers });
   adminLayout(content, "teachers");
   taPhotoData = null;
   const photoInp = document.getElementById("ta-photo");
@@ -160,6 +165,11 @@ export function adminTeachers() {
   };
   syncSubDisabled();
   document.getElementById("ta-add").onclick = adminSaveTeacher;
+  try {
+    document.querySelectorAll("[data-sg-ok]").forEach((b) => b.onclick = () => adminAcceptSignup(b.dataset.sgOk));
+    document.querySelectorAll("[data-sg-no]").forEach((b) => b.onclick = () => adminRejectSignup(b.dataset.sgNo));
+    if (activeSignup && !editing) applySignupPrefill(activeSignup);
+  } catch (e) { console.warn("تعذر تجهيز طلبات المدرسين", e); }
   const cancelBtn = document.getElementById("ta-cancel");
   if (cancelBtn) cancelBtn.onclick = () => { editingTeacherId = null; adminTeachers(); };
   document.querySelectorAll("[data-tv]").forEach((b) => b.onclick = () => adminShowTeacher(b.dataset.tv));
@@ -175,6 +185,51 @@ export function adminTeachers() {
 }
 
 export let editingTeacherId = null;
+let activeSignup = null; // طلب مدرس اتضغط عليه "قبول": بيملّى الفورم، وبعد الإضافة بيتعلّم accepted
+
+/* قبول طلب مدرس: ملّى فورم الإضافة ببياناته والأدمن يكمّل الباسورد المؤقت والاشتراك */
+function adminAcceptSignup(id) {
+  const g = (adminCache.signups || []).find((x) => x.id === id);
+  if (!g) return;
+  activeSignup = g;
+  editingTeacherId = null;
+  adminTeachers();
+}
+
+function applySignupPrefill(g) {
+  const setv = (id, v) => { const e = document.getElementById(id); if (e) e.value = v || ""; };
+  setv("ta-name", g.name); setv("ta-email", g.email); setv("ta-phone", g.phone);
+  const sel = document.getElementById("ta-subject");
+  if (sel) {
+    const opt = Array.from(sel.options).find((o) => o.value === g.subject);
+    if (opt) sel.value = g.subject;
+  }
+  document.querySelectorAll(".ta-stage").forEach((c) => { c.checked = (g.stages || []).includes(c.value); });
+  const box = document.getElementById("ta-add");
+  const card = box && box.closest(".card");
+  if (card) {
+    const note = document.createElement("div");
+    note.className = "msg good";
+    note.style.cssText = "margin:0 0 10px;";
+    note.textContent = "ده طلب من " + g.name + " (المادة اللي كتبها: " + (g.subject || "—") + " · الصفوف: " + gradesSummary(g.grades) + "). اختار المادة من القايمة وحط باسورد مؤقت وادوس إضافة.";
+    card.insertBefore(note, card.children[1] || null);
+    if (card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+async function adminRejectSignup(id) {
+  const g = (adminCache.signups || []).find((x) => x.id === id);
+  if (!g) return;
+  if (!confirm(`رفض طلب "${g.name}"؟ مش هيتبعتله إشعار، بلّغه بنفسك لو حابب.`)) return;
+  try {
+    await setTeacherSignupStatus(id, "rejected");
+    adminLogAction("رفض طلب مدرس", "teacher", id, g.name || "", g.email || "");
+    if (activeSignup && activeSignup.id === id) activeSignup = null;
+    showToast("اترفض طلب " + g.name, "good");
+    await adminLoad();
+    adminTeachers();
+  } catch (e) { alert("مشكلة: " + (e.message || e)); }
+}
 let taPhotoData = null;
 
 function resizePhoto(file) {
@@ -262,6 +317,9 @@ async function adminSaveTeacher() {
   // تطبيق ثانوي مؤقت عشان إنشاء الحساب ميطلّعش الأدمن
   try {
     const uid = await createAuthUserSecondary(email, pass);
+    // طلب مدرس مقبول: الصفوف اللي اختارها بتتحفظ مع بيانات المدرس (اللي في مراحل مختارة بس)
+    const sg = activeSignup && activeSignup.email === email ? activeSignup : null;
+    const sgGrades = sg ? (sg.grades || []).filter((x) => stages.includes(stageOfGrade(x))) : [];
     const teacherDoc = {
       name, email, subject, phone, stages,
       photoData: taPhotoData || "",
@@ -269,11 +327,17 @@ async function adminSaveTeacher() {
       ...subData,
       emailVerifyRequired: true, // حساب جديد: لازم يفعّل إيميله قبل أول دخول
       createdAt: serverNow(),
+      ...(sgGrades.length ? { grades: sgGrades } : {}),
     };
     // نسخة عامة لصفحة التسجيل وتحذير "الإيميل مش مسجل" وصورة المدرس عند طلابه — من غير تليفون
     const payment = subData.subType !== "free" ? makePayment({ id: uid, name }, subData, "أول اشتراك") : null;
     adminLogAction("إضافة مدرس", "teacher", uid, name, `المادة: ${subject}`);
-    await useCases.addTeacher(uid, teacherDoc, { name, subject, stages, email, avatar: taPhotoData || "", active: true, subType: subData.subType, subEnd: subData.subEnd }, payment);
+    await useCases.addTeacher(uid, teacherDoc, { name, subject, stages, email, avatar: taPhotoData || "", active: true, subType: subData.subType, subEnd: subData.subEnd, ...(sgGrades.length ? { grades: sgGrades } : {}) }, payment);
+    if (sg) {
+      try { await setTeacherSignupStatus(sg.id, "accepted"); adminLogAction("قبول طلب مدرس", "teacher", uid, name, email); }
+      catch (e2) { console.warn("المدرس اتضاف بس تعليم الطلب فشل", e2); }
+      activeSignup = null;
+    }
     taMsg("اتضاف المدرس " + name + " ✅ واتبعت لينك التفعيل على إيميله", true);
     adminCache.teachers = null;
     await adminLoad();

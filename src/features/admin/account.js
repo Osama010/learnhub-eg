@@ -77,7 +77,7 @@ export function adminProfile() {
 
   /* --- أرقام صفحة الهبوط: settings/stats --- */
   const stMsg = document.getElementById("st-msg");
-  const stIds = ["teachers", "lessons", "students"];
+  const stIds = ["quizzes", "lessons", "students"];
   loadStatsSettings().then(() => {
     stIds.forEach((k) => { const el = document.getElementById("st-" + k); if (el && !el.dataset.dirty) el.value = statsGet()[k]; });
   });

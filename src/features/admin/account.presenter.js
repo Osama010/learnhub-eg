@@ -13,7 +13,7 @@ export function buildAboutDoc(v, photo, updatedAt) {
 /** تحقق أرقام الصفحة الرئيسية: {error} أو {vals} (أرقام صحيحة مقرّبة). raw = {teachers, lessons, students} نصوص. */
 export function parseStatsInputs(raw) {
   const vals = {};
-  for (const k of ["teachers", "lessons", "students"]) {
+  for (const k of ["quizzes", "lessons", "students"]) {
     const n = Number(raw[k]);
     if (!isFinite(n) || n < 0 || n > 100000000) return { error: "اكتب أرقام صحيحة (صفر أو أكتر)." };
     vals[k] = Math.round(n);

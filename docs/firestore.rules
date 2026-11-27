@@ -334,6 +334,24 @@ service cloud.firestore {
     }
 
     
+    /* طلبات تسجيل المدرسين: أي حد (من غير دخول) يقدر يبعت طلب واحد بإيميله، والأدمن بس يقرا ويقبل ويرفض ويمسح */
+    match /teacherSignups/{signupId} {
+      allow get, list, update, delete: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(["name", "email", "phone", "subject", "grades", "stages", "bio", "status", "createdAt"])
+        && request.resource.data.keys().hasAll(["name", "email", "phone", "subject", "grades", "stages", "status", "createdAt"])
+        && request.resource.data.name is string && request.resource.data.name.size() >= 3 && request.resource.data.name.size() <= 80
+        && request.resource.data.email is string && request.resource.data.email.size() <= 120
+        && request.resource.data.email.matches('^[^ @]+@[^ @]+[.][^ @]+$')
+        && signupId == request.resource.data.email
+        && request.resource.data.phone is string && request.resource.data.phone.size() <= 20
+        && request.resource.data.subject is string && request.resource.data.subject.size() >= 1 && request.resource.data.subject.size() <= 60
+        && request.resource.data.grades is list && request.resource.data.grades.size() >= 1 && request.resource.data.grades.size() <= 12
+        && request.resource.data.stages is list && request.resource.data.stages.size() <= 3
+        && request.resource.data.get("bio", "") is string && request.resource.data.get("bio", "").size() <= 300
+        && request.resource.data.status == "pending"
+        && request.resource.data.createdAt == request.time;
+    }
+
     match /teacherRequests/{reqId} {
       allow get, list: if isAdmin()
         || (isTeacher() && resource.data.teacherId == request.auth.uid)

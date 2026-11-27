@@ -28,7 +28,7 @@ export function filterRegTeachers() {
   const grade = el("rg-grade").value;
   let visible = 0;
   document.querySelectorAll(".rg-t-row").forEach((row) => {
-    const show = teacherShownForGrade(row.dataset.stages, grade);
+    const show = teacherShownForGrade(row.dataset.stages, grade, row.dataset.grades);
     row.style.display = show ? "" : "none";
     if (show) visible++;
   });

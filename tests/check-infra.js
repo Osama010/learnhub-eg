@@ -16,7 +16,7 @@ const root = path.resolve(__dirname, "..");
     return w;
   };
   const M = {};
-  for (const f of ["activity", "admins", "announcements", "auth", "batch", "exams", "lessons", "library", "mapping", "notes", "queries", "quizzes", "requests", "settings", "students", "subjects", "teachers", "values"]) M[f] = await load(f);
+  for (const f of ["activity", "admins", "announcements", "auth", "batch", "exams", "lessons", "library", "mapping", "notes", "queries", "quizzes", "requests", "settings", "signups", "students", "subjects", "teachers", "values"]) M[f] = await load(f);
   const { col, ops } = fake; let n = 0;
   const ok = (c, m) => { assert(c, m); n++; };
   const T = (s) => new firebase.firestore.Timestamp(s * 1000);
@@ -67,6 +67,12 @@ const root = path.resolve(__dirname, "..");
   b = B.newBatch(); R.batchSetRequestStatus(b, "sa_tb", "accepted"); await b.commit();
   ok((await R.listPendingRequestsOfTeacher("tb")).length === 0 && col("teacherRequests").get("sa_tb").status === "accepted", "batchSetRequestStatus");
   await R.deleteTeacherRequest("sa_tb"); ok(col("teacherRequests").size === 0, "deleteTeacherRequest");
+  // طلبات تسجيل المدرسين
+  const SG = M.signups;
+  await SG.createTeacherSignup("t@x.com", { name: "مدرس", email: "t@x.com", status: "pending", createdAt: 1 }); ok(col("teacherSignups").has("t@x.com"), "createTeacherSignup (الإيميل هو رقم المستند)");
+  ok((await SG.listTeacherSignups()).length === 1 && (await SG.listTeacherSignups())[0].id === "t@x.com", "listTeacherSignups");
+  await SG.setTeacherSignupStatus("t@x.com", "accepted"); ok(col("teacherSignups").get("t@x.com").status === "accepted", "setTeacherSignupStatus");
+  col("teacherSignups").clear();
 
   // ---- teachers
   const Tc = M.teachers;
