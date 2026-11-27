@@ -1,0 +1,156 @@
+<!-- قوالب الواجهة لموديول features/admin/teachers.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ admin.showDetail | rows,title -->
+<div class="detailcard">
+    <h3>${title}</h3>
+    ${rows.map((r) => `<div class="drow"><span class="dl">${r[0]}</span><span class="dv">${r[1]}</span></div>`).join("")}
+    <div class="btnrow u-justcenter-mt14px"><button type="button" class="btn ghost" id="ov-close">إغلاق</button></div>
+  </div>
+<!-- @@ admin.adminShowTeacher | t -->
+<img src="${t.photoData}" alt="" class="u-w64px-h64px-bord50pc-objecover">
+<!-- @@ admin.adminShowTeacher_2 | esc,t -->
+<span class="ltr">${esc(t.email || "—")}</span>
+<!-- @@ admin.adminShowTeacher_3 | esc,t -->
+<span class="ltr">${esc(t.phone || "—")}</span>
+<!-- @@ admin.adminShowTeacher_4 | SUB_TYPES,esc,fmtTs,pays,subFmtDate,tsToDate -->
+
+      <h3 class="u-fs16px-m14px08px">💰 سجل المدفوعات (${pays.length})</h3>
+      ${pays.length ? `<div style="max-height:180px; overflow-y:auto;"><table class="ttable"><thead><tr><th>التاريخ</th><th>النوع</th><th>الفترة</th><th>المبلغ</th><th>ملاحظة</th></tr></thead>
+        <tbody>${pays.map((p) => `<tr><td>${fmtTs(p.paidAt)}</td><td>${esc(SUB_TYPES[p.subType] || p.subType || "—")}</td><td>${p.from ? subFmtDate(tsToDate(p.from)) : "—"} ← ${p.to ? subFmtDate(tsToDate(p.to)) : "—"}</td><td>${p.amount || 0} ج</td><td>${esc(p.note || "—")}</td></tr>`).join("")}</tbody></table></div>`
+        : `<p class="muted u-fs13px">مفيش دفعات مسجلة لسه.</p>`}
+      <div class="btnrow u-mt10px"><button type="button" class="btn blue sm" id="pay-add">💰 تسجيل دفعة / تجديد</button></div>
+<!-- @@ admin.adminPaymentModal | SUB_TYPES,defStart,esc,si,subFmtDate,t -->
+
+    <b class="u-fs17px">💰 تسجيل دفعة — ${esc(t.name || "")}</b>
+    <p class="muted" style="font-size:12.5px; margin:6px 0 12px;">الاشتراك الحالي: ${si.type === "free" ? "مجاني" : `${SUB_TYPES[si.type]}${si.end ? " — بينتهي " + subFmtDate(si.end) : ""}`}. تسجيل الدفعة بيحدّث اشتراك المدرس فورًا.</p>
+    <div class="grid2">
+      <div><label class="flabel">نوع الاشتراك</label><select id="pm-type" class="inp">${Object.keys(SUB_TYPES).filter((k) => k !== "free").map((k) => `<option value="${k}" ${si.type === k ? "selected" : ""}>${SUB_TYPES[k]}</option>`).join("")}</select></div>
+      <div><label class="flabel">المبلغ (ج)</label><input id="pm-amount" type="number" min="0" class="inp" value="${si.amount || ""}" placeholder="مثال: 200"></div>
+      <div><label class="flabel">من تاريخ</label><input id="pm-from" type="date" class="inp" value="${defStart}"></div>
+      <div><label class="flabel">إلى تاريخ</label><input id="pm-to" type="date" class="inp"></div>
+    </div>
+    <label class="flabel u-mt8px">ملاحظة (اختياري)</label><input id="pm-note" type="text" class="inp" placeholder="مثال: دفع فودافون كاش">
+    <div class="btnrow u-mt12px"><button type="button" class="btn blue" id="pm-ok">حفظ الدفعة وتجديد الاشتراك</button><button type="button" class="btn ghost" id="pm-no">إلغاء</button></div>
+    <p class="msg" id="pm-msg"></p>
+<!-- @@ admin.adminShowStudent | esc,s -->
+<span class="ltr">${esc(s.email || "—")}</span>
+<!-- @@ admin.adminShowStudent_2 | esc,s -->
+<span class="ltr">${esc(s.phone || "—")}</span>
+<!-- @@ admin.adminShowStudent_3 | esc,s,waLink -->
+<span class="ltr">${esc(s.parentPhone)}</span> <a class="btn sm green" target="_blank" href="${waLink(s.parentPhone, "أهلاً بحضرتك، معاك الأدمن من منصة الدروس بخصوص " + s.name + ".")}">واتساب</a>
+<!-- @@ admin.adminTeachers | editing,esc,s -->
+<option value="${esc(s.name)}" ${editing && (editing.subject || "") === s.name ? "selected" : ""}>${esc(s.name)} — ال${esc(s.stage)}ة</option>
+<!-- @@ admin.adminTeachers_2 | STAGES,SUB_TYPES,editing,esc,students,subChip,subDateStr,subEndDefault,subEndOf,subFmtDate,subInfo,subjectOptions,subjects,teacherStagesText,teachers -->
+
+    <div class="card">
+      <h2 class="u-fs18px-mt0">${editing ? "تعديل بيانات: " + esc(editing.name) : "إضافة مدرس جديد"}</h2>
+      <div class="grid2">
+        <div><label class="flabel">اسم المدرس</label><input id="ta-name" type="text" class="inp" placeholder="اسم المدرس" value="${editing ? esc(editing.name) : ""}"></div>
+        <div><label class="flabel">المادة</label><select id="ta-subject" class="inp">
+          <option value="">اختار المادة</option>
+          ${subjectOptions}
+        </select>
+        ${subjects.length === 0 ? `<p class="muted u-fs125px">ضيف المواد الأول من تاب "المواد الدراسية" وبعدين ارجع هنا.</p>` : ""}</div>
+        <div><label class="flabel">الإيميل</label><input id="ta-email" type="email" class="inp ltr" placeholder="teacher@example.com" value="${editing ? esc(editing.email || "") : ""}"></div>
+        <div><label class="flabel">رقم الواتساب</label><input id="ta-phone" type="tel" class="inp ltr" placeholder="01xxxxxxxxx" value="${editing ? esc(editing.phone || "") : ""}"></div>
+        ${editing ? "" : `<div><label class="flabel">باسورد مؤقت</label><input id="ta-pass" type="text" class="inp ltr" placeholder="6 أحرف على الأقل"></div>`}
+      </div>
+      <div class="u-mt10px">
+        <label class="flabel">المراحل اللي بيدرّسها (من أولى ابتدائي لتالتة ثانوي — اختار واحدة على الأقل)</label>
+        <div class="teachercheck">
+          ${STAGES.map((st) => `<label><input type="checkbox" class="ta-stage" value="${st}" ${editing && (editing.stages || []).includes(st) ? "checked" : ""}> ${st}</label>`).join("")}
+        </div>
+      </div>
+      ${(() => {
+        // قسم الاشتراك: الأدمن بيحدد النوع والمبلغ والمدة لكل مدرس (المدرسين القدامى مجاني)
+        const si = subInfo(editing || {});
+        const curType = editing ? si.type : "free";
+        const curStart = editing && editing.subStart ? subDateStr(subEndOf({ subEnd: editing.subStart }) || new Date()) : subDateStr(new Date());
+        const curEnd = editing && si.end ? subDateStr(si.end) : subEndDefault(curType, curStart);
+        return `<div style="border-top:1px dashed var(--border); padding-top:14px; margin-top:4px;">
+        <label class="flabel">اشتراك المدرس (الاشتراك على المدرس كله مش على كل طالب)</label>
+        <div class="grid2">
+          <div><label class="flabel u-fs125px">نوع الاشتراك</label><select id="ta-subtype" class="inp">
+            ${Object.keys(SUB_TYPES).map((k) => `<option value="${k}" ${curType === k ? "selected" : ""}>${SUB_TYPES[k]}</option>`).join("")}
+          </select></div>
+          <div><label class="flabel u-fs125px">مبلغ الاشتراك (ج)</label><input id="ta-subamount" type="number" min="0" step="1" class="inp ltr" value="${editing && editing.subAmount ? Number(editing.subAmount) : ""}" placeholder="0"></div>
+          <div><label class="flabel u-fs125px">بداية الاشتراك</label><input id="ta-substart" type="date" class="inp ltr" value="${curType === "free" ? "" : curStart}"></div>
+          <div><label class="flabel u-fs125px">نهاية الاشتراك</label><input id="ta-subend" type="date" class="inp ltr" value="${curType === "free" ? "" : curEnd}"></div>
+        </div>
+        <p class="muted" style="font-size:12.5px; margin:6px 2px 0;">المدرس المجاني مفيش عليه انتهاء. لو الاشتراك انتهى بيتوقف حساب المدرس ومحتواه بيختفي عن طلابه لحد التجديد. تاريخ النهاية بيتحسب تلقائي من النوع والبداية وتقدر تعدّله.</p>
+      </div>`;
+      })()}
+      <div>
+        <label class="flabel">صورة المدرس (اختياري — بتتصغّر وتتحفظ مع بياناته)</label>
+        <input id="ta-photo" type="file" accept="image/*" class="inp">
+        <div id="ta-photo-prev" class="u-mt8px">${editing && editing.photoData ? `<img src="${editing.photoData}" alt="" class="u-w64px-h64px-bord50pc-objecover">` : ""}</div>
+      </div>
+      ${editing ? "" : `<div style="background:#f0fdfa; border:1px solid #99f6e4; color:#0f766e; border-radius:12px; padding:10px 14px; font-size:13.5px; font-weight:700;">بعد الإضافة هيوصل للمدرس لينك تفعيل على إيميله — لازم يدوس عليه قبل أول دخول</div>`}
+      <div class="btnrow">
+        <button type="button" class="btn" id="ta-add">${editing ? "حفظ التعديلات" : "إضافة المدرس"}</button>
+        ${editing ? `<button type="button" class="btn ghost" id="ta-cancel">إلغاء التعديل</button>` : ""}
+      </div>
+      <p class="msg" id="ta-msg"></p>
+      <p class="muted u-fs13px">${editing
+        ? "ملحوظة: تغيير الإيميل هنا بيعدّل السجل بس. الدخول هيفضل بالإيميل الأصلي، ولو عايز تغيّر إيميل الدخول نفسه احذف المدرس وضيفه بالإيميل الجديد."
+        : "المدرس هيدخل بإيميله والباسورد المؤقت، ويقدر يغيّره من لوحته."}</p>
+    </div>
+    <div class="card">
+      <h2 class="u-fs18px-mt0">المدرسين (${teachers.length})</h2>
+      <table class="ttable resp">
+        <thead><tr><th>الاسم</th><th>المادة</th><th>المراحل (طلاب كل مرحلة)</th><th>الإيميل</th><th>طلابه</th><th>الحالة</th><th>الاشتراك</th><th>إجراءات</th></tr></thead>
+        <tbody>
+          ${teachers.length ? teachers.map((t) => {
+            const mine = students.filter((s) => (s.teacherIds || []).includes(t.id)).length;
+            return `<tr data-rv-t="${t.id}" class="u-curpointer" title="اضغط لعرض البيانات كاملة">
+              <td data-h="الاسم">${t.photoData ? `<img src="${t.photoData}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-left:8px;">` : ""}${esc(t.name)}</td><td data-h="المادة">${esc(t.subject || "—")}</td><td data-h="المراحل">${esc(teacherStagesText(t))}</td><td class="ltr" data-h="الإيميل">${esc(t.email)}</td><td data-h="طلابه">${mine}</td>
+              <td data-h="الحالة">${t.active === false ? '<span class="chip red">موقوف</span>' : '<span class="chip green">نشط</span>'}</td>
+              <td data-h="الاشتراك">${subChip(subInfo(t))}${subInfo(t).end ? `<div class="muted" style="font-size:12px; margin-top:3px;">${subInfo(t).label} · لحد <span class="ltr">${subFmtDate(subInfo(t).end)}</span></div>` : ""}</td>
+              <td>
+                <div class="btnrow">
+                  <button type="button" class="btn sm" data-tc="${t.id}">👁️ عرض المحتوى</button>
+                  <button type="button" class="btn sm ghost" data-tv="${t.id}">عرض</button>
+                  <button type="button" class="btn sm ghost" data-te="${t.id}">تعديل</button>
+                  <button type="button" class="btn sm ghost" data-tr="${t.id}">إعادة ضبط الباسورد</button>
+                  <button type="button" class="btn sm ${t.active === false ? "" : "ghost"}" data-tg="${t.id}">${t.active === false ? "▶️ إلغاء الإيقاف" : "⛔ إيقاف مؤقت"}</button>
+                  <button type="button" class="btn sm red" data-td="${t.id}">حذف نهائي</button>
+                </div>
+              </td>
+            </tr>`;
+          }).join("") : `<tr><td colspan="8" class="center muted">لسه مفيش مدرسين</td></tr>`}
+        </tbody>
+      </table>
+      <p class="muted" style="font-size:12.5px; margin:10px 4px 0;">المدرس الموقوف بيختفي من صفحة التسجيل للطلبة الجداد ومحتواه بيتقفل على طلابه الحاليين لحد ما يرجع.</p>
+    </div>
+<!-- @@ admin.signupsCard | esc,gradesSummary,signups,signupsError -->
+${signupsError ? `<div class="card"><h2 class="u-fs18px-mt0">طلبات مدرسين جداد</h2><p class="muted">مقدرتش أحمّل الطلبات (${esc(signupsError)}). لو لسه منشرتش قواعد Firestore الجديدة انشرها الأول.</p></div>` : (signups.length ? `<div class="card" id="sg-box">
+      <h2 class="u-fs18px-mt0">طلبات مدرسين جداد (${signups.length})</h2>
+      <p class="muted" style="font-size:13px; margin:0 0 10px;">"قبول" بيملّى فورم إضافة المدرس تحت ببياناته، وإنت بتحط له باسورد مؤقت وتدوس إضافة.</p>
+      ${signups.map((g) => `<div class="sg-card">
+        <b>${esc(g.name)}</b> <span class="muted">· ${esc(g.subject || "")}</span>
+        <div class="muted" style="font-size:13px; margin-top:4px;">الصفوف: ${esc(gradesSummary(g.grades))}</div>
+        <div style="font-size:13px; margin-top:2px;"><span class="ltr">${esc(g.email)}</span> · <span class="ltr">${esc(g.phone || "")}</span></div>
+        ${g.bio ? `<div style="font-size:13px; margin-top:6px;">${esc(g.bio)}</div>` : ""}
+        <div class="btnrow u-mt8px"><button type="button" class="btn sm" data-sg-ok="${esc(g.id)}">قبول</button><button type="button" class="btn sm red" data-sg-no="${esc(g.id)}">رفض</button></div>
+      </div>`).join("")}
+    </div>` : `<div class="card" id="sg-box"><h2 class="u-fs18px-mt0">طلبات مدرسين جداد (0)</h2><p class="muted" style="margin:0;">مفيش طلبات جديدة دلوقتي. الطلبات اللي بتتبعت من "اطلب حساب مدرس" في الصفحة الرئيسية بتظهر هنا.</p></div>`)}
+<!-- @@ admin.adminTeachers_3 | taPhotoData -->
+<img src="${taPhotoData}" alt="" class="u-w64px-h64px-bord50pc-objecover">
+<!-- @@ admin.adminToggleTeacher | esc,mine,t -->
+
+    <b class="u-fs17px">⛔ إيقاف المدرس مؤقتًا؟</b>
+    <p class="u-fs14px-m10px0">هيتم إيقاف <b>${esc(t.name || "")}</b> مؤقتًا عن المنصة:</p>
+    <div class="card card-sub u-m0012px-fs135px">
+      🚫 مش هيقدر يسجل دخول &nbsp;·&nbsp; 🚫 محتواه هيتقفل على طلابه${mine ? ` (${mine} طالب)` : ""} &nbsp;·&nbsp; 🚫 هيختفي من صفحة التسجيل للطلبة الجداد
+    </div>
+    <p class="muted u-fs125px">الإيقاف مبيمسحش أي حاجة — كل المحتوى والبيانات بتفضل موجودة وترجع زي ما هي لما تلغي الإيقاف.</p>
+    <div class="btnrow u-mt12px"><button type="button" class="btn red" id="st-ok">نعم، إيقاف مؤقت</button><button type="button" class="btn ghost" id="st-no">إلغاء</button></div>
+<!-- @@ admin.adminDeleteTeacher | esc,mine,t -->
+
+    <b class="u-fs17px">⚠️ حذف المدرس نهائيًا؟</b>
+    <p class="u-fs14px-m10px0">هيتم حذف <b>${esc(t.name || "")}</b> وكل ما يخصه من المنصة بالكامل:</p>
+    <div class="card card-sub u-m0012px-fs135px">
+      ✖️ بياناته وحسابه &nbsp;·&nbsp; ✖️ كل دروسه وكويزاته وامتحاناته وإعلاناته وبنك أسئلته &nbsp;·&nbsp; ✖️ محاولات ودرجات وتقييمات طلابه عليه &nbsp;·&nbsp; ✖️ هيتشال من قوائم طلابه${mine ? ` (${mine} طالب — الطلاب نفسهم هيفضلوا)` : ""}
+    </div>
+    <p class="muted u-fs125px">مفيش تراجع عن الخطوة دي. نصيحة: حمّل نسخة من المحتوى الأول من زرار "👁️ عرض المحتوى".</p>
+    <div class="btnrow u-mt12px"><button type="button" class="btn red" id="td-ok">نعم، حذف نهائي</button><button type="button" class="btn ghost" id="td-no">إلغاء</button></div>
+    <p class="msg" id="td-msg"></p>
