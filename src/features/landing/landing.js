@@ -1,4 +1,8 @@
 
+import { openLoginModal } from "../auth/login.js";
+import { supportWhatsAppUrl } from "../../shared/site-config.js";
+import { pwaCanPrompt, pwaIsIOS, pwaIsStandalone, pwaPrompt } from "../../shared/pwa.js";
+import { setupChatbot } from "./chatbot.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { aboutGet, aboutPhotoHtml, aboutRich, loadAboutSettings, loadFooterSettings } from "../about/about.js";
@@ -15,7 +19,7 @@ export async function renderLanding() {
   const a = aboutGet(), st = statsGet();
   const skills = splitSkills(a.skills);
   const paras = splitParas(a.longBio);
-  app.innerHTML = T("app.renderLanding_2", { LANDING_FEATURES, LOGO_FULL_SVG, a, aboutPhotoHtml, aboutRich, closing, esc, paras, skills, st, themeIcon });
+  app.innerHTML = T("app.renderLanding_2", { LANDING_FEATURES, LOGO_FULL_SVG, a, aboutPhotoHtml, aboutRich, closing, esc, paras, skills, st, themeIcon, waUrl: safeWa() });
   document.querySelectorAll("[data-themebtn]").forEach((b) => b.onclick = () => themeCycle());
   document.querySelectorAll("[data-goto]").forEach((el) => el.onclick = (ev) => {
     ev.preventDefault();
@@ -30,6 +34,8 @@ export async function renderLanding() {
     more.textContent = readMoreLabel(open);
   };
   setupLoginMenu();
+  setupInstall();
+  setupChatbot();
   window.scrollTo(0, 0);
   t4kObserveReveal(app);
   setupIntroVideo();
@@ -88,6 +94,12 @@ export function setupIntroVideo() {
    لو الجافاسكريبت وقع لأي سبب، الزرار نفسه لسه لينك عادي لصفحة الدخول. */
 export function setupLoginMenu() {
   try {
+    document.querySelectorAll("[data-login]").forEach((a) => a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const dd = document.querySelector(".lp-dd");
+      if (dd) dd.classList.remove("open");
+      openLoginModal(a.dataset.login);
+    }));
     const btn = document.getElementById("lp-login");
     const dd = btn && btn.closest(".lp-dd");
     if (!btn || !dd) return;
@@ -101,4 +113,29 @@ export function setupLoginMenu() {
     document.addEventListener("click", closeIf);
     document.addEventListener("keydown", onKey);
   } catch (e) { console.warn("قايمة الدخول مش شغالة", e); }
+}
+
+function safeWa() { try { return supportWhatsAppUrl(); } catch (_) { return ""; } }
+
+/* ---------- زرار تثبيت المنصة على الموبايل ----------
+   أندرويد/كروم: بيفتح نافذة التثبيت الأصلية. آيفون ومتصفحات تانية: بنظهر خطوات بسيطة. لو المنصة مثبتة بالفعل الزرار بيختفي. */
+export function setupInstall() {
+  try {
+    const btn = document.getElementById("lp-install");
+    if (!btn) return;
+    if (pwaIsStandalone()) { const box = btn.closest(".lp-install"); if (box) box.style.display = "none"; return; }
+    btn.onclick = async () => {
+      try {
+        if (pwaCanPrompt()) { await pwaPrompt(); return; }
+        const steps = pwaIsIOS()
+          ? "افتح الموقع في Safari، اضغط زرار المشاركة (المربع اللي فيه سهم لفوق)، ثم اختار «إضافة إلى الشاشة الرئيسية»."
+          : "من قايمة المتصفح (النقط التلاتة ⋮) اختار «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».";
+        const ov = document.createElement("div");
+        ov.className = "overlay lgm";
+        ov.innerHTML = '<div class="card lgm-card"><button type="button" class="lgm-x" aria-label="إغلاق">✕</button><div class="lgm-title">📲 تثبيت المنصة</div><p style="line-height:1.9;margin:0;">' + steps + '</p></div>';
+        ov.onclick = (e) => { if (e.target === ov || e.target.classList.contains("lgm-x")) ov.remove(); };
+        document.body.appendChild(ov);
+      } catch (e) { console.warn("التثبيت مش متاح", e); }
+    };
+  } catch (e) { console.warn("زرار التثبيت مش شغال", e); }
 }

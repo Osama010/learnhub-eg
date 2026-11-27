@@ -28,6 +28,10 @@ export async function renderTeacherAnnouncements() {
   annStageSel = resolveStage(annStageSel, myStages);
   app.innerHTML = T("teacher.renderTeacherAnnouncements_3", { STAGE_NAMES, annGradeSel, annStageSel, closing, esc, fmtTs, gradeChip, gradeSelectHtml, myStages, teacherAnn, teacherTabs });
   bindTeacherTabs();
+  import("./live.js").then((m) => m.mountTeacherLive(document.getElementById("an-send").closest(".card"))).catch(() => {});
+  import("./dropoff.js").then((m) => m.mountDropoff(document.getElementById("an-send").closest(".card"))).catch(() => {});
+  import("./contact.js").then((m) => m.mountTeacherContact(document.getElementById("an-send").closest(".card"))).catch(() => {});
+  import("./lesson-report.js").then((m) => m.mountLessonReport(document.getElementById("an-send").closest(".card"))).catch(() => {});
   document.getElementById("an-stage").onchange = (e) => { annStageSel = e.target.value; annGradeSel = ""; renderTeacherAnnouncements(); };
   document.getElementById("an-grade").onchange = (e) => annGradeSel = e.target.value;
   document.getElementById("an-send").onclick = async () => {

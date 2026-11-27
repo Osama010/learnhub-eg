@@ -35,6 +35,8 @@ export async function renderTeacherProfile() {
   app.innerHTML = T("teacher.renderTeacherProfile_3", { approved, closing, esc, fbUser, row, t, tMyAvatar, teacherExams: lessonsState.exams, teacherLessons: lessonsState.lessons, teacherQuizzes: lessonsState.quizzes, teacherTabs });
   bindTeacherTabs();
   const msg = document.getElementById("tp-msg");
+  import("./links.js").then((m) => m.mountLinks(document.getElementById("tp-msg").closest(".card"))).catch(() => {});
+  import("./course-switch.js").then((m) => m.mountCourseSwitch(document.getElementById("tp-msg").closest(".card"))).catch(() => {});
   document.getElementById("tp-pick").onclick = () => document.getElementById("tp-file").click();
   document.getElementById("tp-file").onchange = (e) => tAvatarSave(e.target.files && e.target.files[0], msg);
   const del = document.getElementById("tp-del");

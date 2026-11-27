@@ -1,3 +1,4 @@
+import { closeLoginModal } from "../features/auth/login.js";
 import { PORTAL, PORTAL_INFO, fbReady, fbRole, fbUser, set_fbRole, signOut } from "./session.js";
 import { T } from "./templates.js";
 import { app, esc } from "./utils.js";
@@ -44,8 +45,15 @@ function renderWrongPortal() {
 export function route() {
   const h = location.hash || "#/login";
   if (!fbReady) { renderLoading(); return; }
+  closeLoginModal();
+  // مفيش صفحة اختيار دور: #/login من الرابط الرئيسي بيرجع لصفحة الهبوط (الدخول نافذة فيها)
+  if (!PORTAL && !fbUser && h === "#/login") { try { history.replaceState(null, "", location.pathname + location.search); } catch (_) { location.hash = ""; } return renderLanding(); }
   if (!PORTAL && !fbUser && (location.hash === "" || location.hash === "#" || location.hash === "#/")) return renderLanding();
   if (h === "#/teacher-request") return (!PORTAL || PORTAL === "teacher") ? renderTeacherSignup() : renderLogin();
+  // صفحات عامة من غير دخول: صفحة المدرس ولينك الدعوة (بتتحمّل عند الطلب بس)
+  if (h.startsWith("#/t/")) { const id = decodeURIComponent(h.slice(4)); return import("../features/public/teacher-page.js").then((m) => m.renderTeacherPage(id)); }
+  if (h.startsWith("#/p/")) { const code = decodeURIComponent(h.slice(4)); return import("../features/public/parent-page.js").then((m) => m.renderParentPage(code)); }
+  if (h.startsWith("#/join/") && !fbUser) { const id = decodeURIComponent(h.slice(7)); return import("../features/public/teacher-page.js").then((m) => m.renderJoin(id, (x) => { location.hash = x; })); }
   if (h === "#/register") return (!PORTAL || PORTAL === "student") ? renderRegister() : renderLogin();
   if (h === "#/login" || h === "#/" || h === "") return fbUser ? routeByRole() : renderLogin();
   if (!fbUser) return renderLogin();
@@ -84,6 +92,8 @@ export function route() {
     if (h === "#/student") return renderStudentHome();
     if (h === "#/student/quizexams") return renderStudentQuizExams();
     if (h === "#/student/upcoming") return renderStudentUpcoming();
+    if (h === "#/student/review" || h === "#/student/review/all") return import("../features/student/srs.js").then((m) => m.renderStudentReview(h.endsWith("/all") ? "all" : "due"));
+    if (h === "#/student/examnight") return import("../features/student/srs.js").then((m) => m.renderExamNight());
     if (h === "#/student/mistakes") return renderStudentMistakes();
     if (h === "#/student/library") return renderStudentLibrary();
     if (h === "#/student/ann") return renderStudentAnn();

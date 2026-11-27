@@ -113,3 +113,80 @@ body:has(.landing) { overflow-x: hidden; padding-top: 0; }
 .lp-duo .lp-tchart { width: 100%; height: 150px; } .lp-duo .lp-ic { inset: 0 30% 0 30%; }
 .lp-stu { background: radial-gradient(circle at 15% 10%, rgba(20,184,166,.25), transparent 45%), linear-gradient(135deg, #1e293b, #334155); }
 @media (max-width: 720px) { .lp-duo { grid-template-columns: 1fr; } }
+
+/* نافذة الدخول + رابط الإدارة */
+.lgm { z-index: 80; }
+.lgm-card { position: relative; width: 100%; max-width: 420px; max-height: 92vh; overflow: auto; padding: 22px 20px; }
+.lgm-x { position: absolute; top: 10px; left: 10px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; }
+.lgm-title { font-weight: 800; font-size: 18px; text-align: center; margin-bottom: 14px; }
+.lgm-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.lgm-tab { flex: 1; padding: 10px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--text); font-weight: 700; font-family: inherit; cursor: pointer; }
+.lgm-tab.active { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-dark); }
+.lgm-alt { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.lgm-alt summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 700; }
+.lp-adm { text-align: center; padding: 4px 0 18px; }
+.lp-adm a { color: var(--muted); font-size: 12px; text-decoration: none; opacity: .7; }
+.lp-adm a:hover { opacity: 1; text-decoration: underline; }
+
+/* الهيرو: نص أغنى وترتيب أوضح */
+.lp-kick { display: inline-block; padding: 5px 14px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-dark); font-weight: 800; font-size: 13px; margin-bottom: 14px; border: 1px solid var(--line); }
+.lp-hl { color: var(--primary); }
+.lp-hero p.lp-lead { color: var(--text); font-size: 19px; font-weight: 600; max-width: 520px; margin: 0 0 8px; }
+.lp-hero p.lp-sub { color: var(--muted); font-size: 16px; max-width: 520px; margin: 0; }
+.lp-chips { list-style: none; padding: 0; margin: 18px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; max-width: 540px; animation: t4kFade .8s .3s both; }
+.lp-chips li { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.5; }
+.lp-chips li i { font-style: normal; font-size: 17px; }
+.lp-hero .lp-btns { margin-top: 24px; }
+@media (max-width: 720px) { .lp-chips { grid-template-columns: 1fr; } .lp-hero p.lp-lead { font-size: 17px; } .lp-hero p.lp-sub { font-size: 15px; } }
+
+/* كيف تبدأ + أسئلة شائعة + واتساب + تثبيت */
+.lp-steps2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.lp-stepbox { background: var(--primary-soft); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+.lp-stepbox.t { background: rgba(245,158,11,.10); }
+.lp-stepbox h3 { margin: 0 0 12px; font-size: 18px; }
+.lp-stepbox ol { list-style: none; counter-reset: st; padding: 0; margin: 0 0 14px; display: grid; gap: 10px; }
+.lp-stepbox li { counter-increment: st; position: relative; padding: 2px 44px 2px 0; min-height: 34px; }
+.lp-stepbox li::before { content: counter(st); position: absolute; right: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.lp-stepbox.t li::before { background: #f59e0b; }
+.lp-stepbox li b { display: block; }
+.lp-stepbox li span { display: block; color: var(--muted); font-size: 13.5px; line-height: 1.7; }
+.lp-install { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: 16px; border: 1px dashed var(--primary); }
+.lp-install span { font-weight: 700; }
+.lp-install .lp-btn { cursor: pointer; font-family: inherit; font-size: 14px; padding: 10px 18px; }
+.lp-faq { display: grid; gap: 8px; }
+.lp-faq details { border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.lp-faq summary { cursor: pointer; padding: 13px 16px; font-weight: 800; list-style: none; display: flex; justify-content: space-between; gap: 10px; }
+.lp-faq summary::-webkit-details-marker { display: none; }
+.lp-faq summary::after { content: "+"; color: var(--primary); font-size: 20px; line-height: 1; }
+.lp-faq details[open] summary::after { content: "−"; }
+.lp-faq details[open] { background: var(--primary-soft); }
+.lp-faq p { margin: 0; padding: 0 16px 14px; color: var(--muted); line-height: 1.9; }
+.lp-wa { position: fixed; left: 16px; bottom: 16px; z-index: 40; display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 999px; background: #25d366; color: #fff; text-decoration: none; font-weight: 800; box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+.lp-wa:hover { transform: translateY(-2px); }
+.lp-wai { font-size: 20px; line-height: 1; }
+@media (max-width: 720px) { .lp-steps2 { grid-template-columns: 1fr; } .lp-wa { padding: 12px 15px; left: 12px; bottom: 12px; } }
+.lp-stepbox > .lp-btn { display: inline-block; margin-top: 8px; }
+
+/* مساعد الأسئلة الشائعة */
+.lp-wa { position: static; box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+.lp-fab { position: fixed; left: 16px; bottom: 16px; z-index: 40; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; max-width: calc(100vw - 24px); }
+.lp-chat { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 999px; border: 0; cursor: pointer; font-family: inherit; font-size: 15px; background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: #fff; font-weight: 800; box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+.lp-chat:hover, .lp-wa:hover { transform: translateY(-2px); }
+.cb-panel { position: fixed; left: 16px; bottom: 80px; z-index: 70; width: 360px; max-width: calc(100vw - 24px); height: 520px; max-height: calc(100vh - 100px); display: flex; flex-direction: column; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 16px 48px rgba(0,0,0,.35); overflow: hidden; }
+.cb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 14px; background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: #fff; }
+.cb-head small { display: block; opacity: .85; font-size: 12px; }
+.cb-x { background: rgba(255,255,255,.2); border: 0; color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; }
+.cb-log { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.cb-msg { max-width: 88%; padding: 9px 12px; border-radius: 14px; line-height: 1.8; font-size: 14px; white-space: pre-wrap; }
+.cb-msg.bot { align-self: flex-start; background: var(--primary-soft); border-top-right-radius: 4px; }
+.cb-msg.me { align-self: flex-end; background: var(--primary); color: #fff; border-top-left-radius: 4px; }
+.cb-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.cb-act { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--primary); background: transparent; color: var(--primary-dark); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; }
+.cb-act.wa { background: #25d366; border-color: #25d366; color: #fff; }
+.cb-quick { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 12px; border-top: 1px solid var(--line); max-height: 124px; overflow-y: auto; }
+.cb-q { padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-family: inherit; font-size: 12.5px; cursor: pointer; }
+.cb-q:hover { border-color: var(--primary); }
+.cb-form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.cb-in { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg, var(--card)); color: var(--text); font-family: inherit; font-size: 14px; }
+.cb-send { padding: 0 16px; border-radius: 12px; border: 0; background: var(--primary); color: #fff; font-family: inherit; font-weight: 800; cursor: pointer; }
+@media (max-width: 720px) { .lp-fab { left: 12px; bottom: 12px; gap: 8px; } .lp-chat, .lp-wa { padding: 11px 14px; font-size: 14px; } .cb-panel { left: 8px; right: 8px; width: auto; max-width: none; bottom: 72px; height: min(520px, calc(100vh - 90px)); } }

@@ -15,6 +15,16 @@ var deferredInstallPrompt = null;
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredInstallPrompt = e; });
 function isIOS() { return /iphone|ipad|ipod/i.test((typeof navigator !== "undefined" && navigator.userAgent) || ""); }
 function isStandalone() { return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || ((window.navigator || {}).standalone === true); }
+export const pwaIsIOS = isIOS;
+export const pwaIsStandalone = isStandalone;
+export const pwaCanPrompt = () => !!deferredInstallPrompt;
+export async function pwaPrompt() {
+  if (!deferredInstallPrompt) return false;
+  deferredInstallPrompt.prompt();
+  try { await deferredInstallPrompt.userChoice; } catch (_) {}
+  deferredInstallPrompt = null;
+  return true;
+}
 export function pwaInstallCard() {
   if (isStandalone() || localStorage.getItem("pwaDismissed") === "1") return "";
   if (deferredInstallPrompt) {

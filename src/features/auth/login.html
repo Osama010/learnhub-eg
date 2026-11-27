@@ -24,31 +24,41 @@
     ${closing()}</div>
 <!-- @@ auth.renderLoginForm |  -->
 
+      <form autocomplete="off" onsubmit="return false">
       <label class="flabel">الإيميل</label>
-      <input id="li-email" type="email" class="inp ltr" placeholder="student@example.com">
+      <input id="li-email" type="email" class="inp ltr" placeholder="student@example.com" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')">
       <label class="flabel">الباسورد</label>
-      <input id="li-pass" type="password" class="inp ltr" placeholder="••••••••">
+      <input id="li-pass" type="password" class="inp ltr" placeholder="اكتب الباسورد" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')">
       <button type="button" class="btn u-w100pc" id="li-btn">دخول</button>
+      </form>
       <p class="muted u-fs13px-mt8px">أول مرة تدخل بعد ما المدرس قبلك؟ اكتب إيميلك والرقم السري اللي سجلت بيه، وهنخليك تختار باسوردك.</p>
       <div class="center muted" style="margin-top:10px; border-top:1px solid var(--line); padding-top:12px;">
         طالب جديد؟ <a href="#/register" class="u-cvarprimarydark-fw700">سجّل حسابك من هنا</a>
       </div>
 <!-- @@ auth.renderLoginForm_2 |  -->
 
+      <form autocomplete="off" onsubmit="return false">
       <label class="flabel">الإيميل</label>
-      <input id="li-email" type="email" class="inp ltr" placeholder="teacher@example.com">
+      <input id="li-email" type="email" class="inp ltr" placeholder="teacher@example.com" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')">
       <label class="flabel">الباسورد</label>
-      <input id="li-pass" type="password" class="inp ltr" placeholder="••••••••">
+      <input id="li-pass" type="password" class="inp ltr" placeholder="اكتب الباسورد" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')">
       <button type="button" class="btn u-w100pc" id="li-btn">دخول</button>
-      <p class="muted u-fs13px-mt8px">حسابات المدرسين بيعملها الأدمن. لو نسيت الباسورد كلّم الأدمن يعملك إعادة ضبط.</p>
+      </form>
+      <div class="center" style="margin:8px 0 4px;"><a href="javascript:void(0)" id="li-forgot" style="color:var(--primary-dark); font-size:13px;">نسيت الباسورد؟</a></div>
+      <p class="muted u-fs13px-mt8px">حسابات المدرسين بيعملها الأدمن. لو نسيت الباسورد اضغط "نسيت الباسورد" أو كلّم الأدمن.</p>
 <!-- @@ auth.renderLoginForm_3 |  -->
 
-      <label class="flabel">الإيميل</label>
-      <input id="li-email" type="email" class="inp ltr" placeholder="admin@gmail.com">
-      <label class="flabel">الباسورد</label>
-      <input id="li-pass" type="password" class="inp ltr" placeholder="••••••••">
-      <button type="button" class="btn u-w100pc" id="li-btn">دخول</button>
-      <div class="center" style="margin:8px 0 4px;"><a href="javascript:void(0)" id="li-forgot" style="color:var(--primary-dark); font-size:13px;">نسيت الباسورد؟</a></div>
-      <div class="center muted" style="font-size:13px; margin:6px 0;">— أو —</div>
       <button type="button" class="btn blue u-w100pc" id="li-google">الدخول بحساب جوجل</button>
-      <p class="muted u-fs125px-mt8px">الدخول بالباسورد بيشتغل لو الأدمن ربط باسورد بحسابه من تاب المشرفين بعد دخوله بجوجل. كده محدش يقدر يعمل حساب بإيميل أدمن من عنده. وبعد أي دخول أدمن، اللوحة بتطلب رقم الأدمن السري قبل ما تفتح.</p>
+      <p class="muted u-fs125px-mt8px">دخول الأدمن والمشرفين بحساب جوجل (Gmail)، وبعدها بيطلب منك الرقم السري (PIN).</p>
+<!-- @@ auth.loginModal | roles,loginRole,themeIcon -->
+<div class="overlay lgm" role="dialog" aria-modal="true">
+  <div class="card lgm-card">
+    <button type="button" class="lgm-x" id="lgm-x" aria-label="إغلاق">✕</button>
+    <div class="lgm-title">${loginRole === "admin" ? "🛠️ دخول الإدارة" : "تسجيل الدخول"}</div>
+    <div class="lgm-tabs" ${loginRole === "admin" ? 'style="display:none;"' : ""}>
+      ${roles.filter((r) => r.id !== "admin").map((r) => `<button type="button" class="lgm-tab ${loginRole === r.id ? "active" : ""}" data-role="${r.id}">${r.icon} ${r.name}</button>`).join("")}
+    </div>
+    <div id="login-form"></div>
+    <p class="msg bad" id="login-msg"></p>
+  </div>
+</div>

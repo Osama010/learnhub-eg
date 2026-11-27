@@ -66,6 +66,9 @@
         <input type="checkbox" id="qz-oneattempt" ${quizForm.oneAttempt ? "checked" : ""} style="width:18px; height:18px;">
         محاولة واحدة بس للطالب — ميعرفش يعيد الكويز بعد ما يحله
       </label>
+      <label class="flabel">⏱ وضع الامتحان — مدة بالدقايق (اختياري)</label>
+      <input id="qz-timer" type="number" min="0" max="300" class="inp ltr" placeholder="0 = من غير وضع امتحان" value="${quizForm.timerMin || ""}">
+      <p class="muted u-fs12px-m4px0">لو كتبت مدة: الطالب بيشوف سؤال واحد في المرة من غير رجوع، والإجابات بتتحفظ لوحدها، والتسليم أوتوماتيك لما الوقت يخلص.</p>
       <h3 class="u-fs16px-m14px08px">أسئلة الكويز</h3>
       <div id="qz-quiz">${quizBuilderHtml("q", quizForm.quiz)}</div>
       <div class="btnrow">
@@ -98,6 +101,9 @@
         <div><label class="flabel">موعد الفتح (اختياري)</label><input id="ex-open" type="datetime-local" class="inp ltr" value="${esc(examForm.openAt)}"></div>
         <div><label class="flabel">موعد القفل (اختياري)</label><input id="ex-close" type="datetime-local" class="inp ltr" value="${esc(examForm.closeAt)}"></div>
       </div>
+      <label class="flabel">⏱ وضع الامتحان — مدة بالدقايق (اختياري)</label>
+      <input id="ex-timer" type="number" min="0" max="300" class="inp ltr" placeholder="0 = من غير وضع امتحان" value="${examForm.timerMin || ""}">
+      <p class="muted u-fs12px-m4px0">لو كتبت مدة: الطالب بيشوف سؤال واحد في المرة من غير رجوع، والإجابات بتتحفظ لوحدها، والتسليم أوتوماتيك لما الوقت يخلص.</p>
       <h3 class="u-fs16px-m14px08px">أسئلة الامتحان</h3>
       <div id="ex-quiz">${quizBuilderHtml("x", examForm.quiz)}</div>
       <div class="btnrow">

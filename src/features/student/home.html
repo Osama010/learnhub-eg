@@ -14,6 +14,7 @@
     ${broadcastBannerHtml(bcData, "student")}
     ${sRankCardHtml(myRank)}
     ${sBadgesCardHtml()}
+    <div id="hb-anchor"></div>
     ${lockedTeachers.map((t) => `
     <div class="card lcard u-bord4pxsolidvarred-bgvarredbgfef2f2">
       <b>🔒 ${esc(t.subject ? t.subject + " · " : "")}${esc(t.name || "مدرس")}</b>

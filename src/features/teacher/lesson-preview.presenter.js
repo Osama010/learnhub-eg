@@ -1,3 +1,4 @@
+import { cleanMinutes } from "../../domain/exam-mode.js";
 /* Presenter حفظ الدروس والكويزات وحذفها: تحقق وبناء مستندات ورسائل (دوال صافية، من غير DOM ولا Firebase). */
 import { qSerialize, qValidate } from "../../domain/quiz.js";
 import { videoEmbed } from "../../domain/media.js";
@@ -63,6 +64,7 @@ export function buildQuizDoc({ uid, profile, stage, form }) {
     questions: form.quiz.map(qSerialize),
     grade: form.grade || "",
     maxAttempts: form.oneAttempt ? 1 : 0, // 1 = محاولة واحدة بس للطالب، غير كده إعادة مفتوحة
+    timerMin: cleanMinutes(form.timerMin), // 0 = من غير وضع امتحان
     term: termOf(form),
   };
 }

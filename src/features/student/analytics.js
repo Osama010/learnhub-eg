@@ -41,5 +41,6 @@ function drawStudentAnalytics() {
   bindStudentTabs();
   document.getElementById("san-t").onchange = (e) => { sanState.tid = e.target.value; drawStudentAnalytics(); };
   document.getElementById("san-d").onchange = (e) => { sanState.days = Number(e.target.value); drawStudentAnalytics(); };
+  import("./weak-points.js").then((m) => { const f = document.getElementById("san-t"); m.mountStudentWeak(f && f.closest(".filterrow")); }).catch(() => {});
   document.querySelectorAll("[data-san-go]").forEach((b) => b.onclick = () => { location.hash = b.dataset.sanGo; });
 }

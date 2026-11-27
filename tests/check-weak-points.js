@@ -1,0 +1,22 @@
+/* اختبار تحليل نقاط الضعف (دوال صافية من domain/weak-points.js). */
+const fs = require("fs"), path = require("path");
+const src = fs.readFileSync(path.join(__dirname, "../src/domain/weak-points.js"), "utf8").replace(/export /g, "");
+const m = new Function(src + "; return { weakAreas, weakQuestions, weakAreasOfClass, levelOf };")();
+let n = 0; const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) { console.error("FAIL " + msg + ": " + JSON.stringify(a) + " != " + JSON.stringify(b)); process.exit(1); } n++; };
+const ans = (...c) => c.map((x) => ({ correct: x }));
+const lessons = [{ id: "L1", title: "الكسور" }, { id: "L2", title: "الهندسة" }];
+const quizzes = [{ id: "q1", title: "كويز 1", lessonId: "L1", questions: [{ q: "س1" }, { q: "س2" }] }, { id: "q2", title: "كويز 2", lessonId: "L1", questions: [{ q: "س3" }] }, { id: "q3", title: "عام", questions: [{ q: "س4" }, { q: "س5" }] }];
+const exams = [{ id: "e1", title: "امتحان", quiz: [{ q: "س6" }, { q: "س7" }] }];
+const attempts = [{ quizId: "q1", answers: ans(true, false) }, { quizId: "q2", answers: ans(false) }, { quizId: "q3", answers: ans(true, true) }, { examId: "e1", answers: ans(true, false) }, { quizId: "gone", answers: ans(true) }, { quizId: "q1" }];
+const a = m.weakAreas({ attempts, quizzes, exams, lessons });
+eq(a.map((x) => [x.label, x.correct, x.total, x.pct, x.level]), [["الكسور", 1, 3, 33, "weak"], ["امتحان", 1, 2, 50, "mid"], ["عام", 2, 2, 100, "strong"]], "areas grouped by lesson, sorted weakest first, bad attempts skipped");
+eq(a[0].lessonId, "L1", "lesson link");
+eq(m.levelOf(49) + m.levelOf(50) + m.levelOf(74) + m.levelOf(75), "weakmidmidstrong", "levels");
+eq(m.weakAreas({ attempts: [], quizzes, exams, lessons }), [], "empty");
+const cls = [1, 2, 3].map((i) => ({ quizId: "q1", studentId: "s" + i, answers: ans(i === 1, false) }));
+const wq = m.weakQuestions({ attempts: cls, quizzes, exams });
+eq(wq.map((x) => [x.q, x.correct, x.total, x.pct]), [["س2", 0, 3, 0], ["س1", 1, 3, 33]], "weak questions sorted");
+eq(m.weakQuestions({ attempts: cls.slice(0, 2), quizzes, exams }), [], "below min answers hidden");
+eq(m.weakQuestions({ attempts: cls, quizzes, exams, limit: 1 }).length, 1, "limit");
+eq(m.weakAreasOfClass({ attempts: cls, quizzes, exams, lessons })[0].pct, 17, "class aggregate");
+console.log("weak-points:" + n + " passed");

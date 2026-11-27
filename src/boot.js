@@ -1,6 +1,7 @@
 /* تشغيل التطبيق: بيربط كل الموديولات، وبعدين الراوتر وفايربيز وعامل الخدمة. */
 import { route } from "./core/router.js";
-import { initFirebase } from "./core/session.js";
+import { PORTAL, fbRole, fbUser, initFirebase } from "./core/session.js";
+import { initBackBar } from "./shared/backbar.js";
 import "./features/admin/backup.js";
 import "./features/teacher/backup.js";
 import "./features/teacher/certificate.js";
@@ -54,6 +55,7 @@ import "./features/student/profile.js";
 import "./features/student/teachers.js";
 import "./features/student/analytics.js";
 
+initBackBar(document.getElementById("app"), () => ({ user: fbUser, role: fbRole, portal: PORTAL, hash: location.hash || "" }));
 window.addEventListener("hashchange", route);
 route();
 initFirebase();

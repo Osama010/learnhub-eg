@@ -129,6 +129,7 @@ ${signupsError ? `<div class="card"><h2 class="u-fs18px-mt0">طلبات مدرس
         <b>${esc(g.name)}</b> <span class="muted">· ${esc(g.subject || "")}</span>
         <div class="muted" style="font-size:13px; margin-top:4px;">الصفوف: ${esc(gradesSummary(g.grades))}</div>
         <div style="font-size:13px; margin-top:2px;"><span class="ltr">${esc(g.email)}</span> · <span class="ltr">${esc(g.phone || "")}</span></div>
+        ${g.promo ? `<div style="font-size:13px; margin-top:6px;">🎟️ كود: <b class="ltr">${esc(g.promo)}</b></div>` : ""}
         ${g.bio ? `<div style="font-size:13px; margin-top:6px;">${esc(g.bio)}</div>` : ""}
         <div class="btnrow u-mt8px"><button type="button" class="btn sm" data-sg-ok="${esc(g.id)}">قبول</button><button type="button" class="btn sm red" data-sg-no="${esc(g.id)}">رفض</button></div>
       </div>`).join("")}

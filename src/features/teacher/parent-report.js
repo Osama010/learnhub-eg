@@ -19,7 +19,7 @@ export async function renderTeacherParentReport(studentId) {
   try { await Promise.all([teacherLoad(), teacherLoadLessons()]); } catch (e) { app.innerHTML = T("teacher.renderPReport_2", { e, esc }); return; }
   const student = (teacherCache || []).find((s) => s.id === studentId);
   if (!student) { app.innerHTML = T("teacher.renderPReport_4", { closing, teacherTabs }); bindTeacherTabs(); return; }
-  const rep = buildParentReport({ student, attempts: lessonsState.attempts || [], quizzes: lessonsState.quizzes || [], exams: lessonsState.exams || [], now: new Date() });
+  const rep = buildParentReport({ student, attempts: lessonsState.attempts || [], quizzes: lessonsState.quizzes || [], lessons: lessonsState.lessons || [], exams: lessonsState.exams || [], now: new Date() });
   const draw = () => {
     const mode = getRecipientMode();
     const to = phoneFor(student, mode);

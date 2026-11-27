@@ -1,0 +1,25 @@
+// لوحة شرف الكويزات: دوال صافية
+const fs = require("fs");
+const src = fs.readFileSync(__dirname + "/../src/domain/honor.js", "utf8").replace(/export /g, "");
+const m = new Function(src + "; return {quizStatsOf,boardDoc,boardId,boardKey,topOfBoard};")();
+let f = 0; const ok = (c, n) => { if (!c) { f++; console.log("FAIL", n); } };
+const at = [{ teacherId: "t", score: 8, total: 10 }, { teacherId: "t", score: 5, total: 10 }, { teacherId: "x", score: 1, total: 10 }, { teacherId: "t", score: 0, total: 0 }];
+const st = m.quizStatsOf(at, "t");
+ok(st.count === 2 && st.sum === 130 && st.avg === 65, "stats");
+ok(m.quizStatsOf([], "t").count === 0, "empty");
+const d = m.boardDoc({ uid: "u", teacherId: "t", profile: { name: "سارة أحمد محمد", grade: "g" }, stats: st, hidden: false, now: 5 });
+ok(d.name === "سارة" && d.studentId === "u" && Object.keys(d).length === 9, "doc first name only");
+ok(m.boardId("u", "t") === "u_t", "id");
+ok(m.boardKey(st, true) !== m.boardKey(st, false), "key");
+const E = (id, name, avg, count, o) => Object.assign({ studentId: id, name, grade: "g", sum: avg * count, count, hidden: false }, o);
+const es = [E("a", "أ", 90, 3), E("b", "ب", 95, 1), E("c", "ج", 80, 4), E("d", "د", 99, 5, { hidden: true }), E("e", "هـ", 70, 2, { grade: "other" }), E("me", "أنا", 50, 2), E("a", "أ", 60, 1, { teacherId: "t2" })];
+const r = m.topOfBoard(es, { grade: "g", uid: "me" });
+ok(r.top.map((x) => x.studentId).join() === "a,c,me", "top order, hidden/low-count/other-grade excluded: " + r.top.map((x) => x.studentId));
+ok(r.top[0].avg === 83 && r.top[0].count === 4, "merge teachers");
+ok(r.me.rank === 3 && r.me.me, "my rank");
+const big = Array.from({ length: 9 }, (_, i) => E("s" + i, "n" + i, 90 - i, 2)).concat([E("me", "أنا", 10, 2)]);
+const r2 = m.topOfBoard(big, { grade: "g", uid: "me" });
+ok(r2.top.length === 5 && r2.me.rank === 10 && !r2.top.some((x) => x.me), "outside top 5");
+const h = m.topOfBoard([E("me", "أنا", 99, 3, { hidden: true }), E("a", "أ", 50, 2)], { grade: "g", uid: "me" });
+ok(h.top.length === 1 && h.top[0].studentId === "a" && h.me.hidden, "my hidden stays out of the board");
+console.log(f ? "honor: " + f + " FAIL" : "honor: all pass"); process.exit(f ? 1 : 0);

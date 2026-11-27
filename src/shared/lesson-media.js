@@ -2,7 +2,7 @@ import { fbProfile } from "../core/session.js";
 import { T } from "../core/templates.js";
 import { esc } from "../core/utils.js";
 import { getLessonMedia, getLessonFileChunk } from "../main/data.js";
-import { b64ToBytes, videoEmbed } from "../domain/media.js";
+import { b64ToBytes, videoEmbed, watermarkText } from "../domain/media.js";
 
 /* ======================= وسائط الدرس: فيديو + PDF جوه المنصة ======================= */
 // الروابط الأصلية متخزنة في lessonMedia/{lessonId} (مش على وثيقة الدرس) والطالب مبيشوفش أي رابط.
@@ -38,6 +38,7 @@ function t4kStyleOnce() {
   .mplayer.t4k-fs{position:fixed;inset:0;z-index:99999;border-radius:0;aspect-ratio:auto;width:100vw;height:100vh;}
   .mplayer:fullscreen{border-radius:0;aspect-ratio:auto;}
   .mwm{position:absolute;z-index:4;pointer-events:none;color:rgba(255,255,255,.55);text-shadow:0 0 4px rgba(0,0,0,.8);font:700 15px Cairo,sans-serif;white-space:nowrap;animation:mwmdrift 26s linear infinite;}
+  .mwm.b{animation-delay:-13s;}
   @keyframes mwmdrift{0%{top:10%;left:6%}25%{top:70%;left:55%}50%{top:35%;left:68%}75%{top:78%;left:12%}100%{top:10%;left:6%}}
   .pdfbox{border:1px solid var(--line,#e2e8f0);border-radius:14px;background:#f1f5f9;padding:8px;max-height:75vh;overflow:auto;position:relative;}
   .pdfpage{position:relative;margin:0 auto 10px;max-width:100%;box-shadow:0 1px 6px rgba(0,0,0,.18);background:#fff;}
@@ -67,7 +68,7 @@ function mountPlayer(el, url, wmName) {
   const emb = videoEmbed(url);
   if (!emb) { el.innerHTML = T("app.mountPlayer"); return null; }
   let src = emb.src;
-  if (emb.kind === "youtube") src = emb.src.replace("www.youtube.com", "www.youtube-nocookie.com") + "?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=0&disablekb=0";
+  if (emb.kind === "youtube") src = emb.src.replace("www.youtube.com", "www.youtube-nocookie.com") + "?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&fs=0&disablekb=0&enablejsapi=1";
   const box = document.createElement("div");
   box.className = "mplayer";
   box.setAttribute("data-kind", emb.kind);
@@ -170,9 +171,9 @@ export async function mountLessonMedia(root, l, opts) {
   const vEl = root.querySelector("[data-media-video]"), pEl = root.querySelector("[data-media-pdf]");
   if (!vEl && !pEl) return;
   const media = await loadLessonMedia(l);
-  const wm = o.student ? ((typeof fbProfile !== "undefined" && fbProfile && fbProfile.name) || "") : "";
-  if (vEl) { if (media.videoUrl) mountPlayer(vEl, media.videoUrl, wm); else vEl.innerHTML = media.error ? T("app.mountLessonMedia") : ""; }
-  if (pEl) { if (media.pdfUrl || media.pdfFile) mountPdf(pEl, l, media, wm); else pEl.innerHTML = media.error ? T("app.mountLessonMedia_2") : ""; }
+  const wm = o.student ? watermarkText(typeof fbProfile !== "undefined" ? fbProfile : null) : "";
+  if (vEl) { if (media.videoUrl) { const pb = mountPlayer(vEl, media.videoUrl, wm); if (o.student && pb && pb.getAttribute("data-kind") === "youtube") import("../features/student/video-track.js").then((m) => m.attachVideoTracking(pb, l)).catch(() => {}); } else vEl.innerHTML = media.error ? T("app.mountLessonMedia") : ""; }
+  if (pEl) { if (media.pdfUrl || media.pdfFile) { mountPdf(pEl, l, media, wm); if (o.student) import("../features/student/lesson-activity.js").then((m) => m.trackPdfOpen(pEl, l)).catch(() => {}); } else pEl.innerHTML = media.error ? T("app.mountLessonMedia_2") : ""; }
   if (o.adminOpen && vEl && media.videoUrl) {
     const a = document.createElement("a"); a.className = "btn ghost"; a.target = "_blank"; a.rel = "noopener"; a.href = media.videoUrl; a.textContent = "فتح الأصل"; vEl.appendChild(a);
   }

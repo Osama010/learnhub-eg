@@ -42,6 +42,31 @@ export function renderLogin() {
   window.scrollTo(0, 0);
 }
 
+/* نافذة الدخول فوق صفحة الهبوط. role: student | teacher | admin */
+export function closeLoginModal() { document.querySelectorAll(".lgm").forEach((m) => m.remove()); }
+export function openLoginModal(role) {
+  closeLoginModal();
+  loginRole = role === "teacher" || role === "admin" ? role : "student";
+  const paint = () => {
+    const ov = document.querySelector(".lgm");
+    if (ov) { const t = ov.querySelector(".lgm-title"); if (t) t.textContent = loginRole === "admin" ? "🛠️ دخول الإدارة" : "تسجيل الدخول"; }
+  };
+  const wrap = document.createElement("div");
+  wrap.innerHTML = T("auth.loginModal", { roles: LOGIN_ROLES, loginRole, themeIcon });
+  const ov = wrap.firstElementChild;
+  ov.onclick = (e) => { if (e.target === ov) closeLoginModal(); };
+  ov.querySelector("#lgm-x").onclick = closeLoginModal;
+  ov.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLoginModal(); });
+  ov.querySelectorAll(".lgm-tab").forEach((b) => b.onclick = () => {
+    loginRole = b.dataset.role;
+    ov.querySelectorAll(".lgm-tab").forEach((x) => x.classList.toggle("active", x === b));
+    renderLoginForm(); paint();
+  });
+  ov.addEventListener("click", (e) => { const a = e.target.closest && e.target.closest('a[href^="#/"]'); if (a) closeLoginModal(); });
+  document.body.appendChild(ov);
+  renderLoginForm();
+}
+
 function renderLoginForm() {
   const el = document.getElementById("login-form");
   if (!el) return;
@@ -51,11 +76,10 @@ function renderLoginForm() {
   } else if (loginRole === "teacher") {
     el.innerHTML = T("auth.renderLoginForm_2");
     document.getElementById("li-btn").onclick = () => doLogin("teacher");
+    document.getElementById("li-forgot").onclick = doAdminForgot;
   } else {
     el.innerHTML = T("auth.renderLoginForm_3");
-    document.getElementById("li-btn").onclick = () => doLogin("admin");
-    document.getElementById("li-google").onclick = doGoogleLogin;
-    document.getElementById("li-forgot").onclick = doAdminForgot;
+    document.getElementById("li-google").onclick = () => doGoogleLogin("admin");
   }
 }
 
@@ -112,6 +136,7 @@ async function doLogin(expectedRole) {
       try {
         const lk = await getLookup(email.toLowerCase());
         if (lk && lk.status === "approved" && lk.pinHash) {
+          closeLoginModal();
           return renderFirstLogin(email.toLowerCase());
         }
         // تحذير دقيق: الإيميل مش مسجل أصلاً كطالب (الفهرس العام مقروء قبل الدخول)
@@ -131,11 +156,20 @@ async function doLogin(expectedRole) {
   }
 }
 
-async function doGoogleLogin() {
+async function doGoogleLogin(expectedRole = "admin") {
   loginMsg("");
   try {
     const provider = newGoogleProvider();
     const cred = await signInWithGoogle(provider);
+    if (expectedRole === "teacher") {
+      await resolveRole(cred.user);
+      if (fbRole !== "teacher") {
+        const role = fbRole;
+        await signOutUser();
+        return loginMsg(role === "admin" ? "الحساب ده أدمن. ادخل من رابط الإدارة." : roleMismatchMessage({ expectedRole: "teacher", role, portal: PORTAL }) + " اتأكد إنك دخلت بنفس الإيميل اللي الأدمن سجّلك بيه.");
+      }
+      return route();
+    }
     let isAdm = cred.user.email === ADMIN_EMAIL;
     if (!isAdm) {
       try {

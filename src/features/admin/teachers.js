@@ -131,6 +131,8 @@ export function adminTeachers() {
   const content = signupsHtml + T("admin.adminTeachers_2", { STAGES, SUB_TYPES, editing, esc, students, subChip, subDateStr, subEndDefault, subEndOf, subFmtDate, subInfo, subjectOptions, subjects, teacherStagesText, teachers });
   adminLayout(content, "teachers");
   taPhotoData = null;
+  if (!editing) import("./promos.js").then((m) => m.mountPromos((document.getElementById("ta-add") || {}).closest ? document.getElementById("ta-add").closest(".card") : null)).catch(() => {});
+  if (!editing) import("./reviews.js").then((m) => m.mountReviewsAdmin((document.getElementById("ta-add") || {}).closest ? document.getElementById("ta-add").closest(".card") : null, teachers)).catch(() => {});
   const photoInp = document.getElementById("ta-photo");
   if (photoInp) photoInp.onchange = async (e) => {
     const f = e.target.files && e.target.files[0];
@@ -213,6 +215,7 @@ function applySignupPrefill(g) {
     note.style.cssText = "margin:0 0 10px;";
     note.textContent = "ده طلب من " + g.name + " (المادة اللي كتبها: " + (g.subject || "—") + " · الصفوف: " + gradesSummary(g.grades) + "). اختار المادة من القايمة وحط باسورد مؤقت وادوس إضافة.";
     card.insertBefore(note, card.children[1] || null);
+    if (g.promo) import("./promos.js").then((m) => m.applyPromoToForm(g.promo, card)).catch(() => {});
     if (card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
@@ -336,6 +339,7 @@ async function adminSaveTeacher() {
     if (sg) {
       try { await setTeacherSignupStatus(sg.id, "accepted"); adminLogAction("قبول طلب مدرس", "teacher", uid, name, email); }
       catch (e2) { console.warn("المدرس اتضاف بس تعليم الطلب فشل", e2); }
+      if (sg.promo) import("./promos.js").then((m) => m.countPromoUse(sg.promo)).catch(() => {});
       activeSignup = null;
     }
     taMsg("اتضاف المدرس " + name + " ✅ واتبعت لينك التفعيل على إيميله", true);

@@ -28,3 +28,11 @@ export function b64ToBytes(parts) {
   let o = 0; arrs.forEach((a) => { out.set(a, o); o += a.length; });
   return out;
 }
+
+/** نص العلامة المائية: اسم الطالب + آخر 4 أرقام من موبايله (لو موجود)، عشان لو الفيديو اتسرّب نعرف مصدره. بيردع بس ومابيمنعش التصوير. */
+export function watermarkText(profile) {
+  const name = String((profile && profile.name) || "").trim().split(/\s+/).slice(0, 2).join(" ");
+  const digits = String((profile && profile.phone) || "").replace(/\D/g, "");
+  const tail = digits.length >= 4 ? digits.slice(-4) : "";
+  return [name, tail].filter(Boolean).join(" · ");
+}

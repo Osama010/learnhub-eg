@@ -63,3 +63,29 @@ export function activeBroadcastText(bc, role) {
     return String(bc.text);
   } catch (_) { return null; }
 }
+
+export const RENEWAL_ALERT_DAYS = 7; // تنبيه الأدمن بالتجديد: قبل الانتهاء بـ 7 أيام (والمنتهي كمان)
+
+/** رسالة التجديد الجاهزة لمدرس (نص بس، من غير أسعار). */
+export function renewalMessage(t, daysLeft, end) {
+  const nm = (t && t.name) || "";
+  const type = SUB_TYPES[t && t.subType] || "";
+  const d = end ? subFmtDate(end) : "";
+  const state = daysLeft < 0 ? `انتهى يوم ${d}` : daysLeft === 0 ? `بينتهي النهارده (${d})` : `بينتهي يوم ${d} (فاضل ${daysLeft} يوم)`;
+  return `السلام عليكم${nm ? " أ/ " + nm : ""}، اشتراكك${type ? " (" + type + ")" : ""} في منصة المستر ${state}. لو حابب تجدد قولي وأنا أظبطه لحضرتك.`;
+}
+
+/** المدرسين اللي محتاجين تجديد: منتهي أو فاضل <= days يوم. الأقرب انتهاءً الأول. المجاني وبدون تاريخ مش بيظهروا. */
+export function renewalAlerts(teachers, now, days) {
+  const lim = days == null ? RENEWAL_ALERT_DAYS : days, ref = (now || new Date()).getTime();
+  const out = [];
+  (teachers || []).forEach((t) => {
+    if (!t || !SUB_TYPES[t.subType] || t.subType === "free") return;
+    const end = subEndOf(t);
+    if (!end) return;
+    const daysLeft = Math.ceil((end.getTime() - ref) / 86400000);
+    if (daysLeft > lim) return;
+    out.push({ teacher: t, daysLeft, expired: daysLeft < 0, end, message: renewalMessage(t, daysLeft, end) });
+  });
+  return out.sort((a, b) => a.daysLeft - b.daysLeft);
+}

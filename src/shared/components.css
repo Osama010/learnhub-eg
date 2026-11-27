@@ -72,3 +72,61 @@
 .ts-grades { display: flex; flex-wrap: wrap; gap: 8px; }
 .ts-g { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: var(--primary-soft, rgba(20,184,166,.12)); font-weight: 700; font-size: 13.5px; cursor: pointer; }
 .sg-card { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
+
+/* زرار الرجوع الموحّد */
+.t4k-back { max-width: 1100px; margin: 0 auto; padding: 10px 14px 0; display: flex; justify-content: flex-start; }
+.t4k-back-btn { cursor: pointer; }
+@media print { .t4k-back { display: none !important; } }
+.t4k-back.float { position: fixed; top: 12px; right: 14px; left: auto; max-width: none; margin: 0; padding: 0; z-index: 65; }
+.t4k-back.float .t4k-back-btn { background: var(--card); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+
+/* تقدم الطالب + جرس الإشعارات */
+.sprog-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.sprog-h span { font-weight: 800; color: var(--primary-dark); }
+.sprog-bar { height: 12px; border-radius: 999px; background: var(--primary-soft); overflow: hidden; margin-bottom: 8px; border: 1px solid var(--line); }
+.sprog-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--primary-dark), var(--primary)); transition: width .6s ease; }
+.nbell { position: relative; display: inline-block; }
+.nbell-btn { position: relative; font-size: 17px; }
+.nbell-n { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #ef4444; color: #fff; font-size: 11px; font-style: normal; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.nbell-panel { position: absolute; top: calc(100% + 8px); left: 0; width: 300px; max-width: calc(100vw - 24px); max-height: 380px; overflow-y: auto; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 32px rgba(0,0,0,.25); z-index: 70; padding: 6px; }
+.nbell-h { font-weight: 800; padding: 8px 10px; }
+.nbell-i { display: block; padding: 9px 10px; border-radius: 12px; text-decoration: none; color: var(--text); line-height: 1.6; }
+.nbell-i:hover { background: var(--primary-soft); }
+.nbell-i.new { background: var(--primary-soft); border-right: 3px solid var(--primary); }
+.nbell-i b { display: block; font-size: 13px; }
+.nbell-i span { display: block; font-size: 14px; }
+.nbell-i small { color: var(--muted); }
+.nbell-e { padding: 16px; text-align: center; color: var(--muted); }
+@media (max-width: 720px) { .nbell-panel { position: fixed; top: 60px; left: 8px; right: 8px; width: auto; max-width: none; } }
+
+/* وضع الامتحان */
+.exm-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 80; display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--primary-dark); color: #fff; font-weight: 800; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+[data-theme="dark"] .exm-bar { background: var(--card); color: var(--text); border-bottom: 2px solid var(--primary); }
+.exm-bar.low { background: #dc2626; color: #fff; animation: exmPulse 1s infinite; }
+.exm-t b { font-size: 20px; font-variant-numeric: tabular-nums; direction: ltr; display: inline-block; }
+@keyframes exmPulse { 50% { opacity: .75; } }
+
+/* أسئلة الدروس */
+.cm-item { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 10px 0; background: var(--card); }
+.cm-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.cm-del { margin-inline-start: auto; background: none; border: none; cursor: pointer; font-size: 15px; }
+.cm-t { margin-top: 6px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+.cm-r { margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: var(--primary-soft); border-right: 3px solid var(--primary); font-size: 14px; line-height: 1.8; white-space: pre-wrap; }
+.cm-rf { margin-top: 8px; display: grid; gap: 6px; }
+.cm-ask { display: grid; gap: 8px; margin-top: 10px; }
+.cm-empty { padding: 14px; text-align: center; color: var(--muted); }
+
+/* نقاط الضعف */
+.wp-row { margin: 10px 0; }
+.wp-h { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.wp-bar { display: block; height: 9px; border-radius: 999px; background: var(--primary-soft); overflow: hidden; margin: 5px 0; border: 1px solid var(--line); }
+.wp-bar i { display: block; height: 100%; border-radius: 999px; }
+.wp-bar .wp-weak { background: #ef4444; } .wp-bar .wp-mid { background: #f59e0b; } .wp-bar .wp-strong { background: #22c55e; }
+.wp-row a { color: var(--primary-dark); font-weight: 700; }
+
+/* لوحة شرف الكويزات */
+.hb-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; margin: 4px 0; border: 1px solid var(--line); }
+.hb-row.me { background: var(--primary-soft); border-color: var(--primary); }
+.hb-n { width: 26px; text-align: center; font-weight: 800; }
+.hb-row b { flex: 1; }
+.hb-a { font-weight: 800; color: var(--primary-dark); }

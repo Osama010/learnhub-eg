@@ -19,17 +19,17 @@ let bulkText = "";
 let bulkMode = "parent";
 let bulkSel = null; // Set من ids المختارين (null = الكل)
 
-const DONE_KEY = "t4k_bulk_done";
+import { usGet, usSet } from "../../shared/user-state.js";
 function readDone(text) {
-  try { const all = JSON.parse(localStorage.getItem(DONE_KEY) || "{}"); return all[bulkKey(text)] || []; } catch (e) { return []; }
+  try { const all = usGet("bulkDone", {}); return all[bulkKey(text)] || []; } catch (e) { return []; }
 }
 function markDone(text, id) {
   try {
-    const all = JSON.parse(localStorage.getItem(DONE_KEY) || "{}");
+    const all = { ...usGet("bulkDone", {}) };
     const k = bulkKey(text); const cur = new Set(all[k] || []); cur.add(id);
     all[k] = [...cur];
     const keys = Object.keys(all); if (keys.length > 30) delete all[keys[0]];
-    localStorage.setItem(DONE_KEY, JSON.stringify(all));
+    usSet("bulkDone", all);
   } catch (e) { /* التخزين مش متاح: العلامة بس هتتخطى */ }
 }
 

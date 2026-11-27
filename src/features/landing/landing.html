@@ -1,7 +1,7 @@
 <!-- قوالب الواجهة لموديول features/landing/landing.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
 <!-- @@ app.renderLanding |  -->
 <div class="spin">ثانية واحدة...</div>
-<!-- @@ app.renderLanding_2 | LANDING_FEATURES,LOGO_FULL_SVG,a,aboutPhotoHtml,aboutRich,closing,esc,paras,skills,st,themeIcon -->
+<!-- @@ app.renderLanding_2 | LANDING_FEATURES,LOGO_FULL_SVG,a,aboutPhotoHtml,aboutRich,closing,esc,paras,skills,st,themeIcon,waUrl -->
 <div class="landing">
     <header class="lp-nav">
       <a class="lp-brand" href="./" aria-label="المستر">${LOGO_FULL_SVG}</a>
@@ -12,15 +12,23 @@
       <div class="lp-navend">
         <button type="button" class="themebtn lp-theme" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
         <div class="lp-dd"><a class="lp-cta" href="#/login" id="lp-login" aria-haspopup="true" aria-expanded="false">دخول ▾</a>
-          <div class="lp-ddm"><a href="student/"><i>🎓</i><span><b>دخول طالب</b><small>دروسك واختباراتك</small></span></a><a href="teacher/"><i><svg width="22" height="22" viewBox="0 0 96 96" fill="none"><rect x="8" y="10" width="52" height="34" rx="5" fill="#0f766e"/><circle cx="68" cy="38" r="11" fill="#f59e0b"/><path d="M46 88c0-14 10-24 22-24s22 10 22 24" fill="#f59e0b"/></svg></i><span><b>دخول مدرس</b><small>طلابك وتقاريرك</small></span></a></div></div>
+          <div class="lp-ddm"><a href="student/" data-login="student"><i>🎓</i><span><b>دخول طالب</b><small>دروسك واختباراتك</small></span></a><a href="teacher/" data-login="teacher"><i><svg width="22" height="22" viewBox="0 0 96 96" fill="none"><rect x="8" y="10" width="52" height="34" rx="5" fill="#0f766e"/><circle cx="68" cy="38" r="11" fill="#f59e0b"/><path d="M46 88c0-14 10-24 22-24s22 10 22 24" fill="#f59e0b"/></svg></i><span><b>دخول مدرس</b><small>طلابك وتقاريرك</small></span></a><a href="admin/" data-login="admin"><i>🛠️</i><span><b>الإدارة</b><small>أدمن ومشرفين</small></span></a></div></div>
       </div>
     </header>
     <section class="lp-hero">
       <div class="lp-herotxt">
-        <h1>كل دروسك واختباراتك<br>في مكان واحد</h1>
-        <p>شاهد الدروس، حل الاختبارات، وتابع مستواك مع مدرسينك، من أي مكان وفي أي وقت.</p>
+        <span class="lp-kick">🎓 للطلاب</span>
+        <h1>كل دروسك واختباراتك<br><span class="lp-hl">في مكان واحد</span></h1>
+        <p class="lp-lead">شاهد الدروس، حل الاختبارات، وتابع مستواك مع مدرسينك، من أي مكان وفي أي وقت.</p>
+        <p class="lp-sub">المدرس بيرفع الدروس والاختبارات، وإنت بتذاكر بالسرعة اللي تناسبك وتشوف نتيجتك وتقدمك أول بأول.</p>
+        <ul class="lp-chips">
+          <li><i>🎬</i> دروس فيديو تشوفها وقت ما تحب</li>
+          <li><i>📝</i> اختبارات بنتيجة فورية</li>
+          <li><i>📈</i> متابعة لمستواك وتقدمك</li>
+          <li><i>👨‍🏫</i> بتذاكر مع مدرسينك على نفس المنصة</li>
+        </ul>
         <div class="lp-btns">
-          <a class="lp-btn" href="student/#/register">ابدأ الآن</a>
+          <a class="lp-btn" href="student/" data-login="student">ابدأ كطالب</a>
           <a class="lp-btn o" href="#/" data-goto="lp-about">تعرف على المنصة</a>
         </div>
       </div>
@@ -64,7 +72,7 @@
           <h2>أنت مدرس؟</h2>
           <p>المستر يديك مكان واحد تشرح فيه وتتابع طلابك من غير تعقيد.</p>
           <ul><li>رفع الدروس بالفيديو وملفات PDF</li><li>اختبارات وامتحانات بنتيجة فورية</li><li>متابعة الطلاب وتقارير جاهزة</li></ul>
-          <div class="lp-btns"><a class="lp-amber" href="teacher/">دخول المدرسين</a><a class="lp-ghostw" href="#/teacher-request">اطلب حساب مدرس</a></div>
+          <div class="lp-btns"><a class="lp-amber" href="teacher/" data-login="teacher">دخول المدرسين</a><a class="lp-ghostw" href="#/teacher-request">اطلب حساب مدرس</a></div>
         </div>
         <div class="lp-tchart"><div class="lp-ic"><svg width="96" height="96" viewBox="0 0 96 96" fill="none"><rect x="8" y="10" width="52" height="34" rx="5" fill="#fff" fill-opacity=".9"/><path d="M16 22h30M16 30h22" stroke="#0f766e" stroke-width="4" stroke-linecap="round"/><circle cx="68" cy="38" r="11" fill="#fbbf24"/><path d="M46 88c0-14 10-24 22-24s22 10 22 24" fill="#fbbf24"/></svg></div><div class="lp-mini"><b>+1,010</b><span>طالب</span></div><div class="lp-mini b"><b>٪92</b><span>نسبة الحضور</span></div></div>
       </section>
@@ -74,19 +82,58 @@
           <h2>أنت طالب؟</h2>
           <p>سجّل بنفسك واختار مدرسك، وأول ما يوافق على طلبك تبدأ مذاكرة.</p>
           <ul><li>دروس فيديو في أي وقت</li><li>اختبارات بنتيجة فورية</li><li>لوحة الشرف وترتيب الأوائل</li><li>التسجيل بيوصل لمدرسك وينتظر موافقته</li></ul>
-          <div class="lp-btns"><a class="lp-amber" href="student/">دخول الطلاب</a><a class="lp-ghostw" href="#/register">سجّل كطالب</a></div>
+          <div class="lp-btns"><a class="lp-amber" href="student/" data-login="student">دخول الطلاب</a><a class="lp-ghostw" href="#/register">سجّل كطالب</a></div>
         </div>
         <div class="lp-tchart"><div class="lp-ic"><svg width="96" height="96" viewBox="0 0 96 96" fill="none"><path d="M48 14 6 34l42 20 42-20z" fill="#fff" fill-opacity=".92"/><path d="M24 46v16c0 6 11 12 24 12s24-6 24-12V46L48 58z" fill="#fbbf24"/><path d="M88 36v22" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/></svg></div><div class="lp-mini"><b>+300</b><span>درس</span></div><div class="lp-mini b"><b>🏆</b><span>لوحة الشرف</span></div></div>
       </section>
       </div>
+      <section class="lp-sec rv" id="lp-start">
+        <h2 class="lp-h">ابدأ في 3 خطوات</h2>
+        <div class="lp-steps2">
+          <div class="lp-stepbox">
+            <h3>🎓 لو إنت طالب</h3>
+            <ol>
+              <li><b>سجّل حسابك</b><span>اكتب بياناتك واختار مدرسينك من صفحة التسجيل.</span></li>
+              <li><b>استنى موافقة المدرس</b><span>المدرس بيراجع طلبك ويقبله.</span></li>
+              <li><b>ادخل وابدأ</b><span>ادخل بإيميلك والرقم السري اللي سجلت بيه، واختار باسوردك، وابدأ دروسك واختباراتك.</span></li>
+            </ol>
+            <a class="lp-btn" href="student/" data-login="student">ابدأ كطالب</a>
+          </div>
+          <div class="lp-stepbox t">
+            <h3>📚 لو إنت مدرس</h3>
+            <ol>
+              <li><b>ابعت طلب حساب</b><span>املا نموذج طلب حساب المدرس ببياناتك ومادتك.</span></li>
+              <li><b>الأدمن يراجع طلبك</b><span>لو اتقبل الطلب الأدمن بيفعّل حسابك ويوصلك طريقة الدخول.</span></li>
+              <li><b>ادخل وارفع محتواك</b><span>ادخل بإيميلك والباسورد، وضيف دروسك واختباراتك وتابع طلابك.</span></li>
+            </ol>
+            <a class="lp-btn o" href="#/teacher-request">اطلب حساب مدرس</a>
+          </div>
+        </div>
+        <div class="lp-install"><span>📲 تقدر تثبّت المنصة على موبايلك وتفتحها زي أي تطبيق.</span><button type="button" class="lp-btn o" id="lp-install">ثبّت المنصة على موبايلك</button></div>
+      </section>
+
+      <section class="lp-sec rv" id="lp-faq">
+        <h2 class="lp-h">أسئلة شائعة</h2>
+        <div class="lp-faq">
+          <details><summary>أسجّل إزاي كطالب؟</summary><p>اضغط "ابدأ كطالب" ثم "سجّل حسابك من هنا". اكتب اسمك وإيميلك وسنتك الدراسية وأرقام التليفون، واختار رقم سري، واختار مدرسينك. بعد ما المدرس يقبل طلبك تقدر تدخل.</p></details>
+          <details><summary>هل المنصة مجانية؟</summary><p>إنشاء الحساب على المنصة نفسه مفيهوش خطوة دفع. تفاصيل أي اشتراك أو سعر بتسألها لمدرسك، ولو محتاج توضيح كلّمنا على واتساب.</p></details>
+          <details><summary>إزاي أنضم كمدرس؟</summary><p>اضغط "اطلب حساب مدرس" واكتب بياناتك ومادتك. الأدمن بيراجع الطلب، ولو اتقبل بيفعّل حسابك ويوصلك طريقة الدخول.</p></details>
+          <details><summary>نسيت الباسورد، أعمل إيه؟</summary><p>المدرس: اضغط "نسيت الباسورد" في نافذة الدخول وهيوصلك رابط على إيميلك. الطالب: كلّم مدرسك أو الدعم على واتساب.</p></details>
+          <details><summary>أقدر أفتح المنصة من الموبايل؟</summary><p>أيوه، المنصة بتشتغل على الموبايل والكمبيوتر، وتقدر تثبّتها على الشاشة الرئيسية من زرار "ثبّت المنصة على موبايلك".</p></details>
+          <details><summary>عندي مشكلة أو سؤال تاني</summary><p>كلّمنا على واتساب من الزرار الأخضر في ركن الصفحة، وهنرد عليك.</p></details>
+        </div>
+      </section>
+
       <section class="lp-final rv">
         <h2>جاهز تبدأ؟</h2>
-        <a class="lp-amber" href="#/login">دخول / إنشاء حساب</a>
+        <a class="lp-amber" href="student/" data-login="student">دخول / إنشاء حساب</a>
       </section>
 
       ${closing()}
     </div>
   </div>
+  <div class="lp-fab"><button type="button" class="lp-chat" id="lp-chat-btn" aria-expanded="false" aria-label="اسأل المساعد"><span class="lp-wai">🤖</span><b>اسأل المساعد</b></button>
+  ${waUrl ? `<a class="lp-wa" href="${waUrl}" target="_blank" rel="noopener" aria-label="كلّمنا على واتساب"><span class="lp-wai">💬</span><b>واتساب</b></a>` : ""}</div>
 <!-- @@ app.closing | esc,footerText -->
 <div class="closing">${esc(footerText)}</div>
 <!-- @@ app.statusChip |  -->

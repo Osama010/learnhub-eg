@@ -140,6 +140,7 @@ export async function renderTeacherDash() {
   } catch (_) {}
   app.innerHTML = T("teacher.renderTeacherDash_3", { aboutTeaserHtml, addReqs, approved, bcData, broadcastBannerHtml, closing, dashGradeFilter, esc, fbProfile, fbUser, gradesOfStage, honorBoardCard, pending, stageOfGrade, studentQuizAvg, subFmtDate, subInfo, tAvatarHtml, teacherTabs, waLink, weekActs });
   bindTeacherTabs();
+  import("./backup-extras.js").then((m) => m.mountBackupReminder(document.querySelector(".tabs"))).catch(() => {});
   bindAboutTeaser();
   document.querySelectorAll("[data-glink]").forEach((el) => el.onclick = () => location.hash = el.dataset.glink);
   document.querySelectorAll("[data-req-ok]").forEach((b) => b.onclick = () => teacherAnswerAddReq(b.dataset.reqOk, true));

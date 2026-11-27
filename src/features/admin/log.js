@@ -39,6 +39,7 @@ export function adminStats() {
   const { approved, pending } = studentStatusCounts(students);
   const content = T("admin.adminStats", { STAGES, activeBroadcastText, adminCache, approved, esc, gradesOfStage, pending, stageOfGrade, statusChip, students, subChip, subFmtDate, subInfo, teacherStagesText, teachers, termCurrent, termName, tsToDate });
   adminLayout(content, "stats");
+  import("./renewals.js").then((m) => { const tb = document.querySelector(".tab[data-g]"); m.mountRenewals(tb && tb.parentElement, teachers); }).catch(() => {});
   // تجديد سريع: يفتح فورم المدرس في تاب المدرسين
   document.querySelectorAll("[data-subren]").forEach((b) => b.onclick = () => { set_editingTeacherId(b.dataset.subren); location.hash = "#/admin/teachers"; });
   document.getElementById("term-save").onclick = async () => {

@@ -16,7 +16,7 @@ const root = path.resolve(__dirname, "..");
     return w;
   };
   const M = {};
-  for (const f of ["activity", "admins", "announcements", "auth", "batch", "exams", "lessons", "library", "mapping", "notes", "queries", "quizzes", "requests", "settings", "signups", "students", "subjects", "teachers", "values"]) M[f] = await load(f);
+  for (const f of ["activity", "admins", "announcements", "auth", "batch", "board", "live", "engage", "promos", "comments", "exams", "lessons", "library", "mapping", "notes", "queries", "quizzes", "requests", "restore", "settings", "signups", "students", "subjects", "teachers", "values"]) M[f] = await load(f);
   const { col, ops } = fake; let n = 0;
   const ok = (c, m) => { assert(c, m); n++; };
   const T = (s) => new firebase.firestore.Timestamp(s * 1000);
@@ -240,6 +240,68 @@ const root = path.resolve(__dirname, "..");
     ok(uid === "sec-t@x.com" && ops.some((o) => o[0] === "verifySent" && o[1] === "t@x.com") && ops.some((o) => o[0] === "secSignOut") && ops.some((o) => o[0] === "appDeleted"), "createAuthUserSecondary: إنشاء + تفعيل + خروج + قفل التطبيق الثانوي");
     const gp = AU.newGoogleProvider(); ok(gp.params.prompt === "select_account", "newGoogleProvider");
   }
+  // ---- أسئلة الدروس
+  { const C = M.comments;
+    const r1 = await C.addLessonComment({ lessonId: "L1", teacherId: "t1", studentId: "s1", studentName: "سارة", text: "؟", createdAt: T(10) });
+    await C.addLessonComment({ lessonId: "L2", teacherId: "t1", studentId: "s2", studentName: "علي", text: "؟؟", createdAt: T(20) });
+    await C.addLessonComment({ lessonId: "L1", teacherId: "t2", studentId: "s3", studentName: "منى", text: "؟؟؟", createdAt: T(30) });
+    ok((await C.listLessonComments("L1", "t1")).length === 1 && (await C.listCommentsOfTeacher("t1")).length === 2, "comments: lists by lesson+teacher / by teacher");
+    await C.replyToComment(r1.id, "الإجابة كذا", T(40)); ok(col("lessonComments").get(r1.id).reply === "الإجابة كذا" && col("lessonComments").get(r1.id).text === "؟", "replyToComment keeps text");
+    await C.deleteLessonComment(r1.id); ok(!col("lessonComments").has(r1.id), "deleteLessonComment"); }
+  // ---- استرجاع
+  { const RS = M.restore;
+    await RS.restoreDoc("lessons", "Lx", { teacherId: "t1", title: "د" }); ok(col("lessons").get("Lx").title === "د", "restoreDoc lessons");
+    let bad = null; try { await RS.restoreDoc("students", "z", {}); } catch (e) { bad = e; } ok(bad && !col("students").has("z"), "restoreDoc refuses other collections"); }
+  // ---- الحصص المباشرة وصفحة المدرس العامة
+  { const LV = M.live;
+    const r1 = await LV.addLiveClass({ teacherId: "t1", title: "حصة", url: "https://zoom.us/j/1", startsAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 3600000)) });
+    await LV.addLiveClass({ teacherId: "t2", title: "x", url: "https://zoom.us/j/2" });
+    const l1 = await LV.listLiveOfTeacher("t1");
+    ok(l1.length === 1 && l1[0].title === "حصة" && l1[0].createdAt, "addLiveClass/listLiveOfTeacher by teacher");
+    await LV.deleteLiveClass(l1[0].id); ok((await LV.listLiveOfTeacher("t1")).length === 0, "deleteLiveClass");
+    await firebase.firestore().collection("teachersPublic").doc("tp1").set({ name: "أ", pageOn: true });
+    ok((await LV.getTeacherPublic("tp1")).pageOn === true && (await LV.getTeacherPublic("none")) === null, "getTeacherPublic"); }
+  // ---- أكواد التجربة والخصم
+  { const PR = M.promos;
+    await PR.savePromo("ABC", { code: "ABC", kind: "trial", trialDays: 14, uses: 0, active: true });
+    await PR.savePromo("XYZ", { code: "XYZ", kind: "discount", discountPct: 20, uses: 0, active: true });
+    ok((await PR.listPromos()).length === 2, "listPromos");
+    ok((await PR.getPromo("ABC")).trialDays === 14 && (await PR.getPromo("NOPE")) === null, "getPromo");
+    await PR.updatePromo("ABC", { active: false }); ok((await PR.getPromo("ABC")).active === false, "updatePromo");
+    await PR.bumpPromoUse("XYZ"); await PR.bumpPromoUse("XYZ"); ok((await PR.getPromo("XYZ")).uses === 2, "bumpPromoUse increments");
+    await PR.deletePromo("ABC"); ok((await PR.getPromo("ABC")) === null, "deletePromo"); }
+  // ---- لوحة شرف الكويزات
+  { const BD = M.board;
+    await BD.saveQuizBoardEntry("s1_t1", { teacherId: "t1", studentId: "s1", name: "سارة", grade: "g", sum: 150, count: 2, avg: 75, hidden: false });
+    await BD.saveQuizBoardEntry("s2_t2", { teacherId: "t2", studentId: "s2", name: "علي", grade: "g", sum: 90, count: 1, avg: 90, hidden: false });
+    await BD.saveQuizBoardEntry("s3_t3", { teacherId: "t3", studentId: "s3", name: "x", grade: "g", sum: 1, count: 1, avg: 1, hidden: false });
+    ok((await ids(BD.listQuizBoard(["t1", "t2"]))).join() === "s1_t1,s2_t2", "listQuizBoard by teachers"); }
+  // ---- تتبّع الفيديو، التقييمات، ولي الأمر، حالة المستخدم
+  { const EG = M.engage;
+    await EG.saveVideoWatch("s1_l1", { lessonId: "l1", teacherId: "t1", studentId: "s1", stops: { 3: 1 }, rewinds: {}, updatedAt: 1 });
+    await EG.saveVideoWatch("s2_l1", { lessonId: "l1", teacherId: "t1", studentId: "s2", stops: { 3: 1 }, rewinds: { 4: 1 }, updatedAt: 1 });
+    await EG.saveVideoWatch("s3_l2", { lessonId: "l2", teacherId: "t1", studentId: "s3", stops: {}, rewinds: {}, updatedAt: 1 });
+    ok((await ids(EG.listVideoWatch("t1", "l1"))).join() === "s1_l1,s2_l1", "listVideoWatch by teacher+lesson");
+    ok((await EG.getTeacherReview("none")) === null, "getTeacherReview missing");
+    await EG.saveTeacherReview("s1_t1", { teacherId: "t1", studentId: "s1", stars: 5, text: "", status: "pending", updatedAt: 1 });
+    await EG.saveTeacherReview("s2_t1", { teacherId: "t1", studentId: "s2", stars: 4, text: "ج", status: "pending", updatedAt: 1 });
+    ok((await EG.getTeacherReview("s1_t1")).stars === 5, "getTeacherReview");
+    ok((await EG.listPendingReviews()).length === 2 && (await EG.listApprovedReviews("t1")).length === 0, "listPendingReviews / none approved");
+    await EG.setReviewStatus("s1_t1", "approved");
+    ok((await EG.listApprovedReviews("t1")).length === 1 && (await EG.listPendingReviews()).length === 1, "setReviewStatus approves");
+    await EG.deleteTeacherReview("s2_t1"); ok((await EG.listPendingReviews()).length === 0, "deleteTeacherReview");
+    const code = "A".repeat(24);
+    await EG.saveParentView(code, { studentId: "s1", name: "س", grade: "g", stats: {}, weak: [], recent: [], updatedAt: 1 });
+    ok((await EG.getParentView(code)).studentId === "s1" && (await EG.getParentView("x")) === null, "getParentView");
+    ok((await EG.findParentViewOf("s1")).id === code && (await EG.findParentViewOf("zz")) === null, "findParentViewOf");
+    await EG.deleteParentView(code); ok((await EG.getParentView(code)) === null, "deleteParentView");
+    ok((await EG.getUserState("u1")) === null, "getUserState missing");
+    await EG.saveUserState("u1", { v: { srs: "{}" }, at: { srs: 5 }, updatedAt: 5 });
+    await EG.saveUserState("u1", { v: { backupLast: "9" }, at: { backupLast: 9 }, updatedAt: 6 });
+    ok((await EG.getTeacherContact("t1")) === null, "getTeacherContact missing");
+    await EG.saveTeacherContact("t1", { phone: "201012345678", groupLink: "", on: true, updatedAt: 1 });
+    ok((await EG.getTeacherContact("t1")).on === true, "saveTeacherContact/getTeacherContact");
+    const us = await EG.getUserState("u1"); ok(us.v.srs === "{}" && us.v.backupLast === "9", "saveUserState merges keys"); }
   // ---- غطاء كامل: أي دالة مصدّرة ما اتنادتش = فشل
   const missing = [...exported].filter((x) => !called.has(x));
   if (missing.length) { console.log("infra FAIL: functions never exercised: " + missing.join(", ")); process.exit(1); }

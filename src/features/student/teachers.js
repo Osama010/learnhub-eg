@@ -75,6 +75,9 @@ export async function renderStudentProfile() {
   app.innerHTML = T("student.renderStudentProfile_3", { atts, avg, best, closing, esc, fbUser, row, s, sAvatarHtml, sLevelCardHtml, studentTabs, studentTeachersCardHtml, trq });
   bindStudentTabs();
   bindStudentTeachers();
+  import("./course-cert.js").then((m) => m.mountCourseCerts(document.getElementById("sp-teachers"))).catch(() => {});
+  import("./reviews.js").then((m) => m.mountReviews(document.getElementById("sp-teachers"))).catch(() => {});
+  import("./contact.js").then((m) => m.mountContact(document.getElementById("sp-teachers"))).catch(() => {});
   const msg = document.getElementById("sp-msg");
   document.getElementById("sp-pick").onclick = () => document.getElementById("sp-file").click();
   document.getElementById("sp-file").onchange = (e) => sAvatarSave(e.target.files && e.target.files[0], msg);

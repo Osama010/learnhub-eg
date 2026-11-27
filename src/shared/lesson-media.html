@@ -5,7 +5,7 @@
 <iframe ${cover ? "" : `src="${esc(src)}"`} title="فيديو الدرس" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
     ${cover ? `<button type="button" class="mcover" aria-label="تشغيل" style="position:absolute;inset:0;z-index:6;border:0;cursor:pointer;background:linear-gradient(135deg,#0f172a,#134e4a);color:#fff;font-size:54px;">▶</button>` : ""}
     <div class="mshield"></div>
-    ${wmName ? `<span class="mwm">${esc(wmName)}</span>` : ""}
+    ${wmName ? `<span class="mwm">${esc(wmName)}</span><span class="mwm b">${esc(wmName)}</span>` : ""}
     <button type="button" class="mfs">⛶ ملء الشاشة</button>
 <!-- @@ app.mountPdf | drive -->
 <div class="mplayer" style="aspect-ratio:3/4;max-height:80vh;"><iframe src="https://drive.google.com/file/d/${drive[1]}/preview"></iframe><div class="mshield" style="height:56px;left:auto;width:64px;"></div></div>

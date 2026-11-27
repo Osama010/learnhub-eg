@@ -28,6 +28,9 @@
         <tbody>
           <tr><td>الكويزات</td><td>${rep.quizCount ? rep.quizCount + " محاولة · المتوسط " + rep.quizAvg + "%" : "لسه ما حلش كويزات"}</td></tr>
           <tr><td>الامتحانات</td><td>${rep.examCount ? rep.examCount + " محاولة · المتوسط " + rep.examAvg + "%" : "لسه ما حلش امتحانات"}</td></tr>
+          ${rep.levelName ? `<tr><td>المستوى العام</td><td>${esc(rep.levelName)}</td></tr>` : ""}
+          <tr><td>الأسبوع ده</td><td>${rep.weekCount ? rep.weekCount + " محاولة · المتوسط " + rep.weekAvg + "%" : "مفيش محاولات الأسبوع ده"}</td></tr>
+          <tr><td>نقاط محتاجة مراجعة</td><td>${rep.weak.length ? rep.weak.map((m) => esc(m)).join("، ") : "مفيش نقاط ضعف واضحة"}</td></tr>
           <tr><td>آخر دخول</td><td>${esc(rep.lastLabel)}</td></tr>
           <tr><td>لسه ما اتحلش</td><td>${rep.missed.length ? rep.missed.map((m) => esc(m)).join("، ") : "مفيش"}</td></tr>
         </tbody>

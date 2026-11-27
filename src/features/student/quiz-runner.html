@@ -16,7 +16,7 @@
 <!-- @@ student.sQuestionHtml_6 | i -->
 <input type="text" class="inp" data-sqt="${i}" placeholder="اكتب إجابتك">
 <!-- @@ student.sQuestionHtml_7 | body,esc,i,q,qImgHtml -->
-<div class="card"><h3 style="font-size:16px; margin-top:0;">س${i + 1}: ${esc(q.q || "")}</h3>${qImgHtml(q)}${body}</div>
+<div class="card sq-card"><h3 style="font-size:16px; margin-top:0;">س${i + 1}: ${esc(q.q || "")}</h3>${qImgHtml(q)}${body}</div>
 <!-- @@ student.renderStudentTake |  -->
 <div class="spin">بنحمل الاختبار...</div>
 <!-- @@ student.renderStudentTake_2 | e,esc -->
@@ -30,7 +30,7 @@
     ${studentTabs("quiz")}
     <div class="btnrow u-mb10px"><a class="btn ghost" href="#/student/quizexams">← رجوع للكويزات والامتحانات</a></div>
     ${questions.map((q, i) => sQuestionHtml(q, i)).join("")}
-    <div class="card center">
+    <div class="card center" id="sq-submit-card">
       <button type="button" class="btn" id="sq-submit" style="min-width:220px;">تسليم ${isExam ? "الامتحان" : "الكويز"}</button>
       <p class="msg" id="sq-msg"></p>
       <p class="muted u-fs125px-mt8px">بعد التسليم بتشوف درجتك على طول.</p>

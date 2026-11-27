@@ -11,7 +11,7 @@ const root = path.resolve(__dirname, "..");
   const g = { id: "a@b.com", name: "أحمد <b>", subject: "رياضيات", email: "a@b.com", phone: "01012345678", bio: "خبرة", grades: ["الصف الأول الإعدادي", "الصف الثاني الإعدادي", "الصف الثالث الإعدادي", "الصف الثالث الثانوي"] };
   const html = TP.T("admin.signupsCard", { esc, gradesSummary, signups: [g], signupsError: "" });
   ok(html.includes('data-sg-ok="a@b.com"') && html.includes('data-sg-no="a@b.com"') && html.includes("كل صفوف الإعدادي، الثالث الثانوي") && html.includes("&lt;b>") && !html.includes("<b>أحمد <b>"), "كارت الطلب: أزرار وصفوف ومنع HTML");
-  ok(TP.T("admin.signupsCard", { esc, gradesSummary, signups: [], signupsError: "" }).trim() === "", "مفيش طلبات = مفيش كارت");
+  ok(TP.T("admin.signupsCard", { esc, gradesSummary, signups: [], signupsError: "" }).includes("مفيش طلبات جديدة"), "مفيش طلبات = كارت فاضي بيوضح كده");
   ok(TP.T("admin.signupsCard", { esc, gradesSummary, signups: [], signupsError: "permission-denied" }).includes("permission-denied"), "خطأ التحميل بيظهر للأدمن");
   const GR = (await import(root + "/src/domain/student.js")).GRADES, SG = await import(root + "/src/features/auth/teacher-signup.presenter.js");
   const form = TP.T("auth.renderTeacherSignup", { GRADES: GR, LOGO_FULL_SVG: "", SIGNUP_STAGES: SG.SIGNUP_STAGES, closing: () => "", gradesOfStage: (await import(root + "/src/domain/student.js")).gradesOfStage, themeIcon: () => "" });

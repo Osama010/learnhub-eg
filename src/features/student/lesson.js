@@ -1,4 +1,4 @@
-import { fbUser } from "../../core/session.js";
+import { fbProfile, fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
 import { renderLogin } from "../auth/login.js";
@@ -25,6 +25,7 @@ export async function renderStudentLesson(id) {
   const firstWatch = !sIsWatched(id); // أول مشاهدة بس اللي بتتحسب نقاط
   sMarkWatched(id); // علامة «شوفت الدرس» لشريط التقدم والتذكير
   if (firstWatch) sPingActivity("lesson", id, l.teacherId, 10);
+  import("./lesson-activity.js").then((m) => m.lessonActivity(l).note({ openedAt: Date.now() }).flush()).catch(() => {});
   const myStars = sMyRating(id);
   const hasV = lessonHasVideo(l), hasP = lessonHasPdf(l);
   const linked = linkedQuizzes(studentData, id, { visible: sVisible, teacherLocked: sTeacherLocked });
@@ -33,5 +34,7 @@ export async function renderStudentLesson(id) {
   document.querySelectorAll("[data-sq]").forEach((b) => b.onclick = () => { location.hash = "#/student/quiz/" + b.dataset.sq; });
   document.querySelectorAll("[data-star]").forEach((b) => b.onclick = () => sRate(id, Number(b.dataset.star)));
   mountLessonMedia(app, l, { student: true });
+  // الأسئلة بتتحمّل لما الطالب يحتاجها بس (كود خفيف + قراءة واحدة عند الضغط)
+  import("./comments.js").then((m) => m.mountLessonComments(document.querySelector("[data-star]") && document.querySelector("[data-star]").closest(".card"), l, fbUser.uid, fbProfile)).catch(() => {});
   window.scrollTo(0, 0);
 }

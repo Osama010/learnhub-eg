@@ -67,5 +67,6 @@ function drawTeacherAnalytics() {
   document.getElementById("an-term").onchange = (e) => { tanState.term = Number(e.target.value); drawTeacherAnalytics(); };
   document.getElementById("an-print").onclick = () => teacherAnalyticsPrint(m);
   document.getElementById("an-xls").onclick = () => teacherAnalyticsExport("xls", m);
+  import("./weak-points.js").then((m) => { const f = document.getElementById("an-grade"); m.mountTeacherWeak(f && f.closest(".filterrow")); }).catch(() => {});
   document.getElementById("an-csv").onclick = () => teacherAnalyticsExport("csv", m);
 }

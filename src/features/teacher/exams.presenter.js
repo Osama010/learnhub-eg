@@ -1,3 +1,4 @@
+import { cleanMinutes } from "../../domain/exam-mode.js";
 /* Presenter الامتحانات المستقلة: دوال صافية (من غير DOM ولا Firebase). */
 import { qSerialize, qValidate } from "../../domain/quiz.js";
 import { termOf } from "../../domain/term.js";
@@ -38,6 +39,7 @@ export function buildExamDoc({ uid, profile, stage, form, toStored }) {
     closed: !!form.closed,
     quiz: form.quiz.map(qSerialize),
     grade: form.grade || "",
+    timerMin: cleanMinutes(form.timerMin),
     term: termOf(form),
   };
 }

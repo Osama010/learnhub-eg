@@ -46,7 +46,7 @@ function install() {
     if (kind === "update") {
       if (!has) throw new Error(`No document to update: ${c}/${id}`);
       m.set(id, clone(resolve(m.get(id), data, true)));
-    } else if (opts && opts.merge) m.set(id, clone({ ...(has ? m.get(id) : {}), ...resolve(has ? m.get(id) : {}, data, false) }));
+    } else if (opts && opts.merge) { const dm = (x, y) => { const o = { ...x }; for (const k of Object.keys(y)) { const a = x[k], b = y[k]; o[k] = a && b && typeof a === "object" && typeof b === "object" && !Array.isArray(a) && !Array.isArray(b) && !(a instanceof Timestamp) && !(b instanceof Timestamp) ? dm(a, b) : b; } return o; }; m.set(id, clone(dm(has ? m.get(id) : {}, resolve(has ? m.get(id) : {}, data, false)))); }
     else m.set(id, clone(resolve({}, data, false)));
     ops.push([kind, c, id]);
   }

@@ -7,9 +7,9 @@ export const STAGE_ICONS = { "ابتدائي": "🎒", "إعدادي": "📗", "
 export const QTYPES = [["mcq", "اختيار من متعدد"], ["multi", "اختيار متعدد (أكتر من إجابة)"], ["tf", "صح أو غلط"], ["text", "إجابة قصيرة"], ["fill", "أكمل الفراغ"], ["match", "توصيل"], ["num", "إجابة رقمية"]];
 
 /* فورمات فاضية (الترم بيتحقن) */
-export const blankExamForm = (term) => ({ id: null, title: "", desc: "", openAt: "", closeAt: "", closed: false, quiz: [], grade: "", term });
+export const blankExamForm = (term) => ({ id: null, title: "", desc: "", openAt: "", closeAt: "", closed: false, quiz: [], grade: "", timerMin: 0, term });
 export const blankLessonForm = (term) => ({ id: null, unit: "", lessonNum: "", title: "", desc: "", videoUrl: "", pdfUrl: "", pdfMode: "file", pdfFile: null, pdfMeta: null, publishAt: "", grade: "", term });
-export const blankQuizForm = (term) => ({ id: null, title: "", lessonId: "", quiz: [], grade: "", oneAttempt: false, term });
+export const blankQuizForm = (term) => ({ id: null, title: "", lessonId: "", quiz: [], grade: "", oneAttempt: false, timerMin: 0, term });
 
 /* فورمات التعديل من المحتوى المتخزّن (toLocal = تحويل Timestamp لقيمة input) */
 export function lessonFormFrom(l, med, toLocal) {
@@ -19,8 +19,8 @@ export function lessonFormFrom(l, med, toLocal) {
     publishAt: toLocal(l.publishAt), grade: l.grade || "", term: termOf(l),
   };
 }
-export const quizFormFrom = (q) => ({ id: q.id, title: q.title || "", lessonId: q.lessonId || "", quiz: (q.questions || []).map(qFromStored), grade: q.grade || "", oneAttempt: q.maxAttempts === 1, term: termOf(q) });
-export const examFormFrom = (e, toLocal) => ({ id: e.id, title: e.title || "", desc: e.desc || "", openAt: toLocal(e.openAt), closeAt: toLocal(e.closeAt), closed: !!e.closed, quiz: (e.quiz || []).map(qFromStored), grade: e.grade || "", term: termOf(e) });
+export const quizFormFrom = (q) => ({ id: q.id, title: q.title || "", lessonId: q.lessonId || "", quiz: (q.questions || []).map(qFromStored), grade: q.grade || "", oneAttempt: q.maxAttempts === 1, timerMin: Number(q.timerMin) || 0, term: termOf(q) });
+export const examFormFrom = (e, toLocal) => ({ id: e.id, title: e.title || "", desc: e.desc || "", openAt: toLocal(e.openAt), closeAt: toLocal(e.closeAt), closed: !!e.closed, quiz: (e.quiz || []).map(qFromStored), grade: e.grade || "", timerMin: Number(e.timerMin) || 0, term: termOf(e) });
 
 /* فلاتر وترتيب القوائم */
 export const byStage = (items, stage) => stage ? items.filter((x) => x.stage === stage) : items;

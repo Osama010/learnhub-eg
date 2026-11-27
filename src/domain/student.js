@@ -36,6 +36,8 @@ export const S_LEVELS = [
   { min: 0, name: "مبتدئ", icon: "🌱" },
   { min: 100, name: "مجتهد", icon: "💪" },
   { min: 300, name: "متفوق", icon: "🏆" },
+  { min: 600, name: "نجم", icon: "⭐" },
+  { min: 1000, name: "أسطورة", icon: "👑" },
 ];
 
 /* المستوى الحالي والمستوى الجاي من جدول S_LEVELS */

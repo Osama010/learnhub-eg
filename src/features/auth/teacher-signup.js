@@ -43,7 +43,7 @@ async function doTeacherSignup() {
   try {
     const r = presentTeacherSignup({
       name: el("ts-name").value, email: el("ts-email").value, phone: el("ts-phone").value,
-      subject: el("ts-subject").value, bio: el("ts-bio").value, website: el("ts-website").value,
+      subject: el("ts-subject").value, bio: el("ts-bio").value, website: el("ts-website").value, promo: (el("ts-promo") || {}).value,
       grades: Array.from(document.querySelectorAll(".ts-grade:checked")).map((b) => b.value),
     });
     if (r.bot) { app.innerHTML = T("auth.doTeacherSignup", { closing }); return; }

@@ -48,7 +48,7 @@ function wrapLines(ctx, text, maxW) {
   if (cur) lines.push(cur);
   return lines;
 }
-async function drawCertCanvas(cert) {
+export async function drawCertCanvas(cert) {
   await loadSignFont();
   const W = 2339;
   const H = 1654;
@@ -135,7 +135,7 @@ async function drawCertCanvas(cert) {
   x.restore();
   return c;
 }
-async function certPdfFile(cert) {
+export async function certPdfFile(cert) {
   const c = await drawCertCanvas(cert);
   const blob = await new Promise((res) => c.toBlob(res, "image/jpeg", 0.92));
   if (!blob) throw new Error("مقدرتش أجهز الصورة.");
@@ -143,7 +143,7 @@ async function certPdfFile(cert) {
   const pdf = jpegToPdf(jpeg, c.width, c.height);
   return new File([pdf], certFileName(cert.name), { type: "application/pdf" });
 }
-function downloadFile(file) {
+export function downloadFile(file) {
   const url = URL.createObjectURL(file);
   const a = document.createElement("a");
   a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();

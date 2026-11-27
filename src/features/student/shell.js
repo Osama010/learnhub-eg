@@ -1,3 +1,4 @@
+import { usGet, usSet } from "../../shared/user-state.js";
 import { fbProfile, fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
@@ -13,7 +14,10 @@ import { stageOfGrade } from "../../domain/student.js";
 import { fmtTs } from "../../domain/format.js";
 import { sLessonOpen, sLessonsCountText } from "../../domain/reporting.js";
 import { findAttempt, myRatingOf } from "../../domain/progress.js";
-import { serverNow } from "../../main/data.js";
+import { markStudentActiveDay, serverNow } from "../../main/data.js";
+import { mountBell } from "./notifications.js";
+import { progressCardHtml } from "./notifications.view.js";
+import { overallProgressOf } from "../../domain/progress.js";
 import { chunksOf, examStateOf, newRating, reminderLines, subjectColor, subjectIcon } from "./shell.presenter.js";
 
 /* ---------- واجهة الطالب: التابات والتحميل ----------
@@ -50,6 +54,7 @@ export function studentTabs(active) {
 export function bindStudentTabs() {
   document.querySelectorAll("[data-sh]").forEach((b) => b.onclick = () => { location.hash = b.dataset.sh; });
   bindPlatNav();
+  mountBell();
 }
 
 // اسم المدرس مع صورته الصغيرة (بتتعرض لطلابه من النسخة العامة)
@@ -82,18 +87,20 @@ export async function studentLoadAll() {
     const snaps = await Promise.all(chunks.map((c) => listByTeacherIn(col, c)));
     return snaps.flatMap((sn) => sn);
   };
-  const [lessons, quizzes, exams, ann, attSnap, rateSnap, libSnap] = await Promise.all([
+  const [lessons, quizzes, exams, ann, live, attSnap, rateSnap, libSnap] = await Promise.all([
     inQuery("lessons"), inQuery("quizzes"), inQuery("exams"), inQuery("announcements"),
+    inQuery("liveClasses").catch(() => []), // الحصص المباشرة: فشلها (قواعد لسه متنشرتش) ميوقفش الصفحة
     listAttemptsOfStudent(fbUser.uid),
     listRatingsOfStudent(fbUser.uid),
     listLibraryNewestFirst(),
   ]);
   studentData = {
-    teachers, lessons, quizzes, exams, ann,
+    teachers, lessons, quizzes, exams, ann, live,
     attempts: attSnap,
     ratings: rateSnap,
     library: libSnap,
   };
+  sSyncWatched();
 }
 
 export function sTeacherName(tid) {
@@ -106,16 +113,20 @@ export function sTeacherName(tid) {
 export function sSubjIcon(subj) { return subjectIcon(subj); }
 export function sSubjColor(subj) { return subjectColor(subj); }
 export function sSecStateGet(k) {
-  try { const m = JSON.parse(localStorage.getItem("stSecState") || "{}"); return m[k] !== false; } catch (_) { return true; }
+  try { const m = usGet("secState", {}); return m[k] !== false; } catch (_) { return true; }
 }
 export function sSecStateSet(k, open) {
-  try { const m = JSON.parse(localStorage.getItem("stSecState") || "{}"); m[k] = open; localStorage.setItem("stSecState", JSON.stringify(m)); } catch (_) {}
+  try { const m = { ...usGet("secState", {}) }; m[k] = open; usSet("secState", m); } catch (_) {}
 }
 
 /* علامات «شوفت الدرس» على الجهاز: بتتسجل أول ما الطالب يفتح صفحة الدرس،
    وبتغذي شريط التقدم والتذكير الذكي في صفحة دروسي */
 export function sWatchedSet() {
-  try { return new Set(JSON.parse(localStorage.getItem("stWatched") || "[]")); } catch (_) { return new Set(); }
+  let s;
+  try { s = new Set(JSON.parse(localStorage.getItem("stWatched") || "[]")); } catch (_) { s = new Set(); }
+  // التقدم محفوظ كمان على مستند الطالب (watchedLessons) فيمشي معاه من جهاز لجهاز
+  try { Object.keys((fbProfile && fbProfile.watchedLessons) || {}).forEach((k) => s.add(k)); } catch (_) {}
+  return s;
 }
 export function sIsWatched(lid) { return sWatchedSet().has(lid); }
 export function sMarkWatched(lid) {
@@ -123,6 +134,24 @@ export function sMarkWatched(lid) {
     const w = sWatchedSet();
     w.add(lid);
     localStorage.setItem("stWatched", JSON.stringify(Array.from(w).slice(-500)));
+  } catch (_) {}
+  sSaveWatched([lid]);
+}
+/* حفظ الدروس المشاهدة على مستند الطالب (فشل الحفظ ما بيوقفش حاجة، والجهاز لسه محتفظ بيها) */
+function sSaveWatched(ids) {
+  try {
+    if (!fbUser || !fbProfile) return;
+    const cur = fbProfile.watchedLessons || (fbProfile.watchedLessons = {});
+    const upd = {};
+    ids.forEach((id) => { if (id && !cur[id]) { cur[id] = true; upd["watchedLessons." + id] = true; } });
+    if (Object.keys(upd).length) markStudentActiveDay(fbUser.uid, upd).catch(() => {});
+  } catch (_) {}
+}
+/* أول تحميل بعد التحديث: الدروس المشاهدة على الجهاز بس بتترفع للمستند مرة واحدة */
+function sSyncWatched() {
+  try {
+    const local = JSON.parse(localStorage.getItem("stWatched") || "[]");
+    sSaveWatched(local.slice(-500));
   } catch (_) {}
 }
 
@@ -162,10 +191,17 @@ export async function sRate(lessonId, stars) {
 
 /* تذكير ذكي فوق الأقسام: دروس لسه مشفتاهاش + كويزات مستنياه + دروس بتنزل قريب.
    بيظهر بس لما في حاجة تفتكر، ومبيظهرش خالص لو كل حاجة مكتملة */
+export function sProgressCardHtml(lessons, quizzes) {
+  try {
+    const p = overallProgressOf({ lessons, watchedIds: sWatchedSet(), quizzes, attempts: studentData.attempts, lessonOpen: sLessonOpen });
+    return progressCardHtml(p);
+  } catch (_) { return ""; }
+}
 export function sReminderHtml(lessons, quizzes) {
   const lines = reminderLines({ lessons, quizzes, nowMs: Date.now(), rules: { lessonOpen: sLessonOpen, isWatched: sIsWatched, visible: sVisible, attemptFor: sAttemptFor, countText: sLessonsCountText } });
-  if (!lines.length) return "";
-  return T("student.sReminderHtml", { lines });
+  const prog = sProgressCardHtml(lessons, quizzes);
+  if (!lines.length) return prog;
+  return prog + T("student.sReminderHtml", { lines });
 }
 
 // المحتوى يظهر للطالب لو مخصص لصفه، أو عام على مرحلته كلها

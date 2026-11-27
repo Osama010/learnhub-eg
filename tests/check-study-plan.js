@@ -1,0 +1,38 @@
+(async () => {
+  let f = 0; const ok = (c, n) => { if (!c) { f++; console.log("FAIL", n); } };
+  const R = __dirname + "/../src/";
+  const { streakInfo, studyPlan, dayStr } = await import(R + "domain/study-plan.js");
+  const { sLevelFor } = await import(R + "domain/student.js");
+  const PP = await import(R + "features/teacher/parent-report.presenter.js");
+  const now = new Date(2026, 10, 27, 15).getTime();
+  const D = (n) => { const d = new Date(2026, 10, 27); d.setDate(d.getDate() - n); return dayStr(d); };
+  let s = streakInfo({ [D(0)]: true, [D(1)]: true, [D(2)]: true, [D(5)]: true, [D(6)]: true, [D(7)]: true, [D(8)]: true, [D(9)]: true }, now);
+  ok(s.current === 3 && s.best === 5 && s.activeToday, "streak current/best " + JSON.stringify(s));
+  s = streakInfo({ [D(1)]: true, [D(2)]: true }, now); ok(s.current === 2 && !s.activeToday, "streak counts from yesterday");
+  s = streakInfo({ [D(3)]: true }, now); ok(s.current === 0 && s.best === 1, "broken streak");
+  ok(streakInfo(null, now).best === 0, "empty");
+  ok(sLevelFor(650).cur.name === "نجم" && sLevelFor(1200).cur.name === "أسطورة" && sLevelFor(1200).next === null && sLevelFor(0).cur.name === "مبتدئ", "levels");
+  const L = (id, sec, o) => Object.assign({ id, title: "درس " + id, createdAt: { seconds: sec } }, o);
+  const lessons = [L("l2", 20), L("l1", 10), L("l3", 30), L("lh", 5, { hidden: 1 })];
+  const quizzes = [{ id: "q1", title: "ك1", lessonId: "l1" }, { id: "q2", title: "ك2", lessonId: "l2" }, { id: "q3", title: "ك3", lessonId: "l3" }];
+  const base = { lessons, quizzes, lessonOpen: (l) => !l.hidden };
+  let p = studyPlan({ ...base, attempts: [], watchedIds: new Set(["l1"]), weak: [] });
+  ok(p[0].kind === "lesson" && p[0].id === "l2" && p[0].href === "#/student/lesson/l2", "next lesson in order, hidden skipped");
+  ok(p.some((t) => t.kind === "quiz" && t.id === "q1"), "quiz of watched lesson");
+  ok(!p.some((t) => t.id === "q3"), "quiz of unwatched lesson not suggested");
+  p = studyPlan({ ...base, attempts: [{ quizId: "q1", score: 2, total: 10 }], watchedIds: new Set(["l1", "l2", "l3"]), weak: [{ level: "weak", lessonId: "l1", label: "درس l1", pct: 20 }] });
+  ok(p.map((t) => t.kind).join() === "retry,quiz,review" && p[0].id === "q1", "retry failed, new quiz, review weak: " + p.map((t) => t.kind));
+  p = studyPlan({ ...base, attempts: [{ quizId: "q1", score: 9, total: 10 }, { quizId: "q2", score: 9, total: 10 }, { quizId: "q3", score: 9, total: 10 }], watchedIds: new Set(["l1", "l2", "l3"]), weak: [] });
+  ok(p.length === 0, "all done = empty plan");
+  ok(studyPlan({ ...base, attempts: [], watchedIds: new Set(), weak: [], visible: () => false }).length === 0, "visibility filter");
+  // parent report weekly
+  const mk = (days, pct, id) => ({ studentId: "s", quizId: id, score: pct, total: 100, answers: [{ correct: pct >= 50 }], updatedAt: { toDate: () => new Date(now - days * 86400000) } });
+  const rep = PP.buildParentReport({ student: { id: "s", name: "سارة", grade: "الصف الأول الإعدادي" }, attempts: [mk(1, 40, "q1"), mk(2, 80, "q2"), mk(20, 90, "q3")], quizzes: [{ id: "q1", title: "ك1", stage: "إعدادي" }, { id: "q2", title: "ك2" }, { id: "q3", title: "ك3" }], exams: [], lessons: [], now: new Date(now) });
+  ok(rep.weekCount === 2 && rep.weekAvg === 60, "week stats " + rep.weekCount + "/" + rep.weekAvg);
+  ok(rep.weak.length === 1 && rep.weak[0].includes("ك1"), "weak points listed");
+  ok(rep.levelName === "جيد", "level " + rep.levelName);
+  const txt = PP.parentReportText(rep, "parent", "أحمد");
+  ok(txt.includes("الأسبوع ده") && txt.includes("محتاج مراجعة") && txt.includes("المستوى العام"), "text has weekly lines");
+  ok(PP.levelLabel(null) === null && PP.levelLabel(40) === "محتاج دعم" && PP.levelLabel(90) === "ممتاز", "levelLabel");
+  console.log(f ? "study-plan: " + f + " FAIL" : "study-plan: all pass"); process.exit(f ? 1 : 0);
+})();

@@ -44,6 +44,9 @@ export async function renderTeacherFollow() {
   app.innerHTML = T("teacher.renderFollow_3", { INACT_DAYS, STAGE_NAMES, backupCardHtml, closing, esc, followDays, followGrade, followMode, followStage, gradeSelectHtml, myStages, recipientPickHtml, teacherTabs });
   bindTeacherTabs();
   bindBackup();
+  import("./comments.js").then((m) => { const j = document.getElementById("bk-json"); m.mountCommentsCard(j && j.closest(".card")); }).catch(() => {});
+  import("./backup-extras.js").then((m) => { const j = document.getElementById("bk-json"); m.mountRestoreCard(j && j.closest(".card")); }).catch(() => {});
+  import("./export.js").then((m) => { const j = document.getElementById("bk-json"); m.mountExportCard(j && j.closest(".card")); }).catch(() => {});
   document.getElementById("fl-stage").onchange = (e) => { followStage = e.target.value; followGrade = ""; renderTeacherFollow(); };
   document.getElementById("fl-grade").onchange = (e) => { followGrade = e.target.value; drawFollowList(); };
   document.getElementById("fl-days").onchange = (e) => { followDays = Number(e.target.value) || 7; drawFollowList(); };

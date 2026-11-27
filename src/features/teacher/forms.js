@@ -52,6 +52,7 @@ export function renderQuizFormPage(stage, subject) {
   document.getElementById("qz-title").oninput = (e) => lessonsState.quizForm.title = e.target.value;
   document.getElementById("qz-grade").onchange = (e) => lessonsState.quizForm.grade = e.target.value;
   document.getElementById("qz-lesson").onchange = (e) => lessonsState.quizForm.lessonId = e.target.value;
+  document.getElementById("qz-timer").oninput = (e) => lessonsState.quizForm.timerMin = e.target.value;
   document.getElementById("qz-oneattempt").onchange = (e) => lessonsState.quizForm.oneAttempt = e.target.checked;
   document.getElementById("qz-addq").onclick = () => {
     lessonsState.quizForm.quiz.push(qNew("mcq"));
@@ -76,6 +77,7 @@ export function renderExamFormPage(stage) {
   document.getElementById("ex-desc").oninput = (e) => lessonsState.examForm.desc = e.target.value;
   document.getElementById("ex-open").onchange = (e) => lessonsState.examForm.openAt = e.target.value;
   document.getElementById("ex-close").onchange = (e) => lessonsState.examForm.closeAt = e.target.value;
+  document.getElementById("ex-timer").oninput = (e) => lessonsState.examForm.timerMin = e.target.value;
   document.getElementById("ex-grade").onchange = (e) => lessonsState.examForm.grade = e.target.value;
   document.getElementById("ex-addq").onclick = () => { lessonsState.examForm.quiz.push(qNew("mcq")); renderTeacherLessons(stage); };
   document.getElementById("ex-bank").onclick = () => openBankPicker(lessonsState.examForm.quiz, stage);

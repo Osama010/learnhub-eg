@@ -1,3 +1,5 @@
+import { fbProfile } from "../../core/session.js";
+import { streakInfo } from "../../domain/study-plan.js";
 import { T } from "../../core/templates.js";
 import { sStreak } from "./activity.js";
 import { sWatchedSet, studentData } from "./shell.js";
@@ -14,5 +16,6 @@ export function sLevelCardHtml() {
   const lv = sLevelFor(pts);
   const pct = levelProgressPct(pts, lv);
   const streak = sStreak();
-  return T("student.sLevelCardHtml", { lv, pct, pts, streak });
+  const info = streakInfo(fbProfile && fbProfile.activityDays, Date.now());
+  return T("student.sLevelCardHtml", { lv, pct, pts, streak, best: info.best });
 }

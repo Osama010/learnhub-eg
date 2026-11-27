@@ -36,6 +36,11 @@ export async function renderStudentDash() {
   const { annVisible, lessons, quizzesVis, lockedTeachers, adminLockedTeachers, groups, gkeys } = buildDashModel({ data: studentData, rules: { visible: sVisible, suspended: sSuspendedSet, term: sTerm(), termOf, locked: sTeacherLocked, teacherName: sTeacherName } });
   app.innerHTML = T("student.renderStudentDash_3", { aboutTeaserHtml, adminLockedTeachers, annVisible, bcData, broadcastBannerHtml, closing, esc, fmtTs, gkeys, groups, lessonHasPdf, lessonHasVideo, lessons, lockedTeachers, myRank, quizzesVis, s, sAttemptFor, sAvatarHtml, sBadgesCardHtml, sLessonOpen, sLessonsCountText, sRankCardHtml, sReminderHtml, sSecStateGet, sSubjColor, sSubjIcon, sSubjProgressHtml, sTeacherChip, sTerm, studentTabs, termTabsHtml });
   bindStudentTabs();
+  import("./srs.js").then((m) => m.mountSrsCard(document.getElementById("hb-anchor"))).catch(() => {});
+  import("./parent.js").then((m) => m.mountParentCard(document.getElementById("hb-anchor"))).catch(() => {});
+  import("./live.js").then((m) => m.mountLive(document.getElementById("hb-anchor"))).catch(() => {});
+  import("./study-plan.js").then((m) => m.mountStudyPlan(document.getElementById("hb-anchor"))).catch(() => {});
+  import("./honor.js").then((m) => m.mountHonorBoard(document.getElementById("hb-anchor"))).catch(() => {});
   bindAboutTeaser();
   bindTermTabs((t) => { set_sTermTab(t); renderStudentDash(); });
   // فتح/قفل قسم المادة بالدوس على رأسه، والحالة بتتحفظ

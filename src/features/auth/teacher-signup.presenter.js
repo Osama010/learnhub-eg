@@ -1,4 +1,5 @@
 /* Presenter طلب حساب مدرس: دوال صافية (من غير DOM ولا Firebase). */
+import { normalizeCode } from "../../domain/promo.js";
 import { GRADES, gradesOfStage, normalizeEgPhone, stageOfGrade } from "../../domain/student.js";
 
 export const SIGNUP_STAGES = ["ابتدائي", "إعدادي", "ثانوي"];
@@ -35,7 +36,8 @@ export function presentTeacherSignup(raw) {
   if (subject.length > 60) return { error: "اسم المادة طويل زيادة." };
   if (!grades.length) return { error: "اختار صف واحد على الأقل، أو علّم \"كل الصفوف\" لمرحلة." };
   if (bio.length > SIGNUP_BIO_MAX) return { error: "النبذة لازم تكون أقل من " + SIGNUP_BIO_MAX + " حرف." };
-  return { values: { name, email, phone, subject, grades, stages: stagesOfGrades(grades), bio } };
+  const promo = normalizeCode(raw && raw.promo);
+  return { values: { name, email, phone, subject, grades, stages: stagesOfGrades(grades), bio, ...(promo ? { promo } : {}) } };
 }
 
 /** الخطأ اللي بيرجع من Firestore لو الطلب موجود قبل كده (المستند بنفس الإيميل) أو القواعد لسه متنشرتش. */

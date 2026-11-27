@@ -10,6 +10,7 @@ import { bailIfSignedOut } from "../../shared/toast.js";
 import { normalizeAnswer, sCorrectText, sGivenText, sGradeOne } from "../../domain/quiz.js";
 import { serverNow } from "../../main/data.js";
 import { earnsQuizPoints, gradeSubmission, missingAnswer } from "./quiz-runner.presenter.js";
+import { timerOf } from "../../domain/exam-mode.js";
 import { useCases } from "../../main/compose.js";
 
 /* ---------- حل كويز/امتحان ---------- */
@@ -51,6 +52,13 @@ export async function renderStudentTake(id, isExam) {
   bindStudentTabs();
   document.getElementById("sq-submit").onclick = () => sSubmit(item, questions, isExam);
   window.scrollTo(0, 0);
+  if (timerOf(item)) {
+    // وضع الامتحان بيتحمّل بس لما المدرس يفعّله (مش بيتقل على باقي الكويزات)
+    try {
+      const { startExamMode } = await import("./exam-mode.js");
+      startExamMode({ uid: fbUser.uid, item, questions, isExam, gather: () => sGather(questions), submit: (force) => sSubmit(item, questions, isExam, force) });
+    } catch (e) { console.warn("وضع الامتحان مش شغال", e); }
+  }
 }
 
 // تجميع إجابات الطالب من الشاشة — null معناها سؤال من غير إجابة
@@ -85,13 +93,13 @@ export function qImgHtml(q) {
 
 
 
-async function sSubmit(item, questions, isExam) {
+async function sSubmit(item, questions, isExam, force) {
   const m = document.getElementById("sq-msg");
   const given = sGather(questions);
   const missing = missingAnswer(given);
-  if (missing >= 0) {
+  if (missing >= 0 && !force) {
     m.className = "msg bad"; m.textContent = "جاوب على سؤال " + (missing + 1) + " الأول.";
-    return;
+    return false;
   }
   const graded = gradeSubmission({ questions, given, item, isExam, studentId: fbUser.uid, studentName: fbProfile && fbProfile.name, now: serverNow(), gradeOne: sGradeOne });
   const { results, score, docId, data } = graded;
@@ -102,11 +110,12 @@ async function sSubmit(item, questions, isExam) {
   } catch (e) {
     btn.disabled = false;
     m.className = "msg bad"; m.textContent = "مشكلة في الحفظ: " + (e.message || e);
-    return;
+    return false;
   }
   // أول نجاح في الاختبار ده (50%+) بيسجل نقاط ونشاط للسلسلة ولوحة الشرف — إعادة النجاح ما بتتحسبش
   if (earnsQuizPoints({ attempts: studentData.attempts, item, isExam, score, total: questions.length })) sPingActivity("quiz", item.id, item.teacherId, 20);
   sShowResult(item, questions, results, isExam, given);
+  return true;
 }
 
 function sShowResult(item, questions, results, isExam, given) {

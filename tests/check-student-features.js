@@ -1,0 +1,20 @@
+/* اختبار تقدم الطالب العام وإشعاراته (دوال صافية من domain/progress.js). */
+const fs = require("fs"), path = require("path");
+const src = fs.readFileSync(path.join(__dirname, "../src/domain/progress.js"), "utf8").replace(/export /g, "");
+const m = new Function(src + "; return { overallProgressOf, notificationsOf };")();
+let n = 0; const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) { console.error("FAIL " + msg + ": " + JSON.stringify(a) + " != " + JSON.stringify(b)); process.exit(1); } n++; };
+const ts = (ms) => ({ seconds: Math.floor(ms / 1000), toDate: () => new Date(ms) });
+const NOW = 1700000000000, H = 3600000;
+const lessons = [{ id: "l1", title: "درس 1", teacherId: "t", createdAt: ts(NOW - 5 * H) }, { id: "l2", title: "درس 2", teacherId: "t", createdAt: ts(NOW - 50 * H) }, { id: "l3", title: "مجدول", teacherId: "t", createdAt: ts(NOW - 60 * H), publishAt: ts(NOW + 10 * H) }];
+const open = (l) => !(l.publishAt && l.publishAt.seconds * 1000 > NOW);
+let p = m.overallProgressOf({ lessons, watchedIds: new Set(["l1", "zzz"]), quizzes: [{ id: "q1" }, { id: "q2" }], attempts: [{ quizId: "q1" }], lessonOpen: open });
+eq([p.lessonsTotal, p.watched, p.pct, p.quizzesTotal, p.quizzesDone], [2, 1, 50, 2, 1], "progress counts open lessons only");
+p = m.overallProgressOf({ lessons: [], watchedIds: new Set(), quizzes: [], attempts: [], lessonOpen: open });
+eq(p.pct, 0, "empty progress");
+const args = { lessons, quizzes: [{ id: "q1", title: "كويز", teacherId: "t", createdAt: ts(NOW - 1 * H) }], exams: [{ id: "e1", title: "امتحان", teacherId: "t", createdAt: ts(NOW + 5 * H) }], ann: [{ id: "a1", text: "إعلان", teacherId: "t", createdAt: ts(NOW - 2 * H) }], nowMs: NOW, visible: () => true, lessonOpen: open, teacherName: () => "مستر", limit: 20 };
+let r = m.notificationsOf({ ...args, sinceMs: NOW - 3 * H });
+eq(r.map((x) => x.id), ["q1", "a1", "l1", "l2"], "sorted newest first, future items and scheduled lessons excluded");
+eq(r.filter((x) => x.isNew).map((x) => x.id), ["q1", "a1"], "only items after last seen are new");
+eq(m.notificationsOf({ ...args, sinceMs: NOW, limit: 2 }).length, 2, "limit");
+eq(m.notificationsOf({ ...args, sinceMs: 0, visible: (x) => x.id !== "l1" }).some((x) => x.id === "l1"), false, "visibility filter");
+console.log("student-features:" + n + " passed");
