@@ -8,6 +8,7 @@ export const listAllStudentsNewestFirst = () => db.students().orderBy("createdAt
 /** بيانات الطالب أو null لو مش موجود. */
 export const getStudent = (id) => db.students().doc(id).get().then(one);
 export const addStudent = (data) => db.students().add(data);
+export const batchSetStudent = (batch, id, data) => batch.set(db.students().doc(id), data);
 export const setStudent = (id, data) => db.students().doc(id).set(data);
 export const updateStudent = (id, data) => db.students().doc(id).update(data);
 export const deleteStudent = (id) => db.students().doc(id).delete();

@@ -40,8 +40,10 @@ const root = path.resolve(__dirname, "..");
   let b = B.newBatch();
   S.batchUpdateStudent(b, "s2", { status: "suspended" }); S.batchUpdateLookup(b, "a@x.com", { status: "suspended" });
   S.batchSetLookup(b, "b@x.com", { status: "pending" }); S.batchDeleteLookup(b, "b@x.com");
+  S.batchSetStudent(b, "s9", { name: "ط", email: "s9@x.com", teacherIds: ["t1"] });
   ok(col("students").get("s2").status === "approved", "الدفعة مبتكتبش قبل commit"); await b.commit();
   ok(col("students").get("s2").status === "suspended" && col("registrationLookup").get("a@x.com").status === "suspended" && !col("registrationLookup").has("b@x.com"), "batch students/lookups");
+  ok(col("students").get("s9").teacherIds[0] === "t1", "batchSetStudent");
   b = B.newBatch(); S.batchDeleteStudent(b, "s3"); await b.commit(); ok(!col("students").has("s3"), "batchDeleteStudent");
   await S.deleteStudent("s2"); ok(!col("students").has("s2"), "deleteStudent");
   // wipeByStudent / detach
@@ -156,6 +158,7 @@ const root = path.resolve(__dirname, "..");
   {
     for (const c of [...fake.store.keys()]) fake.store.get(c).clear();
     const { createUseCases, DuplicateEmailError } = await import(root + "/src/application/usecases.js");
+    globalThis.FIREBASE_CONFIG = globalThis.FIREBASE_CONFIG || { apiKey: "k" };
     const { firebaseRepositories } = await import(dir + "repositories.js");
     const uc = createUseCases({ ...firebaseRepositories(), hashPin: async (t) => "h:" + t, baseAdminEmail: "root@x.com" });
     const sid = await uc.registerStudent({ name: "أ", email: "a@x.com", grade: "g1", phone: "010", parentPhone: "011", pin: "1234", teacherIds: ["t1"] });
@@ -181,6 +184,13 @@ const root = path.resolve(__dirname, "..");
     ok(fu.uid === "uid-1" && col("students").get("uid-1").emailVerifyRequired === true && !col("students").has("fo") && col("registrationLookup").get("f@x.com").pinHash === "", "fb: completeFirstLogin");
     ok((await uc.isTeacherEmailRegistered("zz@x.com")) === false, "fb: isTeacherEmailRegistered");
     await uc.sendPasswordReset("x@x.com"); ok(ops.some((o) => o[0] === "resetEmail" && o[1] === "x@x.com"), "fb: reset");
+    // المدرس بيضيف طالب (فوق Firestore الوهمي): مستند بنفس uid الحساب + فهرس التسجيل، وإيميل اختيار الباسورد
+    const ad = await uc.addStudentByTeacher({ teacherId: "tA", name: "طالب مضاف", email: "Add@X.com", grade: "الصف الأول الثانوي", phone: "", parentPhone: "01012345678" });
+    const sd = col("students").get(ad.uid), lkd = col("registrationLookup").get("add@x.com");
+    ok(ad.uid === "sec-add@x.com" && sd.teacherIds.join() === "tA" && sd.status === "approved" && sd.authLinked === true && sd.addedBy === "tA" && sd.createdAt.seconds > 0 && !("pinHash" in sd) && lkd.studentId === ad.uid && lkd.teacherIds.join() === "tA" && lkd.authLinked === true && !("pinHash" in lkd), "fb: addStudentByTeacher بيكتب الطالب والفهرس");
+    ok(ops.some((o) => o[0] === "resetEmail" && o[1] === "add@x.com"), "fb: إيميل اختيار الباسورد اتبعت");
+    let ex = null; try { await uc.addStudentByTeacher({ teacherId: "tB", name: "تاني", email: "add@x.com", grade: "g", phone: "", parentPhone: "" }); } catch (e) { ex = e; }
+    ok(ex && ex.constructor.name === "ExistingStudentError" && ex.mine === false, "fb: إيميل موجود عند مدرس تاني");
     const st0 = await uc.loadAdminPinState("Root@x.com"); ok(st0.doc === null, "fb: admin none");
     await uc.setAdminPin("root@x.com", null, "1234"); const st1 = await uc.loadAdminPinState("root@x.com");
     ok(st1.hasPin && st1.doc.name === "الأدمن الأساسي" && st1.doc.addedAt.seconds > 0 && await uc.verifyAdminPin("root@x.com", st1.doc, "1234"), "fb: setAdminPin + base admin name");
@@ -238,6 +248,9 @@ const root = path.resolve(__dirname, "..");
     ok(V.serverNow().__fv === "ts" && V.toStoredTime(new Date(2000, 0, 1)).seconds > 0 && V.removeField().__fv === "del", "values");
     const uid = await AU.createAuthUserSecondary("t@x.com", "secret1");
     ok(uid === "sec-t@x.com" && ops.some((o) => o[0] === "verifySent" && o[1] === "t@x.com") && ops.some((o) => o[0] === "secSignOut") && ops.some((o) => o[0] === "appDeleted"), "createAuthUserSecondary: إنشاء + تفعيل + خروج + قفل التطبيق الثانوي");
+    ops.length = 0;
+    const mg = await AU.createManagedAuthUser("m@x.com");
+    ok(mg.uid === "sec-m@x.com" && mg.emailSent === true && ops.some((o) => o[0] === "resetEmail" && o[1] === "m@x.com") && ops.some((o) => o[0] === "secSignOut") && ops.some((o) => o[0] === "appDeleted"), "createManagedAuthUser: حساب بباسورد عشوائي + إيميل اختيار الباسورد + خروج + قفل التطبيق الثانوي");
     const gp = AU.newGoogleProvider(); ok(gp.params.prompt === "select_account", "newGoogleProvider");
   }
   // ---- أسئلة الدروس

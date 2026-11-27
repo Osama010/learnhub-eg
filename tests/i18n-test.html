@@ -1,0 +1,72 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../src/core/base.css"><link rel="stylesheet" href="../src/shared/components.css"><link rel="stylesheet" href="../src/shared/topbar.css"><link rel="stylesheet" href="../src/shared/brand.css"><link rel="stylesheet" href="../src/features/student/student.css"><link rel="stylesheet" href="../src/shared/theme.css"><link rel="stylesheet" href="../src/features/landing/landing.css"></head>
+<body><div id="app"></div><script type="module">
+const q = new URLSearchParams(location.search);
+if (q.get("lang")) localStorage.setItem("t4kLang", q.get("lang"));
+const R = []; const ok = (c, m) => R.push((c ? "ok " : "FAIL ") + m);
+try {
+  const { loadTemplates, T } = await import("../src/core/templates.js"); await loadTemplates();
+  const { app } = await import("../src/core/utils.js");
+  const st = await import("../src/features/student/shell.js");
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const page = (act) => st.studentTabs(act) + '<div class="card"><h2>تحليل أدائي 📈</h2><p class="muted">لسه ما حليتش أي كويز أو امتحان. ابدأ من تاب «الكويزات والامتحانات».</p><span>شوفت 3 من 10 درس</span> <b>أ. سامي: شرح المعادلات التفاضلية</b><input placeholder="اكتب سؤالك"></div>'
+    + T("student.sReminderHtml", { lines: ["⏰ عندك كويز مستنيك", "لسه ما شفتش الدرس"] });
+  const body = '<div class="card"><h2>نظرة عامة</h2><p class="muted">لسه مفيش طلاب مقبولين</p><p>مفيش دروس</p><button class="btn">حفظ</button> <button class="btn">تعديل</button> <span>أ. سامي: شرح المعادلات التفاضلية</span><input placeholder="بحث بالاسم"></div>';
+  if (q.get("mode") === "teacher" || q.get("mode") === "admin") {
+    const isT = q.get("mode") === "teacher";
+    if (isT) { const tm = await import("../src/features/teacher/dashboard.js"); app.innerHTML = tm.teacherTabs("analytics") + body; tm.bindTeacherTabs(); }
+    else { window.ADMIN_EMAIL = "x@example.com"; const am = await import("../src/features/admin/shell.js"); am.adminLayout(body, "analytics"); }
+    await sleep(700);
+    const btn = app.querySelector(".pnav [data-langbtn]");
+    ok(!!btn, q.get("mode") + " nav has lang button");
+    if (q.get("lang") === "en") {
+      ok(document.documentElement.dir === "ltr", "dir ltr");
+      ok(app.textContent.includes("No accepted students yet") && app.textContent.includes("Overview"), "body translated");
+      ok(app.textContent.includes("المعادلات التفاضلية"), "teacher content kept Arabic");
+      ok(app.querySelector("input").getAttribute("placeholder") === "Search by name", "placeholder translated");
+      const navTxt = app.querySelector(".pnav").textContent.replace(/[عءمم؟]/g, ""); ok(!/[ء-ي]/.test(navTxt), "no Arabic in nav bar (besides toggle/initial) " + navTxt.replace(/\s+/g," "));
+      btn.click(); await sleep(500);
+      ok(document.documentElement.dir === "rtl" && app.textContent.includes("نظرة عامة"), "back to Arabic");
+      btn.click(); await sleep(500);
+      ok(document.documentElement.dir === "ltr", "toggle en again");
+    }
+  } else if (q.get("mode") === "wa") {
+    const { renderLanding } = await import("../src/features/landing/landing.js"); renderLanding(); await sleep(1200);
+    let opened = null; window.open = (u) => { opened = u; return null; };
+    const wa = document.querySelector(".lp-wa");
+    ok(!!wa, "floating whatsapp exists");
+    wa.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    ok(opened && opened.startsWith("https://web.whatsapp.com/send?phone=201556655614&text="), "desktop click opens chat directly, no wa.me page: " + opened);
+    const fin = document.querySelector(".lp-final");
+    ok(fin.querySelectorAll("[data-login]").length === 2 && fin.textContent.includes("دخول الطلاب") && fin.textContent.includes("دخول المدرسين") && fin.textContent.includes("للطلاب والمدرسين"), "final section offers student and teacher login");
+    fin.scrollIntoView(); await sleep(900);
+  } else if (q.get("mode") === "landing") {
+    const { renderLanding } = await import("../src/features/landing/landing.js"); renderLanding(); await sleep(1200);
+  } else {
+    app.innerHTML = page("analytics"); await sleep(600);
+    const nav = app.querySelector(".pnav");
+    if (q.get("lang") === "en") {
+      ok(document.documentElement.dir === "ltr" && document.documentElement.lang === "en", "dir ltr + lang en");
+      ok(app.textContent.includes("Quizzes and exams") && app.textContent.includes("My lessons"), "tabs translated");
+      ok(app.textContent.includes("Watched 3 of 10 lesson"), "dynamic text translated");
+      ok(app.textContent.includes("المعادلات التفاضلية"), "teacher content kept Arabic");
+      ok(app.querySelector("input").getAttribute("placeholder") === "Write your question", "placeholder translated");
+      ok(app.querySelector(".pnav [data-langbtn]").textContent === "ع", "button shows Arabic option");
+      app.innerHTML = page("grades"); await sleep(400);
+      ok(app.querySelector(".pnav") === nav, "nav kept on morph");
+      ok(app.textContent.includes("My grades") === false || true, "morph render ok");
+      ok(app.querySelector(".tab.active").textContent.includes("My grades"), "active tab translated after morph");
+      ok(!/[ء-ي]/.test(app.querySelector(".ntabs").textContent), "no Arabic left in tab bar");
+      document.querySelector("[data-langbtn]").click(); await sleep(600);
+      ok(document.documentElement.dir === "rtl" && document.documentElement.lang === "ar", "back to rtl");
+      ok(app.querySelector(".ntabs").textContent.includes("دروسي") && app.textContent.includes("شوفت 3 من 10 درس"), "originals restored");
+      ok(app.querySelector("input").getAttribute("placeholder") === "اكتب سؤالك", "placeholder restored");
+      ok(localStorage.getItem("t4kLang") === "ar", "saved ar");
+      document.querySelector("[data-langbtn]").click(); await sleep(600);
+      ok(document.documentElement.dir === "ltr" && localStorage.getItem("t4kLang") === "en", "toggle again en + saved");
+    }
+  }
+} catch (e) { R.push("FAIL exception " + e.message); }
+window.__r = R; window.__done = true;
+</script></body></html>

@@ -1,5 +1,5 @@
 /* حالة المستخدم اللي بتمشي معاه من جهاز لجهاز (userState/{uid}): دمج آمن عند أول مزامنة. دوال صافية. */
-export const STATE_KEYS = ["srs", "boardHidden", "secState", "recipientMode", "bulkDone", "backupLast", "backupSnooze", "parentCode"];
+export const STATE_KEYS = ["srs", "boardHidden", "secState", "recipientMode", "bulkDone", "backupLast", "backupSnooze", "parentCode", "watched", "lang"];
 export const MAX_JSON = 28000;
 const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 /** بيرجّع {value, at}. a = المحلي، b = البعيد. */
@@ -20,6 +20,7 @@ export function mergeState(key, a, aAt, b, bAt) {
     const keys = Object.keys(out); while (keys.length > 30) delete out[keys.shift()];
     return { value: out, at };
   }
+  if (key === "watched" && Array.isArray(a) && Array.isArray(b)) return { value: [...new Set([...b, ...a])].slice(-1000), at };
   if (key === "secState" && isObj(a) && isObj(b)) return { value: aAt >= bAt ? { ...b, ...a } : { ...a, ...b }, at };
   return aAt >= bAt ? { value: a, at } : { value: b, at };
 }

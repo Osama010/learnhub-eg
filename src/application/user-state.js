@@ -7,7 +7,7 @@ import { STATE_KEYS, mergeState, srsTrim } from "../domain/user-state.js";
 export function createUserState({ getUid, storage, remoteGet, remoteSave, now = () => Date.now(), setTimer = setTimeout, clearTimer = clearTimeout }) {
   const LEGACY = {
     srs: (uid) => "t4kSrs_" + uid, boardHidden: () => "t4kBoardHidden", secState: () => "stSecState", recipientMode: () => "t4k_wa_recipient",
-    bulkDone: () => "t4k_bulk_done", parentCode: (uid) => "t4kParentCode_" + uid, backupLast: () => "t4kLastBackup", backupSnooze: () => "t4kBackupSnooze",
+    bulkDone: () => "t4k_bulk_done", parentCode: (uid) => "t4kParentCode_" + uid, watched: () => "__none__", lang: () => "t4kLang", backupLast: () => "t4kLastBackup", backupSnooze: () => "t4kBackupSnooze",
   };
   const ls = { get: (k) => { try { return storage.getItem(k); } catch (_) { return null; } }, set: (k, v) => { try { storage.setItem(k, v); } catch (_) {} } };
   let mem = null, memUid = null, initP = null, kicked = false, timer = null;
@@ -17,7 +17,7 @@ export function createUserState({ getUid, storage, remoteGet, remoteSave, now = 
     const raw = ls.get(LEGACY[k](uid)); if (raw == null) return undefined;
     if (k === "boardHidden") return raw === "1";
     if (k === "backupLast" || k === "backupSnooze") return Number(raw) || undefined;
-    if (k === "recipientMode" || k === "parentCode") return raw;
+    if (k === "recipientMode" || k === "parentCode" || k === "lang") return raw;
     try { return JSON.parse(raw); } catch (_) { return undefined; }
   }
   function ensure() {

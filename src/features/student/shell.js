@@ -1,4 +1,6 @@
 import { usGet, usSet } from "../../shared/user-state.js";
+import { bindLangSync } from "../../shared/lang-sync.js";
+import { mergeWatched, pendingWatched, trimWatched, watchedKey } from "../../domain/watched.js";
 import { fbProfile, fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
 import { app, esc } from "../../core/utils.js";
@@ -52,6 +54,7 @@ export function studentTabs(active) {
 }
 
 export function bindStudentTabs() {
+  bindLangSync();
   document.querySelectorAll("[data-sh]").forEach((b) => b.onclick = () => { location.hash = b.dataset.sh; });
   bindPlatNav();
   mountBell();
@@ -122,36 +125,41 @@ export function sSecStateSet(k, open) {
 /* علامات «شوفت الدرس» على الجهاز: بتتسجل أول ما الطالب يفتح صفحة الدرس،
    وبتغذي شريط التقدم والتذكير الذكي في صفحة دروسي */
 export function sWatchedSet() {
-  let s;
-  try { s = new Set(JSON.parse(localStorage.getItem("stWatched") || "[]")); } catch (_) { s = new Set(); }
-  // التقدم محفوظ كمان على مستند الطالب (watchedLessons) فيمشي معاه من جهاز لجهاز
-  try { Object.keys((fbProfile && fbProfile.watchedLessons) || {}).forEach((k) => s.add(k)); } catch (_) {}
-  return s;
+  let local = [];
+  try { local = JSON.parse(localStorage.getItem(watchedKey(fbUser && fbUser.uid)) || "[]"); } catch (_) {}
+  return mergeWatched({ local, profile: fbProfile && fbProfile.watchedLessons, backup: usGet("watched", []) });
 }
 export function sIsWatched(lid) { return sWatchedSet().has(lid); }
 export function sMarkWatched(lid) {
   try {
-    const w = sWatchedSet();
-    w.add(lid);
-    localStorage.setItem("stWatched", JSON.stringify(Array.from(w).slice(-500)));
+    const w = [...sWatchedSet(), lid];
+    localStorage.setItem(watchedKey(fbUser && fbUser.uid), JSON.stringify(trimWatched(w)));
   } catch (_) {}
   sSaveWatched([lid]);
 }
-/* حفظ الدروس المشاهدة على مستند الطالب (فشل الحفظ ما بيوقفش حاجة، والجهاز لسه محتفظ بيها) */
+/* حفظ الدروس المشاهدة على مستند الطالب. لو الكتابة فشلت (رولز/نت) بنسجّلها في userState كنسخة احتياطية وبنحاول تاني في أول تحميل. بنوصّل الخطأ لـ window.__t4kWatchErr للتشخيص */
 function sSaveWatched(ids) {
   try {
-    if (!fbUser || !fbProfile) return;
-    const cur = fbProfile.watchedLessons || (fbProfile.watchedLessons = {});
+    if (!fbUser || !fbProfile || !ids.length) return;
     const upd = {};
-    ids.forEach((id) => { if (id && !cur[id]) { cur[id] = true; upd["watchedLessons." + id] = true; } });
-    if (Object.keys(upd).length) markStudentActiveDay(fbUser.uid, upd).catch(() => {});
+    ids.forEach((id) => { if (id) upd["watchedLessons." + id] = true; });
+    if (!Object.keys(upd).length) return;
+    markStudentActiveDay(fbUser.uid, upd).then(() => {
+      const cur = fbProfile.watchedLessons || (fbProfile.watchedLessons = {});
+      ids.forEach((id) => { cur[id] = true; });
+    }).catch((e) => {
+      window.__t4kWatchErr = (e && (e.code || e.message)) || String(e);
+      console.warn("حفظ الدروس المشاهدة فشل", window.__t4kWatchErr);
+      try { usSet("watched", trimWatched([...(usGet("watched", []) || []), ...ids])); } catch (_) {}
+    });
   } catch (_) {}
 }
-/* أول تحميل بعد التحديث: الدروس المشاهدة على الجهاز بس بتترفع للمستند مرة واحدة */
+/* أول تحميل: أي درس موجود محليًا أو في النسخة الاحتياطية وناقص من مستند الطالب بيتبعت مرة واحدة */
 function sSyncWatched() {
   try {
-    const local = JSON.parse(localStorage.getItem("stWatched") || "[]");
-    sSaveWatched(local.slice(-500));
+    let local = [];
+    try { local = JSON.parse(localStorage.getItem(watchedKey(fbUser && fbUser.uid)) || "[]"); } catch (_) {}
+    sSaveWatched(pendingWatched({ local, profile: fbProfile && fbProfile.watchedLessons, backup: usGet("watched", []) }));
   } catch (_) {}
 }
 

@@ -1,8 +1,11 @@
 /* طبقة الـ Use Cases (Application): قواعد سير العمل. بتعتمد على الدومين والبورتس بس، ومبتعرفش Firebase ولا DOM.
    كل شيء بيتحقن من برّه (composition root) عن طريق createUseCases. */
 import { PORTS, assertPort } from "./ports.js";
+import { importErrorReason, isStopError } from "../domain/student-import.js";
 
 export class DuplicateEmailError extends Error {}
+/** الإيميل ليه حساب/طلب قبل كده: mine=بالفعل عند نفس المدرس، status=حالة الفهرس */
+export class ExistingStudentError extends Error { constructor(email, info) { super(email); this.mine = !!(info && info.mine); this.status = (info && info.status) || ""; } }
 
 const lower = (e) => String(e || "").toLowerCase();
 
@@ -34,6 +37,56 @@ export function createUseCases({ students, lookups, teachers, joinRequests, auth
       const id = await students.register({ name, email, grade, phone, parentPhone, pinHash, teacherIds, status: "pending" });
       await lookups.create(email, { pinHash, saltEmail: email, status: "pending", studentId: id, teacherIds });
       return id;
+    },
+
+    /** المدرس بيضيف طالب: حساب Auth بباسورد عشوائي + إيميل "اختار باسوردك" + ملف الطالب مربوط بالمدرس (approved).
+        بيرمي ExistingStudentError لو الإيميل ليه فهرس تسجيل قبل كده، أو خطأ Firebase (مثلاً auth/email-already-in-use). */
+    async addStudentByTeacher({ teacherId, name, email, grade, phone, parentPhone }) {
+      const em = lower(email);
+      const lk = await lookups.get(em);
+      if (lk) throw new ExistingStudentError(em, { mine: (lk.teacherIds || []).includes(teacherId), status: lk.status });
+      const { uid, emailSent } = await auth.createManagedUser(em);
+      const data = { name, email: em, grade, phone: phone || "", parentPhone: parentPhone || "", teacherIds: [teacherId], status: "approved", authLinked: true, addedBy: teacherId };
+      const lookup = { saltEmail: em, status: "approved", studentId: uid, teacherIds: [teacherId], authLinked: true, addedBy: teacherId };
+      let lastErr = null;
+      for (let i = 0; i < 3; i++) {
+        try { await students.createLinked(uid, data, lookup); lastErr = null; break; } catch (e) { lastErr = e; }
+      }
+      if (lastErr) { const e = new Error("الحساب اتعمل في Firebase بس حفظ ملف الطالب فشل: " + (lastErr.message || lastErr)); e.code = "orphan"; e.uid = uid; throw e; }
+      return { uid, emailSent };
+    },
+
+    /** إضافة قايمة طلاب (صفوف جاهزة من prepareImport) واحد ورا التاني بفاصل، مع إيقاف عند حد Firebase.
+        opts: {onProgress(i, total, result), shouldStop(), sleep(ms), gapMs}. بيرجّع نتيجة لكل صف: created / existing / failed / skipped. */
+    async importStudents(teacherId, rows, opts = {}) {
+      const { onProgress, shouldStop, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), gapMs = 1100 } = opts;
+      const results = [];
+      let halted = "";
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        let res;
+        if (halted) res = { ...row, status: "skipped", reason: halted };
+        else if (shouldStop && shouldStop()) { halted = "اتوقفت قبل ما يوصل له الدور. ارفع الصفوف دي تاني"; res = { ...row, status: "skipped", reason: halted }; }
+        else {
+          try {
+            const r = await this.addStudentByTeacher({ teacherId, ...row });
+            res = { ...row, status: "created", uid: r.uid, emailSent: r.emailSent, reason: r.emailSent ? "اتضاف واتبعتله إيميل اختيار الباسورد" : "اتضاف بس إيميل الباسورد ماوصلش. دوس إعادة إرسال" };
+          } catch (e) {
+            if (e instanceof ExistingStudentError) {
+              res = { ...row, status: "existing", reason: e.mine ? (e.status === "pending" ? "طلب تسجيله عندك في الطلبات الجديدة. اقبله من صفحة طلابي" : "موجود بالفعل في طلابك") : "عنده حساب على المنصة مع مدرس تاني. ابعتله لينك دعوتك يضيفك بنفسه" };
+            } else if (e && e.code === "auth/email-already-in-use") {
+              res = { ...row, status: "existing", reason: "الإيميل ده مستخدم في حساب تاني على المنصة. لو طالب قديم ابعتله لينك دعوتك" };
+            } else {
+              res = { ...row, status: "failed", reason: importErrorReason(e) };
+              if (isStopError(e)) halted = "اتوقفت بسبب حد Firebase أو الإنترنت. استنى شوية وارفع الصفوف دي تاني";
+            }
+          }
+        }
+        results.push(res);
+        if (onProgress) { try { onProgress(i + 1, rows.length, res); } catch (_) {} }
+        if (!halted && i + 1 < rows.length && res.status === "created") await sleep(gapMs);
+      }
+      return results;
     },
 
     /** تغيير حالة طالب (قبول/إيقاف/رجوع...) مع فهرس تسجيله لو عنده إيميل. */

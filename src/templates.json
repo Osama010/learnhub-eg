@@ -27,6 +27,7 @@
  "features/admin/library",
  "features/admin/analytics",
  "features/teacher/dashboard",
+ "features/teacher/add-students",
  "features/teacher/lessons",
  "features/teacher/forms",
  "features/teacher/lesson-preview",

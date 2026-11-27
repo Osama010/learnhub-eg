@@ -17,6 +17,7 @@ export const PORTS = {
     "get",               // (id) -> data|null                  ملف طالب
     "update",            // (id, patch) -> void                تعديل حقول في ملف الطالب
     "setSuspendedFor",   // (id, teacherId, suspend) -> void  إيقاف/رجوع الطالب عن محتوى مدرس واحد بس
+    "createLinked",      // (uid, data, lookup) -> void       طالب أضافه المدرس: مستند + فهرس في دفعة واحدة
     "replaceProfile",    // (newId, data, oldId)               اكتب الملف بالـ uid الجديد وامسح القديم (ربط حساب)
   ],
   RegistrationIndexRepository: [
@@ -61,6 +62,7 @@ export const PORTS = {
   AuthGateway: [
     "createUser",        // (email, password) -> {uid, sendEmailVerification()}   بيعمل حساب Auth ويدخّله تلقائيًا
     "sendPasswordReset", // (email) -> void
+    "createManagedUser", // (email) -> {uid, emailSent}   حساب بباسورد عشوائي + إيميل اختيار الباسورد، من غير تسجيل دخول
   ],
 };
 

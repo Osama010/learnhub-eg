@@ -190,3 +190,5 @@ body:has(.landing) { overflow-x: hidden; padding-top: 0; }
 .cb-in { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg, var(--card)); color: var(--text); font-family: inherit; font-size: 14px; }
 .cb-send { padding: 0 16px; border-radius: 12px; border: 0; background: var(--primary); color: #fff; font-family: inherit; font-weight: 800; cursor: pointer; }
 @media (max-width: 720px) { .lp-fab { left: 12px; bottom: 12px; gap: 8px; } .lp-chat, .lp-wa { padding: 11px 14px; font-size: 14px; } .cb-panel { left: 8px; right: 8px; width: auto; max-width: none; bottom: 72px; height: min(520px, calc(100vh - 90px)); } }
+.lp-finalsub { margin: -6px 0 14px; opacity: .92; font-size: 15px; }
+.lp-final .lp-btns { justify-content: center; }

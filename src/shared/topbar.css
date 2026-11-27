@@ -26,3 +26,51 @@ body { padding-top: 52px; }
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 16px; font-weight: 800; border: 2px solid var(--primary-soft); vertical-align: middle;
 }
+
+/* ---------- التابات جوه الشريط العلوي (المستر v19) ---------- */
+body.has-ntabs { padding-top: 98px; }
+.pnav .ntabs { max-width: 960px; margin: 0 auto; padding: 0 12px 7px; }
+.pnav .ntabs .tabs {
+  display: flex; flex-wrap: nowrap; gap: 6px; margin: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; padding: 2px 4px;
+}
+.pnav .ntabs .tabs::-webkit-scrollbar { display: none; }
+.pnav .ntabs .tab {
+  flex: 0 0 auto; white-space: nowrap; padding: 6px 14px; font-size: 13.5px; box-shadow: none;
+  background: transparent; border-color: transparent;
+}
+.pnav .ntabs .tab:hover { background: var(--primary-soft); }
+.pnav .ntabs .tab.active { background: var(--primary); color: #fff; }
+@media (max-width: 560px) {
+  body.has-ntabs { padding-top: 94px; }
+  .pnav .ntabs { padding: 0 6px 6px; }
+  .pnav .ntabs .tab { padding: 6px 12px; font-size: 13px; }
+}
+
+/* ---------- زرار اللغة (عربي / English) ---------- */
+.langbtn { font-weight: 800; font-size: 12.5px; min-width: 38px; letter-spacing: .3px; }
+.langfloat { position: fixed; top: 10px; left: 12px; z-index: 120; }
+html[dir="ltr"] .langfloat { left: auto; right: 12px; }
+
+/* ---------- الاتجاه من اليسار لليمين (English) ---------- */
+html[dir="ltr"] body { text-align: left; font-family: "Cairo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+html[dir="ltr"] .ttable th, html[dir="ltr"] .ttable td { text-align: left; }
+html[dir="ltr"] .drow .dv { text-align: right; }
+html[dir="ltr"] .u-bord4pxsolidvaramberf59e0b, html[dir="ltr"] .u-bord4pxsolidvarprimary, html[dir="ltr"] .u-bord4pxsolidvaramber,
+html[dir="ltr"] .u-bord4pxsolidvarred-bgvarredbgfef2f2 { border-right: 0 !important; border-left: 4px solid var(--amber, #f59e0b) !important; }
+html[dir="ltr"] .u-bord4pxsolidvarprimary { border-left-color: var(--primary) !important; }
+html[dir="ltr"] .u-bord4pxsolidvarred-bgvarredbgfef2f2 { border-left-color: var(--red) !important; }
+html[dir="ltr"] .nbell-i.new, html[dir="ltr"] .cm-r { border-right: 0; border-left: 3px solid var(--primary); }
+html[dir="ltr"] .nbell-panel, html[dir="ltr"] .medrop { left: auto; right: 0; }
+html[dir="ltr"] .nbell-n { right: auto; left: -4px; }
+html[dir="ltr"] .teachercheck input { margin-left: 0; margin-right: 5px; }
+html[dir="ltr"] .t4k-back.float { right: auto; left: 14px; }
+html[dir="ltr"] .u-posifixed-top14px-left14px-zind60 { left: auto !important; right: 14px !important; }
+html[dir="ltr"] .inp, html[dir="ltr"] input, html[dir="ltr"] select, html[dir="ltr"] textarea { text-align: left; }
+html[dir="ltr"] .lcard[style*="border-right"] { border-right: 0 !important; border-left: 4px solid #d97706; }
+/* LTR: teacher/admin inline-style spots */
+html[dir="ltr"] [style*="text-align:right"], html[dir="ltr"] [style*="text-align: right"] { text-align: left !important; }
+html[dir="ltr"] .card-sub[style*="border-right"] { border-right: 0 !important; border-left: 4px solid var(--green, #16a34a); }
+html[dir="ltr"] [style*="margin-left:6px"], html[dir="ltr"] [style*="margin-left:8px"] { margin-left: 0 !important; margin-right: 6px; }
+html[dir="ltr"] td, html[dir="ltr"] th { text-align: left; }
+html[dir="ltr"] .tab, html[dir="ltr"] .tabs { direction: ltr; }

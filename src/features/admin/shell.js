@@ -13,6 +13,7 @@ import { adminStudents, adminTransferPage, renderAdminTeacherContent } from "./t
 import { adminTeachers } from "./teachers.js";
 import { adminPinOk, renderAdminPinGate } from "../auth/admin-pin.js";
 import { closing } from "../../shared/common.js";
+import { bindLangSync } from "../../shared/lang-sync.js";
 import { bindPlatNav, platNavHtml } from "../../shared/theme.js";
 import { bailIfSignedOut } from "../../shared/toast.js";
 import { addAdminLog, listSubjects, listAdmins, listLibraryNewestFirst, listPayments, listAdminLog, getBroadcast, setAdmin } from "../../main/data.js";
@@ -97,6 +98,7 @@ export function adminLayout(content, tab) {
   app.innerHTML = T("admin.adminLayout", { aboutTeaserHtml, closing, content, myName, platNavHtml, tab });
   document.querySelectorAll(".tab[data-g]").forEach((b) => b.onclick = () => location.hash = b.dataset.g);
   bindPlatNav();
+  bindLangSync();
   bindAboutTeaser();
   window.scrollTo(0, 0);
 }

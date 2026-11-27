@@ -1,0 +1,59 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../src/core/base.css"><link rel="stylesheet" href="../src/shared/components.css"><link rel="stylesheet" href="../src/shared/topbar.css"><link rel="stylesheet" href="../src/shared/brand.css"><link rel="stylesheet" href="../src/features/student/student.css"><link rel="stylesheet" href="../src/shared/theme.css"><link rel="stylesheet" href="../src/features/landing/landing.css"></head>
+</head>
+<body><div id="app"></div><script type="module">
+/* صفحة اختبار: بتعرض شاشات "إضافة طلاب" بالقوالب الحقيقية وبيانات حقيقية من الدومين وuse cases (memory). ?view=single|preview|results & lang=en */
+const q = new URLSearchParams(location.search);
+if (q.get("lang")) localStorage.setItem("t4kLang", q.get("lang"));
+const R = []; const ok = (c, m) => R.push((c ? "ok " : "FAIL ") + m);
+try {
+  const { loadTemplates, T } = await import("../src/core/templates.js"); await loadTemplates();
+  const { app, esc } = await import("../src/core/utils.js");
+  const tm = await import("../src/features/teacher/dashboard.js");
+  const { prepareImport, parseCsv, MAX_IMPORT_ROWS } = await import("../src/domain/student-import.js");
+  const { createUseCases } = await import("../src/application/usecases.js");
+  const { memoryRepositories } = await import("../src/infrastructure/memory/repositories.js");
+  const { allowedGradesOf } = await import("../src/features/teacher/add-students.js");
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const allowed = allowedGradesOf({ grades: ["الصف الأول الثانوي", "الصف الثاني الثانوي"] });
+  ok(allowed.length === 2, "allowedGradesOf");
+  const opts = '<option value="">— اختار الصف —</option>' + allowed.map((g) => '<option value="' + esc(g) + '">' + esc(g) + "</option>").join("");
+  app.innerHTML = tm.teacherTabs("students") + T("teacher.addStudentsPage", { gradeOptions: opts, maxRows: MAX_IMPORT_ROWS });
+  tm.bindTeacherTabs();
+  ok(["as-name", "as-email", "as-grade", "as-phone", "as-parent", "as-add", "as-tpl", "as-file", "as-dgrade", "as-prev", "as-res"].every((i) => document.getElementById(i)), "كل عناصر الصفحة موجودة");
+  const csv = "الاسم,الإيميل,الصف,رقم الطالب,رقم ولي الأمر\n" + ["أحمد علي,ahmed@x.com,أولى ثانوي,01012345678,01098765432","سارة خالد,sara@x.com,تانية ثانوي,,","منى,mona@gmial,أولى ثانوي,,","عمر سامي,omar@x.com,الصف الثالث الإعدادي,,","كريم حسن,karim@x.com,أولى ثانوي,0123,"].join("\n");
+  const prep = prepareImport(parseCsv(csv), { allowedGrades: allowed });
+  const bad = prep.rows.filter((r) => r.error);
+  const prevHtml = T("teacher.addStudentsPreview", { bad, badCount: prep.badCount, esc, tooMany: prep.tooMany, maxRows: MAX_IMPORT_ROWS, validCount: prep.validCount });
+  document.getElementById("as-prev").innerHTML = prevHtml;
+  ok(prep.validCount === 2 && prep.badCount === 3 && document.querySelectorAll("#as-prev tbody tr").length === 3, "المعاينة: 2 صالح و3 مشاكل بجدول");
+  const { repos, db } = memoryRepositories(); const uc = createUseCases({ ...repos, hashPin: async (t) => "h" + t });
+  db.lookups.set("old@x.com", { status: "approved", teacherIds: ["tZ"], studentId: "z" }); db.mailFail = false;
+  const input = [...prep.rows.filter((r) => !r.error), { line: 9, name: "قديم", email: "old@x.com", grade: allowed[0], phone: "", parentPhone: "" }, ...bad.map((r) => ({ ...r, status: "failed", reason: r.error }))];
+  const done = await uc.importStudents("tA", input.filter((r) => !r.error && !r.status), { sleep: async () => {}, gapMs: 0 });
+  const rows = [...done, ...bad.map((r) => ({ ...r, status: "failed", reason: r.error }))];
+  const counts = { created: 0, existing: 0, failed: 0, skipped: 0 }; rows.forEach((r) => counts[r.status]++);
+  document.getElementById("as-res").innerHTML = T("teacher.addStudentsResults", { counts, esc, rows });
+  ok(counts.created === 2 && counts.existing === 1 && counts.failed === 3 && document.querySelectorAll("[data-as-resend]").length === 2, "النتائج: 2 اتضافوا و1 موجود و3 فشلوا + زرار إعادة إرسال للمضافين");
+  ok(!!document.getElementById("as-dlfail"), "زرار تحميل الصفوف اللي ماتضافتش");
+  const v = q.get("view");
+  const hide = (ids) => ids.forEach((id) => { const e = document.getElementById(id); if (e) e.hidden = true; });
+  if (v === "single") { hide(["as-prev", "as-res"]); document.getElementById("as-name").value = "ليلى حسن"; document.getElementById("as-email").value = "layla@example.com"; }
+  if (v === "preview") { document.getElementById("as-res").innerHTML = ""; document.getElementById("as-name").closest(".card") && 0; document.getElementById("as-prev").scrollIntoView(); }
+  if (v === "results") document.getElementById("as-res").scrollIntoView();
+  await sleep(800);
+  if (q.get("lang") === "en") {
+    const txt = app.textContent;
+    ok(document.documentElement.dir === "ltr", "dir ltr");
+    ok(["Add students","Download the template","Resend","Added"].every((w) => txt.includes(w)) || (console.log(txt.slice(0,3000)), false), "الإنجليزي: العناوين والأزرار");
+    ok(/Name is too short|Duplicate|The email looks wrong/.test(txt), "الإنجليزي: أسباب الأخطاء");
+    const left = txt.replace(/[عءمم؟]/g, "").match(/[ء-ي]+/g) || [];
+    const mine = left.filter((w) => !/^(طالب|سارة|خالد|أحمد|علي|منى|عمر|سامي|كريم|حسن|قديم|ليلى|صف|الصف|الأول|الثاني|الثانوي|الإعدادي|الثالث|أولى|تانية|ثانوي)$/.test(w));
+    ok(mine.length < 6, "ما فضلش عربي في الواجهة غير بيانات الطلاب: " + mine.slice(0, 12).join(" | "));
+  } else {
+    ok(/إضافة طالب/.test(app.textContent) && document.documentElement.dir === "rtl", "عربي RTL");
+  }
+} catch (e) { ok(false, "EXC " + (e && e.stack || e)); }
+const pre = document.createElement("pre"); pre.id = "result"; pre.style.cssText = "direction:ltr;font:11px monospace;padding:8px;"; pre.textContent = R.join("\n"); document.body.appendChild(pre);
+</script></body></html>

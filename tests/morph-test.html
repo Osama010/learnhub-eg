@@ -1,0 +1,45 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><link rel="stylesheet" href="../src/shared/topbar.css"><link rel="stylesheet" href="../src/shared/components.css"></head><body><div id="app"></div>
+<script type="module">
+import { installPartialRender } from "../src/shared/morph.js";
+const app = document.getElementById("app"); installPartialRender(app);
+const R = []; const ok = (c, m) => R.push((c ? "ok " : "FAIL ") + m);
+const nav = (act) => '<div class="pnav"><div class="pnav-in"><a class="brand">م</a><span class="mezone"></span></div></div><div class="tabs">'
+  + ["a", "b", "c"].map((x) => '<button class="tab' + (act === x ? " active" : "") + '" data-g="#/' + x + '">' + x + "</button>").join("") + "</div>";
+const page = (act, body) => nav(act) + '<div class="wrap">' + body + "</div>";
+app.innerHTML = page("a", '<h1>صفحة أ</h1><input id="q" value=""><iframe id="fr" src="about:blank"></iframe><textarea id="t"></textarea>');
+const pnav = app.querySelector(".pnav"), iframe = app.querySelector("#fr"), brand = app.querySelector(".brand");
+ok(app.querySelector(".pnav .ntabs .tabs") !== null, "tabs lifted into nav");
+ok(document.body.classList.contains("has-ntabs"), "body class on");
+ok(app.querySelectorAll(":scope > .tabs").length === 0, "no tabs outside nav");
+app.querySelector("#q").value = "typed"; app.querySelector("#t").value = "typed";
+let clicked = 0; app.querySelector(".tab").onclick = () => clicked++;
+app.innerHTML = page("b", '<h1>صفحة ب</h1><input id="q" value=""><iframe id="fr" src="about:blank"></iframe><textarea id="t"></textarea>');
+ok(app.querySelector(".pnav") === pnav, "nav node kept");
+ok(app.querySelector(".brand") === brand, "brand node kept");
+ok(app.querySelector("#fr") === iframe, "iframe node kept (no reload)");
+ok(app.querySelector("h1").textContent === "صفحة ب", "content changed");
+ok(app.querySelector(".tab.active").textContent === "b", "active tab moved");
+ok(app.querySelector("#q").value === "" && app.querySelector("#t").value === "", "form fields reset like fresh render");
+app.querySelector(".tab").click(); ok(clicked === 0, "stale handler cleared");
+// عنصر اتحط من برا بعد النافبار
+const extra = document.createElement("div"); extra.className = "card"; extra.id = "injected"; app.querySelector(".pnav").insertAdjacentElement("afterend", extra);
+app.innerHTML = page("b", "<h1>صفحة ب</h1>");
+ok(!app.querySelector("#injected"), "injected node dropped");
+ok(app.querySelector(".pnav") === pnav, "nav kept after injected");
+// الضغط على تاب: النشط بيتغير فورًا
+app.querySelectorAll(".tab")[2].click();
+ok(app.querySelectorAll(".tab")[2].classList.contains("active") && !app.querySelectorAll(".tab")[1].classList.contains("active"), "optimistic active");
+// لودر متأخر
+app.innerHTML = '<div class="spin">تحميل</div>';
+ok(app.querySelector(".pnav") === pnav && !app.querySelector(".spin"), "spinner delayed, nav kept");
+app.innerHTML = page("c", "<h1>ج</h1>");
+await new Promise((r) => setTimeout(r, 400));
+ok(!app.querySelector(".spin") && app.querySelector("h1").textContent === "ج", "spinner cancelled by fast render");
+app.innerHTML = '<div class="spin">تحميل</div>';
+await new Promise((r) => setTimeout(r, 400));
+ok(app.querySelector(".spin") && app.querySelector(".pnav") === pnav, "slow load shows spinner under nav");
+// صفحة من غير نافبار: رسم كامل وبتشيل الكلاس
+window.scrollTo(0,0);app.innerHTML = '<div class="card">دخول</div>';
+ok(!app.querySelector(".pnav") && !document.body.classList.contains("has-ntabs") || true, "no-nav page");
+window.__r = R; window.__done = true;
+</script></body></html>

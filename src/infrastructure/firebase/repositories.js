@@ -1,6 +1,6 @@
 /* تنفيذ البورتس بـ Firebase (Firestore). بيستخدم دوال الوصول للبيانات الموجودة جنبه. */
 import { newBatch } from "./batch.js";
-import { updateStudent, getStudent, setStudent, deleteStudent, addStudent, batchDeleteLookup, batchSetLookup, batchDeleteStudent, batchUpdateLookup, batchUpdateStudent, detachTeacherFromStudents, getLookup, setLookup, updateLookup, wipeByStudent } from "./students.js";
+import { updateStudent, getStudent, setStudent, deleteStudent, addStudent, batchDeleteLookup, batchSetLookup, batchSetStudent, batchDeleteStudent, batchUpdateLookup, batchUpdateStudent, detachTeacherFromStudents, getLookup, setLookup, updateLookup, wipeByStudent } from "./students.js";
 import { isTeacherEmailRegistered, batchDeleteTeacher, batchSetTeacher, batchUpdateTeacher, wipeByTeacher } from "./teachers.js";
 import { saveAttempt } from "./activity.js";
 import { getAdmin, setAdmin, setSettings, newPaymentRef } from "./queries.js";
@@ -8,7 +8,7 @@ import { addAdmin, removeAdmin, setAdminPinHash } from "./admins.js";
 import { addCoreSubjects, addSubject, deleteSubject, updateSubject } from "./subjects.js";
 import { deleteLibraryItem, saveLibraryItem } from "./library.js";
 import { clearBroadcast, publishBroadcast, setCurrentTerm } from "./settings.js";
-import { createAuthUser, sendPasswordReset } from "./auth.js";
+import { createAuthUser, createManagedAuthUser, sendPasswordReset } from "./auth.js";
 import { batchSetRequestStatus } from "./requests.js";
 
 const TEACHER_COLLECTIONS = ["lessons", "quizzes", "exams", "announcements", "questionBank", "studentNotes", "quizAttempts", "lessonRatings"];
@@ -23,6 +23,13 @@ export function firebaseRepositories() {
         suspendedBy: suspend ? firebase.firestore.FieldValue.arrayUnion(teacherId) : firebase.firestore.FieldValue.arrayRemove(teacherId),
       }),
       async replaceProfile(newId, data, oldId) { await setStudent(newId, data); if (oldId) await deleteStudent(oldId); },
+      /* طالب أضافه المدرس: مستند بنفس uid حساب Auth + فهرس التسجيل، في دفعة واحدة */
+      async createLinked(uid, data, lookup) {
+        const batch = newBatch();
+        batchSetStudent(batch, uid, { ...data, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        batchSetLookup(batch, data.email, lookup);
+        await batch.commit();
+      },
       register: async (data) => (await addStudent({ ...data, createdAt: firebase.firestore.FieldValue.serverTimestamp() })).id,
       async changeStatus(id, email, status) {
         const batch = newBatch();
@@ -100,6 +107,7 @@ export function firebaseRepositories() {
     },
     auth: {
       sendPasswordReset: (email) => sendPasswordReset(email),
+      createManagedUser: (email) => createManagedAuthUser(email),
       async createUser(email, password) {
         const cred = await createAuthUser(email, password);
         return { uid: cred.user.uid, sendEmailVerification: () => cred.user.sendEmailVerification() };

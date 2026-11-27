@@ -1,0 +1,21 @@
+(async () => {
+global.document={getElementById:()=>null,createElement:()=>({textContent:"",innerHTML:""})};
+const { studentWeakHtml, weakShown } = await import("../src/shared/weak-points.view.js");
+const { mergeWatched, pendingWatched, trimWatched, watchedKey } = await import("../src/domain/watched.js");
+let f=0; const ok=(c,m)=>{ if(!c){f++;console.log("FAIL",m);} };
+const A=(label,pct,total,level)=>({label,pct,total,correct:Math.round(pct*total/100),level});
+ok(weakShown([A("Unit 1",100,2,"strong")]).length===0,"strong hidden");
+ok(weakShown([A("x",40,2,"weak")]).length===0,"min answers");
+ok(weakShown([A("x",40,4,"weak"),A("y",60,5,"mid")]).length===2,"weak+mid shown");
+const h=studentWeakHtml([A("Unit 1",100,2,"strong")]);
+ok(!h.includes("Unit 1")&&h.includes("مفيش نقاط ضعف"),"friendly empty");
+ok(studentWeakHtml([]).includes("حل كام"),"no data state");
+ok(watchedKey("u1")!==watchedKey("u2"),"per-uid key");
+ok(mergeWatched({local:["a"],profile:{b:true},backup:["c"]}).size===3,"merge 3 sources");
+ok(pendingWatched({local:["a","b"],profile:{b:true},backup:["c"]}).join()==="a,c","pending");
+ok(trimWatched(Array.from({length:1200},(_,i)=>"i"+i)).length===1000,"trim");
+const us=await import("../src/domain/user-state.js");
+ok(us.mergeState("watched",["a","b"],1,["b","c"],2).value.length===3,"userState watched union");
+ok(us.STATE_KEYS.includes("watched"),"key");
+console.log(f?"FAILED":"weak-view OK"); process.exit(f?1:0);
+})();

@@ -3,7 +3,12 @@ const LV = { weak: ["🔴", "محتاج مراجعة"], mid: ["🟡", "كويس 
 const bar = (pct, lv) => '<span class="wp-bar"><i class="wp-' + lv + '" style="width:' + pct + '%"></i></span>';
 
 /** كارت الطالب: مواضيعه من الأضعف للأقوى. */
-export function studentWeakHtml(areas) {
+export const WEAK_MIN_ANSWERS = 3;
+/** اللي بيظهر في «نقاط ضعفك»: بس المواضيع تحت 75% وجاوب فيها 3 أسئلة على الأقل. */
+export const weakShown = (areas) => (areas || []).filter((a) => a && a.level !== "strong" && a.total >= WEAK_MIN_ANSWERS);
+export function studentWeakHtml(allAreas) {
+  const areas = weakShown(allAreas);
+  if (!areas.length && (allAreas || []).length) return '<div class="card wp-card"><h2 class="u-fs18px-mt0">🎯 نقاط ضعفك</h2><div class="muted">مفيش نقاط ضعف واضحة دلوقتي 👏 كل اللي حليته مستواك فيه كويس. كمّل حل كويزات وامتحانات وهنقولك لو ظهر موضوع محتاج مراجعة.</div></div>';
   if (!areas.length) return '<div class="card wp-card"><h2 class="u-fs18px-mt0">🎯 نقاط ضعفك</h2><div class="muted">حل كام كويز أو امتحان وهنقولك أنهي دروس محتاجة مراجعة.</div></div>';
   return '<div class="card wp-card"><h2 class="u-fs18px-mt0">🎯 نقاط ضعفك</h2><div class="muted u-fs13px" style="margin-bottom:8px;">مرتبة من الأضعف. بتتحسب من إجاباتك في الكويزات والامتحانات.</div>'
     + areas.map((a) => '<div class="wp-row"><div class="wp-h"><b>' + LV[a.level][0] + " " + esc(a.label) + '</b><span>' + a.pct + "%</span></div>" + bar(a.pct, a.level)

@@ -1,0 +1,47 @@
+<!-- قوالب الواجهة لموديول features/teacher/add-students.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
+<!-- @@ teacher.addStudentsPage | gradeOptions,maxRows -->
+<div class="btnrow u-mb10px"><a class="btn sm ghost" href="#/teacher">← رجوع لطلابي</a></div>
+<div class="card">
+  <h2 class="u-fs18px-mt0">➕ إضافة طالب</h2>
+  <p class="muted u-fs125px-m006px">الطالب بيتضاف عندك على طول من غير انتظار قبول، وبيجيله إيميل فيه رابط يختار منه الباسورد بتاعه. (والطالب لسه يقدر يسجل بنفسه زي ما هو.)</p>
+  <label class="lbl" for="as-name">اسم الطالب</label><input class="inp" id="as-name" maxlength="80" autocomplete="off">
+  <label class="lbl" for="as-email">الإيميل</label><input class="inp ltr" id="as-email" type="email" dir="ltr" maxlength="120" autocomplete="off">
+  <label class="lbl" for="as-grade">الصف</label><select class="inp" id="as-grade">${gradeOptions}</select>
+  <label class="lbl" for="as-phone">رقم الطالب (اختياري)</label><input class="inp ltr" id="as-phone" dir="ltr" inputmode="tel" maxlength="15" placeholder="01012345678">
+  <label class="lbl" for="as-parent">رقم ولي الأمر (اختياري، لو فاضي الطالب هيكتبه أول دخول)</label><input class="inp ltr" id="as-parent" dir="ltr" inputmode="tel" maxlength="15" placeholder="01012345678">
+  <div class="btnrow" style="margin-top:12px;"><button type="button" class="btn" id="as-add">إضافة وإرسال إيميل تعيين الباسورد</button></div>
+  <div id="as-msg" class="muted u-fs125px" style="margin-top:8px;" aria-live="polite"></div>
+</div>
+<div class="card">
+  <h2 class="u-fs18px-mt0">📄 رفع قايمة طلاب (CSV أو Excel)</h2>
+  <p class="muted u-fs125px-m006px">حمّل النموذج، املاه، وارفعه. بنراجع الملف الأول ونوريك المشاكل قبل ما نضيف أي حد. حد أقصى ${maxRows} طالب في الملف الواحد، وبنضيفهم واحد ورا التاني (حوالي دقيقة لكل 40 طالب)، فسيب الصفحة مفتوحة لحد ما تخلص.</p>
+  <div class="btnrow"><button type="button" class="btn sm ghost" id="as-tpl">⬇ تحميل النموذج</button></div>
+  <label class="lbl" for="as-dgrade">الصف الافتراضي (للصفوف اللي مفيهاش صف في الملف)</label><select class="inp" id="as-dgrade"><option value="">— من غير —</option>${gradeOptions}</select>
+  <label class="lbl" for="as-file">الملف</label><input class="inp" id="as-file" type="file" accept=".csv,.txt,.xlsx,text/csv">
+  <div id="as-prev" style="margin-top:10px;"></div>
+</div>
+<div id="as-res"></div>
+<!-- @@ teacher.addStudentsPreview | bad,badCount,esc,tooMany,maxRows,validCount -->
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+  <span class="chip" style="background:#dcfce7;color:#15803d;font-weight:800;">✔ ${validCount} صالح</span>
+  <span class="chip" style="background:${badCount ? "#fee2e2" : "#e2e8f0"};color:${badCount ? "#b91c1c" : "#475569"};font-weight:800;">✖ ${badCount} فيه مشكلة</span>
+</div>
+${bad.length ? `<table class="ttable resp"><thead><tr><th>السطر</th><th>الاسم</th><th>الإيميل</th><th>المشكلة</th></tr></thead><tbody>${bad.map((r) => `<tr><td data-h="السطر">${r.line}</td><td data-h="الاسم">${esc(r.name || "—")}</td><td data-h="الإيميل" class="ltr">${esc(r.email || "—")}</td><td data-h="المشكلة" style="color:#b91c1c;">${esc(r.error)}</td></tr>`).join("")}</tbody></table><p class="muted u-fs125px">الصفوف اللي فيها مشكلة مش هتتضاف. تقدر تصلحها وترفعها تاني بعد كده.</p>` : ""}
+${tooMany ? `<p style="color:#b91c1c;font-weight:700;">الملف فيه أكتر من ${maxRows} طالب صالح. قسّمه لملفين أو أكتر.</p>` : ""}
+<!-- @@ teacher.addStudentsResults | counts,esc,rows -->
+<div class="card">
+  <h2 class="u-fs18px-mt0">📋 نتيجة الإضافة</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+    <span class="chip" style="background:#dcfce7;color:#15803d;font-weight:800;">✔ ${counts.created} اتضافوا</span>
+    <span class="chip" style="background:#fef3c7;color:#b45309;font-weight:800;">⚠ ${counts.existing} موجودين قبل كده</span>
+    <span class="chip" style="background:#fee2e2;color:#b91c1c;font-weight:800;">✖ ${counts.failed + counts.skipped} فشلوا أو ماتعملوش</span>
+  </div>
+  <div class="btnrow u-mb10px">${(counts.existing + counts.failed + counts.skipped) ? `<button type="button" class="btn sm ghost" id="as-dlfail">⬇ تحميل الصفوف اللي ماتضافتش</button>` : ""}</div>
+  <table class="ttable resp"><thead><tr><th>الاسم</th><th>الإيميل</th><th>الحالة</th><th>السبب</th><th></th></tr></thead><tbody>
+  ${rows.map((r, i) => `<tr><td data-h="الاسم">${esc(r.name || "—")}</td><td data-h="الإيميل" class="ltr">${esc(r.email || "—")}</td>
+    <td data-h="الحالة" style="font-weight:800;color:${r.status === "created" ? "#15803d" : r.status === "existing" ? "#b45309" : "#b91c1c"};">${r.status === "created" ? "✔ اتضاف" : r.status === "existing" ? "⚠ موجود" : r.status === "skipped" ? "⏸ ماتعملش" : "✖ فشل"}</td>
+    <td data-h="السبب">${esc(r.reason || "")}</td>
+    <td>${r.status === "created" ? `<button type="button" class="btn sm ghost" data-as-resend="${i}">📧 إعادة إرسال</button>` : ""}</td></tr>`).join("")}
+  </tbody></table>
+  <p class="muted u-fs125px">الإيميلات بتيجي من Firebase وممكن تروح في السبام. قول للطلاب يدوروا هناك لو ماوصلهمش حاجة.</p>
+</div>

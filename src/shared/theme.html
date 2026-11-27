@@ -16,5 +16,6 @@
         </span>
       </span>
       <button type="button" class="themebtn" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+      ${/^#\/(student|teacher|admin)\/profile$/.test(profileHash) ? '<button type="button" class="themebtn langbtn" data-langbtn title="English">EN</button>' : ""}
     </span>
   </div></div>

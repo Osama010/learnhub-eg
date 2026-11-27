@@ -1,12 +1,12 @@
 <!-- قوالب الواجهة لموديول features/teacher/dashboard.js. كل قالب بيبدأ بسطر @@ فيه اسمه والمتغيرات اللي بياخدها. الـ ${...} بتتحسب وقت العرض. -->
 <!-- @@ teacher.teacherTabs | active -->
 <div class="tabs">
+    <button type="button" class="tab ${active === "analytics" ? "active" : ""}" data-g="#/teacher/analytics">التحليل 📊</button>
     <button type="button" class="tab ${active === "students" ? "active" : ""}" data-g="#/teacher">طلابي</button>
     <button type="button" class="tab ${active === "lessons" ? "active" : ""}" data-g="#/teacher/lessons">الدروس والكويزات</button>
     <button type="button" class="tab ${active === "ann" ? "active" : ""}" data-g="#/teacher/announcements">الإعلانات</button>
     <button type="button" class="tab ${active === "bulk" ? "active" : ""}" data-g="#/teacher/bulk">رسالة لصف</button>
     <button type="button" class="tab ${active === "follow" ? "active" : ""}" data-g="#/teacher/follow">متابعة الطلاب</button>
-    <button type="button" class="tab ${active === "analytics" ? "active" : ""}" data-g="#/teacher/analytics">التحليل 📊</button>
     <button type="button" class="tab ${active === "reports" ? "active" : ""}" data-g="#/teacher/reports">التقارير</button>
   </div>
 <!-- @@ teacher.honorBoardCard | esc,g,medalStyle,pts,tAvatarHtml,top -->
@@ -95,6 +95,7 @@
     <div class="card">
       <div class="btnrow u-justspacebetween-aligcenter">
         <h2 class="u-fs18px-mt0">طلابك${dashGradeFilter ? " — " + esc(dashGradeFilter) : ""} (${dashGradeFilter ? approved.filter((s) => s.grade === dashGradeFilter).length : approved.length})</h2>
+        <a class="btn sm" href="#/teacher/add-students" title="إضافة طالب أو رفع قايمة طلاب من ملف">➕ إضافة طلاب</a>
         <a class="btn sm ghost" href="#/teacher/transfer" title="صفحة منفصلة لنقل دفعة من طلابك لصف تاني">📦 نقل جماعي بين الصفوف</a>
       </div>
       ${((fbProfile && fbProfile.stages) || []).length ? `<div class="btnrow u-mb10px">
@@ -109,12 +110,12 @@
             const prog = avg !== null ? avg + "%" : ((s.progress && s.progress["programming-ai"] && s.progress["programming-ai"].percent) || 0) + "%";
             const sus = ((s.suspendedBy || []).indexOf(fbUser.uid) !== -1);
             return `<tr>
-              <td data-h="الاسم">${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" class="u-cvarprimarydark-fw700">${esc(s.name)}</a>${sus ? ` <span class="chip red">⛔ موقوف عن محتواك</span>` : ""}</td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td><td data-h="تقدمه">${prog}</td>
+              <td data-h="الاسم">${tAvatarHtml(s)}<a href="javascript:void(0)" data-spop="${s.id}" class="u-cvarprimarydark-fw700">${esc(s.name)}</a>${s.addedBy ? ' <span class="chip">➕ أضفته أنت</span>' : ""}${sus ? ` <span class="chip red">⛔ موقوف عن محتواك</span>` : ""}</td><td data-h="السنة">${esc(s.grade || "—")}</td><td class="ltr" data-h="ولي الأمر">${esc(s.parentPhone || "غير مسجل")}</td><td data-h="تقدمه">${prog}</td>
               <td>
                 <div class="btnrow">
                   <a class="btn sm green" target="_blank" href="${waLink(s.phone, "أهلاً " + s.name + "، معاك مدرسك من منصة الدروس.")}">واتساب</a>
                   <button type="button" class="btn sm ghost" data-snotes="${s.id}">📝 ملاحظات</button>
-                  <button type="button" class="btn sm ghost" data-rs="${s.id}">إعادة ضبط الباسورد</button>
+                  <button type="button" class="btn sm ghost" data-rs="${s.id}">${s.addedBy ? "📧 إعادة إرسال لينك الباسورد" : "إعادة ضبط الباسورد"}</button>
                   ${sus ? `<button type="button" class="btn sm" data-us="${s.id}">▶️ إلغاء الإيقاف</button>` : `<button type="button" class="btn sm ghost" data-ss="${s.id}">⛔ إيقاف مؤقت</button>`}
                   <button type="button" class="btn sm red" data-dl="${s.id}">حذف نهائي</button>
                 </div>

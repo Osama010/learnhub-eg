@@ -11,6 +11,7 @@
       </nav>
       <div class="lp-navend">
         <button type="button" class="themebtn lp-theme" data-themebtn title="الوضع: تلقائي ← نهاري ← ليلي">${themeIcon()}</button>
+        <button type="button" class="themebtn langbtn lp-theme" data-langbtn title="English">EN</button>
         <div class="lp-dd"><a class="lp-cta" href="#/login" id="lp-login" aria-haspopup="true" aria-expanded="false">دخول ▾</a>
           <div class="lp-ddm"><a href="student/" data-login="student"><i>🎓</i><span><b>دخول طالب</b><small>دروسك واختباراتك</small></span></a><a href="teacher/" data-login="teacher"><i><svg width="22" height="22" viewBox="0 0 96 96" fill="none"><rect x="8" y="10" width="52" height="34" rx="5" fill="#0f766e"/><circle cx="68" cy="38" r="11" fill="#f59e0b"/><path d="M46 88c0-14 10-24 22-24s22 10 22 24" fill="#f59e0b"/></svg></i><span><b>دخول مدرس</b><small>طلابك وتقاريرك</small></span></a><a href="admin/" data-login="admin"><i>🛠️</i><span><b>الإدارة</b><small>أدمن ومشرفين</small></span></a></div></div>
       </div>
@@ -126,14 +127,15 @@
 
       <section class="lp-final rv">
         <h2>جاهز تبدأ؟</h2>
-        <a class="lp-amber" href="student/" data-login="student">دخول / إنشاء حساب</a>
+        <p class="lp-finalsub">للطلاب والمدرسين: اختار دخولك</p>
+        <div class="lp-btns"><a class="lp-amber" href="student/" data-login="student">دخول الطلاب</a><a class="lp-amber" href="teacher/" data-login="teacher">دخول المدرسين</a></div>
       </section>
 
       ${closing()}
     </div>
   </div>
   <div class="lp-fab"><button type="button" class="lp-chat" id="lp-chat-btn" aria-expanded="false" aria-label="اسأل المساعد"><span class="lp-wai">🤖</span><b>اسأل المساعد</b></button>
-  ${waUrl ? `<a class="lp-wa" href="${waUrl}" target="_blank" rel="noopener" aria-label="كلّمنا على واتساب"><span class="lp-wai">💬</span><b>واتساب</b></a>` : ""}</div>
+  ${waUrl ? `<a class="lp-wa" data-wa href="${waUrl}" target="_blank" rel="noopener" aria-label="كلّمنا على واتساب"><span class="lp-wai">💬</span><b>واتساب</b></a>` : ""}</div>
 <!-- @@ app.closing | esc,footerText -->
 <div class="closing">${esc(footerText)}</div>
 <!-- @@ app.statusChip |  -->

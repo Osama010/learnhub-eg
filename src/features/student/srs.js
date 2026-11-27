@@ -1,3 +1,4 @@
+import { loc } from "../../domain/format.js";
 import { fbProfile, fbUser } from "../../core/session.js";
 import { app, esc } from "../../core/utils.js";
 import { renderLogin } from "../auth/login.js";
@@ -57,7 +58,7 @@ export async function renderStudentReview(mode) {
     if (i >= queue.length) {
       const next = srsSchedule(all, state, Date.now()).filter((x) => !x.isDue).map((x) => x.due).sort((a, b) => a - b)[0];
       app.innerHTML = head + '<div class="card center u-p30px"><b class="u-fs17px">' + (queue.length ? "خلّصت مراجعة النهارده 🎉" : "مفيش حاجة مستحقة دلوقتي 👌") + "</b>"
-        + (next ? '<p class="muted u-mt8px">أقرب مراجعة جاية: ' + esc(new Date(next).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) + "</p>" : "") + '<a class="btn" href="#/student/quizexams">رجوع</a></div>' + closing();
+        + (next ? '<p class="muted u-mt8px">أقرب مراجعة جاية: ' + esc(new Date(next).toLocaleDateString(loc(), { weekday: "long", day: "numeric", month: "long" })) + "</p>" : "") + '<a class="btn" href="#/student/quizexams">رجوع</a></div>' + closing();
       bindStudentTabs(); return;
     }
     app.innerHTML = head + cardHtml(queue[i], i, queue.length, shown) + closing();

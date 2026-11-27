@@ -1,5 +1,5 @@
 import { openLoginModal } from "../auth/login.js";
-import { supportWhatsAppUrl } from "../../shared/site-config.js";
+import { supportWhatsAppUrl, waDirect } from "../../shared/site-config.js";
 import { ACTION_LABELS, GREETING, QUICK, answer } from "./chatbot.presenter.js";
 
 /* ---------- مساعد الأسئلة الشائعة (قواعد كلمات مفتاحية، من غير سيرفر) ---------- */
@@ -23,7 +23,7 @@ export function setupChatbot() {
           if (a === "wa") {
             const u = safeWa();
             if (!u) return;
-            el = document.createElement("a"); el.href = u; el.target = "_blank"; el.rel = "noopener";
+            el = document.createElement("a"); el.href = u; el.target = "_blank"; el.rel = "noopener"; el.addEventListener("click", (ev) => waDirect(ev));
           } else { el = document.createElement("button"); el.type = "button"; el.onclick = () => run(a); }
           el.className = "cb-act" + (a === "wa" ? " wa" : "");
           el.textContent = ACTION_LABELS[a] || a;

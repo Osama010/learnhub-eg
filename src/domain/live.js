@@ -1,3 +1,4 @@
+import { loc } from "./format.js";
 /* الحصص المباشرة (Zoom/Meet...): دوال صافية. المدرس بيحط لينك وميعاد، والطالب بيشوف ويدخل. */
 export const LIVE_HOSTS = ["zoom.us", "meet.google.com", "teams.microsoft.com", "teams.live.com", "whereby.com", "us02web.zoom.us"];
 export const LIVE_DURATION_MIN = 120; // الحصة بتعتبر جارية لحد ساعتين من معادها
@@ -35,5 +36,5 @@ export function upcomingLive(list, nowMs, visible) {
 }
 export function fmtLive(ms) {
   const d = new Date(ms);
-  return d.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" }) + " الساعة " + d.toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleDateString(loc(), { weekday: "long", day: "numeric", month: "long" }) + (loc() === "ar-EG" ? " الساعة " : " at ") + d.toLocaleTimeString(loc(), { hour: "numeric", minute: "2-digit" });
 }

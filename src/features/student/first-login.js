@@ -23,7 +23,7 @@ export function renderParentPhoneGate() {
     try {
       await useCases.saveParentPhone(fbUser.uid, v);
       if (fbProfile) fbProfile.parentPhone = v;
-      renderStudentHome();
+      if (location.hash === "#/student/analytics") window.dispatchEvent(new Event("hashchange")); else location.hash = "#/student/analytics";
     } catch (e) {
       btn.disabled = false;
       m.textContent = "حصلت مشكلة: " + (e.message || e);

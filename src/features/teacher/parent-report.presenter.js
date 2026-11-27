@@ -1,3 +1,4 @@
+import { loc } from "../../domain/format.js";
 /* Presenter تقرير ولي الأمر: بيجمع أرقام طالب واحد ويبني نص الواتساب. صافي. */
 import { stageOfGrade } from "../../domain/student.js";
 import { attemptPct } from "../../domain/quiz.js";
@@ -6,7 +7,7 @@ import { weakAreas } from "../../domain/weak-points.js";
 import { normMode } from "./recipient.presenter.js";
 
 const prepAvg = (xs) => (xs.length ? Math.round(xs.reduce((s, v) => s + v, 0) / xs.length) : null);
-const prepDate = (d) => (d ? d.toLocaleDateString("ar-EG") : "—");
+const prepDate = (d) => (d ? d.toLocaleDateString(loc()) : "—");
 
 /** نموذج التقرير: أرقام الكويزات والامتحانات وآخر نشاط وآخر محاولات واللي لسه ما اتحلش. */
 /** مستوى الطالب من متوسط كل محاولاته (بدون بيانات = null). */

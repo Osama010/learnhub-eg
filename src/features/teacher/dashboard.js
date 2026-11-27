@@ -1,5 +1,6 @@
 import { authErrAr, fbProfile, fbUser } from "../../core/session.js";
 import { T } from "../../core/templates.js";
+import { bindLangSync } from "../../shared/lang-sync.js";
 import { app, esc } from "../../core/utils.js";
 import { aboutTeaserHtml, bindAboutTeaser, loadAboutSettings } from "../about/about.js";
 import { renderLogin } from "../auth/login.js";
@@ -36,6 +37,7 @@ export function teacherTabs(active) {
 export function bindTeacherTabs() {
   document.querySelectorAll(".tab[data-g]").forEach((b) => b.onclick = () => location.hash = b.dataset.g);
   bindPlatNav();
+  bindLangSync();
 }
 
 export async function teacherLoad() {
@@ -140,7 +142,7 @@ export async function renderTeacherDash() {
   } catch (_) {}
   app.innerHTML = T("teacher.renderTeacherDash_3", { aboutTeaserHtml, addReqs, approved, bcData, broadcastBannerHtml, closing, dashGradeFilter, esc, fbProfile, fbUser, gradesOfStage, honorBoardCard, pending, stageOfGrade, studentQuizAvg, subFmtDate, subInfo, tAvatarHtml, teacherTabs, waLink, weekActs });
   bindTeacherTabs();
-  import("./backup-extras.js").then((m) => m.mountBackupReminder(document.querySelector(".tabs"))).catch(() => {});
+  import("./backup-extras.js").then((m) => m.mountBackupReminder(document.querySelector(".pnav"))).catch(() => {});
   bindAboutTeaser();
   document.querySelectorAll("[data-glink]").forEach((el) => el.onclick = () => location.hash = el.dataset.glink);
   document.querySelectorAll("[data-req-ok]").forEach((b) => b.onclick = () => teacherAnswerAddReq(b.dataset.reqOk, true));

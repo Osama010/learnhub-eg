@@ -111,7 +111,17 @@ service cloud.firestore {
     match /registrationLookup/{lookupId} {
       allow get: if true;
       allow list: if false;
-      allow create: if isAdmin() || isTeacher()
+      allow create: if isAdmin()
+        || (isTeacher()
+            && request.resource.data.keys().hasOnly(["saltEmail", "status", "studentId", "teacherIds", "authLinked", "addedBy"])
+            && request.resource.data.saltEmail == lookupId
+            && lookupId == lookupId.lower()
+            && request.resource.data.status == "approved"
+            && request.resource.data.authLinked == true
+            && request.resource.data.addedBy == request.auth.uid
+            && request.resource.data.teacherIds == [request.auth.uid]
+            && request.resource.data.studentId is string
+            && request.resource.data.studentId.size() > 0)
         || (request.resource.data.keys().hasOnly(["pinHash", "saltEmail", "status", "studentId", "teacherIds"])
             && request.resource.data.status == "pending"
             && request.resource.data.pinHash is string
@@ -400,7 +410,7 @@ service cloud.firestore {
     function userStateOk() {
       return request.resource.data.keys().hasOnly(['v', 'at', 'updatedAt'])
         && request.resource.data.v is map
-        && request.resource.data.v.keys().hasOnly(['srs', 'boardHidden', 'secState', 'recipientMode', 'bulkDone', 'backupLast', 'backupSnooze', 'parentCode'])
+        && request.resource.data.v.keys().hasOnly(['srs', 'boardHidden', 'secState', 'recipientMode', 'bulkDone', 'backupLast', 'backupSnooze', 'parentCode', 'watched', 'lang'])
         && request.resource.data.v.get('srs', '').size() <= 30000
         && request.resource.data.v.get('bulkDone', '').size() <= 30000
         && request.resource.data.v.get('secState', '').size() <= 3000
@@ -409,6 +419,8 @@ service cloud.firestore {
         && request.resource.data.v.get('backupLast', '').size() <= 20
         && request.resource.data.v.get('backupSnooze', '').size() <= 20
         && request.resource.data.v.get('parentCode', '').size() <= 50
+        && request.resource.data.v.get('watched', '').size() <= 30000
+        && request.resource.data.v.get('lang', '').size() <= 20
         && request.resource.data.at is map
         && request.resource.data.updatedAt is number;
     }
@@ -469,6 +481,24 @@ service cloud.firestore {
     }
 
     
+    // طالب بيضيفه المدرس بنفسه (إضافة طالب / رفع قايمة): معتمد ومربوط بالمدرس ده بس، وبحقول معروفة بس
+    function teacherAddsStudent() {
+      let d = request.resource.data;
+      return isTeacher()
+        && d.keys().hasOnly(["name", "email", "grade", "phone", "parentPhone", "teacherIds", "status", "authLinked", "addedBy", "createdAt"])
+        && d.keys().hasAll(["name", "email", "grade", "teacherIds", "status", "authLinked", "addedBy", "createdAt"])
+        && d.status == "approved"
+        && d.authLinked == true
+        && d.addedBy == request.auth.uid
+        && d.teacherIds == [request.auth.uid]
+        && d.name is string && d.name.size() >= 3 && d.name.size() <= 80
+        && d.email is string && d.email.size() <= 120 && d.email.matches('^[^ @]+@[^ @]+[.][^ @]+$') && d.email == d.email.lower()
+        && d.grade is string && d.grade.size() <= 40
+        && d.get("phone", "") is string && d.get("phone", "").size() <= 15
+        && d.get("parentPhone", "") is string && d.get("parentPhone", "").size() <= 15
+        && d.createdAt == request.time;
+    }
+
     match /students/{studentId} {
       
       
@@ -488,7 +518,7 @@ service cloud.firestore {
       
       
       
-      allow create: if isAdmin() || isTeacher()
+      allow create: if isAdmin() || teacherAddsStudent()
         || request.resource.data.status == "pending"
         || (request.auth != null && request.auth.uid == studentId
             && request.resource.data.email == request.auth.token.email

@@ -1,3 +1,4 @@
+import { loc } from "../../domain/format.js";
 /* تحليل أداء الطالب: نموذج العرض من غير DOM ولا Firebase. */
 export function longestStreak(profile) {
   const ds = Object.keys((profile && profile.activityDays) || {}).sort();
@@ -34,7 +35,7 @@ export function buildStudentAnalyticsModel({ opts, now, profile, data, kit: { an
   const weakQuiz = weak ? (data.quizzes || []).find((q) => q.id === weak.quizId) : null;
   const week = [];
   const days = (profile && profile.activityDays) || {};
-  for (let i = 6; i >= 0; i--) { const d = new Date(now.getTime() - i * DAY); week.push({ on: !!days[dateStr(d)], l: d.toLocaleDateString("ar-EG", { weekday: "short" }) }); }
+  for (let i = 6; i >= 0; i--) { const d = new Date(now.getTime() - i * DAY); week.push({ on: !!days[dateStr(d)], l: d.toLocaleDateString(loc(), { weekday: "short" }) }); }
   const todayOn = !!days[dateStr(now)], streak = currentStreak();
   const recos = [];
   if (weakQuiz) recos.push({ t: `أضعف نقطة عندك: "${weakQuiz.title || "كويز"}" (${Math.round(anPct(weak))}%) — أعده`, act: { label: "إعادة الكويز", hash: "#/student/quiz/" + weakQuiz.id } });

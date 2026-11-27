@@ -10,6 +10,7 @@ export function memoryRepositories(seed = {}) {
       async update(id, patch) { if (!db.students.has(id)) throw new Error("not found"); Object.assign(db.students.get(id), patch); },
       async get(id) { return db.students.has(id) ? { ...db.students.get(id) } : null; },
       async replaceProfile(newId, data, oldId) { db.students.set(newId, { ...data }); if (oldId) db.students.delete(oldId); },
+      async createLinked(uid, data, lookup) { if (db.failLink) throw new Error("link failed"); db.students.set(uid, { ...data }); db.lookups.set(data.email, { ...lookup }); log.push(["createLinked", uid]); },
       async register(data) { const id = "s" + nextId++; db.students.set(id, { ...data }); log.push(["register", id]); return id; },
       async changeStatus(id, email, status) {
         if (!db.students.has(id)) throw new Error("not found");
@@ -77,6 +78,13 @@ export function memoryRepositories(seed = {}) {
     },
     auth: {
       async sendPasswordReset(email) { (db.resets = db.resets || []).push(email); },
+      async createManagedUser(email) {
+        if (db.authFail) { const e = new Error("fail"); e.code = db.authFail; throw e; }
+        if (db.authUsers && db.authUsers.has(email)) { const e = new Error("exists"); e.code = "auth/email-already-in-use"; throw e; }
+        (db.authUsers = db.authUsers || new Map()).set(email, "random");
+        (db.resets = db.resets || []).push(email);
+        return { uid: "auth-" + email, emailSent: db.mailFail ? false : true };
+      },
       async createUser(email, password) {
         if (db.authUsers && db.authUsers.has(email)) { const e = new Error("exists"); e.code = "auth/email-already-in-use"; throw e; }
         (db.authUsers = db.authUsers || new Map()).set(email, password);

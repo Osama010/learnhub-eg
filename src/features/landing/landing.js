@@ -1,6 +1,6 @@
 
 import { openLoginModal } from "../auth/login.js";
-import { supportWhatsAppUrl } from "../../shared/site-config.js";
+import { supportWhatsAppUrl, waDirect } from "../../shared/site-config.js";
 import { pwaCanPrompt, pwaIsIOS, pwaIsStandalone, pwaPrompt } from "../../shared/pwa.js";
 import { setupChatbot } from "./chatbot.js";
 import { T } from "../../core/templates.js";
@@ -34,6 +34,7 @@ export async function renderLanding() {
     more.textContent = readMoreLabel(open);
   };
   setupLoginMenu();
+  try { document.querySelectorAll("[data-wa]").forEach((a) => a.addEventListener("click", (ev) => waDirect(ev))); } catch (_) {}
   setupInstall();
   setupChatbot();
   window.scrollTo(0, 0);

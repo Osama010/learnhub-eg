@@ -23,6 +23,7 @@ import { renderTeacherProfile } from "../features/teacher/account.js";
 import { renderTeacherAnalytics } from "../features/teacher/analytics.js";
 import { renderTeacherAnnouncements } from "../features/teacher/announcements.js";
 import { renderTeacherDash, renderTeacherTransfer } from "../features/teacher/dashboard.js";
+import { renderTeacherAddStudents } from "../features/teacher/add-students.js";
 import { renderTeacherLessonView } from "../features/teacher/lesson-preview.js";
 import { renderTeacherLessons } from "../features/teacher/lessons.js";
 import { renderTeacherReports } from "../features/teacher/reports.js";
@@ -73,6 +74,7 @@ export function route() {
     if (h === "#/teacher/reports") return renderTeacherReports();
     if (h === "#/teacher/analytics") return renderTeacherAnalytics();
     if (h === "#/teacher/transfer") return renderTeacherTransfer();
+    if (h === "#/teacher/add-students") return renderTeacherAddStudents();
     if (h === "#/teacher/announcements") return renderTeacherAnnouncements();
     if (h === "#/teacher/bulk") return renderTeacherBulk();
     if (h === "#/teacher/follow") return renderTeacherFollow();
